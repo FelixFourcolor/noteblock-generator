@@ -6,18 +6,19 @@ _version = ("java", (1, 20))
 
 class Block(_amulet.api.block.Block):
     """A wrapper for amulet Block,
-    with a more convenient constructor."""
+    with a more convenient constructor.
+    """
 
-    def __init__(self, name: str, properties: dict[str, int | str] = None):
+    def __init__(self, name: str, **properties):
         # WARNING: there is no error message if 'name' is not a valid block name
-        if (_properties := properties) is not None:
-            _properties = {k: _amulet.StringTag(v) for k, v in _properties.items()}
-        super().__init__("minecraft", name, _properties)
+        properties = {k: _amulet.StringTag(v) for k, v in properties.items()}
+        super().__init__("minecraft", name, properties)
 
 
 class World:
     """A wrapper for amulet.load_level,
-    with some conveniece methods to edit world and a context manager to auto-save."""
+    with some conveniece methods to edit world and a context manager to auto-save.
+    """
 
     def __init__(self, path: str):
         self._path = path
