@@ -1,0 +1,29 @@
+{
+    "name": "Happy Birthday",
+    "time": 12,
+    "tempo": 2,
+    "transpose": 0,
+
+    "voices": [
+        {
+            "name": "tenor",
+            "instrument": "guitar",
+
+            "notes": [
+                { "dynamic": 1 },
+                "r 8", "c3 3", "c3 1", "d3 4", "c3 4", "f3 4", "e3 4", "r 4",
+
+                { "dynamic": 2 },
+                "c3 3", "c3 1", "d3 4", "c3 4", "g3 4", "f3 4", "r 4",
+
+                { "dynamic": 3 },
+                "c3 3", "c3 1", "c4 4", "a3 4", "f3 4", "e3 4", "d3 4",
+                { "tempo": 3 },
+                { "name": "bb3 3", "dynamic": 4, "instrument": "harp" },
+                { "name": "bb3 1", "dynamic": 4, "instrument": "harp" },
+                { "name": "a3 3", "dynamic": 4, "instrument": "harp" },
+                "f3 4", "g3 4", { "tempo": 4 }, "f3 4", "r 8"
+            ]
+        }
+    ]
+}
