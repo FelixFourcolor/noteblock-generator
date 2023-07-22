@@ -77,6 +77,7 @@ class Voice:
         self,
         _comp: Composition,
         name: str = None,
+        tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
@@ -85,23 +86,27 @@ class Voice:
             dynamic = _comp.dynamic
         if transpose is None:
             transpose = _comp.transpose
+        if tempo is None:
+            tempo = _comp.tempo
 
-        self._notes: list[list[Note]] = []  # list of notes divided into bars
+        self._notes: list[list[Note]] = [[]]  # list of notes divided into bars
         self._current_bar_length = 0
 
         self.time = _comp.time
-        self.tempo = _comp.tempo
         self.name = name
         self.instrument = instrument
-        self._config(instrument, dynamic, transpose)
+        self._config(tempo, instrument, dynamic, transpose)
 
     def _config(
         self,
+        tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
     ):
         self.instrument = instrument
+        if tempo is not None:
+            self.tempo = tempo
         if dynamic is not None:
             self.dynamic = dynamic
         if transpose is not None:
