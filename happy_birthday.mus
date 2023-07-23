@@ -2,7 +2,7 @@
     "name": "Happy Birthday",
     "time": 12,
     "tempo": 2,
-    "transpose": 0,
+    "transpose": 6,
 
     "voices": [
         {

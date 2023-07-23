@@ -59,4 +59,10 @@ for json_voice in json_voices:
             json_note = {"name": json_note}
         voice.add_note(**json_note)
 
+print(composition)
+for voice in composition:
+    print(voice)
+    for bar in voice:
+        print(bar)
+
 composition.generate(path_out)

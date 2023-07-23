@@ -8,12 +8,13 @@ _octaves = [_first]
 for _ in range(6):
     _octaves.append([p[:-1] + str(int(p[-1]) + 1) for p in _octaves[-1]])
 # flatten and convert to dict
-_PITCHES = {
+_ORIGINAL_PITCHES = {
     name: value
     for value, name in enumerate([pitch for octave in _octaves for pitch in octave])
 }
 # extend accidentals
-for name, value in dict(_PITCHES).items():
+_PITCHES = dict(_ORIGINAL_PITCHES)
+for name, value in _ORIGINAL_PITCHES.items():
     if name[-2] == "s":
         # double sharps
         if value + 1 < 84:
@@ -163,7 +164,6 @@ class Note:
         dynamic: int = None,
         transpose: int = None,
     ):
-        self.pitch = pitch
         self.delay = _voice.tempo
 
         if transpose is None:
@@ -185,8 +185,15 @@ class Note:
             dynamic = _voice.dynamic
         self.dynamic = dynamic
 
+        if transpose == 0:
+            self._name = pitch
+        else:
+            for name, value in _ORIGINAL_PITCHES.items():
+                if value == pitch_value:
+                    self._name = name
+
     def __str__(self):
-        return self.pitch
+        return self._name
 
 
 class _Rest(Note):
@@ -197,7 +204,7 @@ class _Rest(Note):
         self.dynamic = 0
 
     def __str__(self):
-        return "r"
+        return ""
 
 
 class Bar(list[Note]):
