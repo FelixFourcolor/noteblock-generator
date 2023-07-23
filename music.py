@@ -114,11 +114,17 @@ class Voice:
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
         self._bars: list[Bar] = [Bar()]
-        self._current_bar_length = 0
+        self._current_position = 0
         for note in notes:
             if isinstance(note, str):
                 note = {"name": note}
             self._add_note(**note)
+
+    @property
+    def current_position(self):
+        """For error message"""
+        div, mod = divmod(self._current_position, self.time)
+        return (div + 1, mod + 1)
 
     def __iter__(self):
         yield from self._bars
@@ -163,15 +169,14 @@ class Voice:
                 notes = self._rest(duration)
             else:
                 notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
+            self._current_position += duration
 
             # organize into bars
             for note in notes:
-                if self._current_bar_length == self.time:
+                if len(self._bars[-1]) == self.time:
                     self._bars.append(Bar([note]))
-                    self._current_bar_length = 1
                 else:
                     self._bars[-1].append(note)
-                    self._current_bar_length += 1
         else:
             self._config(**kwargs)
 
@@ -201,7 +206,10 @@ class Note:
         instrument_range = INSTRUMENTS[instrument]
         if pitch_value not in instrument_range:
             if not autoReplaceOctaveEquivalent:
-                raise ValueError(f"{pitch_value} is out of range.")
+                raise ValueError(
+                    f"{_voice} at {_voice.current_position}: "
+                    f"{pitch_value} is out of range."
+                )
             elif pitch_value < (start := instrument_range.start):
                 pitch_value += 12 * math.ceil((start - pitch_value) / 12)
             elif pitch_value >= (stop := instrument_range.stop):
