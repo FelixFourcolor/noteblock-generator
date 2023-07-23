@@ -1,5 +1,7 @@
 import amulet as _amulet
 
+from music import Composition
+
 _namespace = "minecraft:overworld"
 _version = ("java", (1, 20))
 
@@ -39,3 +41,12 @@ class World:
         if isinstance(_block := block, str):
             _block = Block(_block)
         self._level.set_version_block(*coordinates, _namespace, _version, _block)
+
+
+# TODO
+def generate(composition: Composition, path: str):
+    print(composition)
+    for voice in composition:
+        print(voice)
+        for i, bar in enumerate(voice):
+            print(i + 1, bar)
