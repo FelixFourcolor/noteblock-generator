@@ -57,12 +57,20 @@ class Composition:
         dynamic=2,
         transpose=0,
     ):
-        self._voices = []
+        self._voices: list[Voice] = []
         self.time = time
         self.tempo = tempo
         self.name = name
         self.dynamic = dynamic
         self.transpose = transpose
+
+    def __iter__(self):
+        yield from self._voices
+
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return super().__str__()
 
     def add_voice(self, **kwargs) -> Voice:
         self._voices.append(voice := Voice(self, **kwargs))
@@ -89,13 +97,21 @@ class Voice:
         if tempo is None:
             tempo = _comp.tempo
 
-        self._notes: list[list[Note]] = [[]]  # list of notes divided into bars
+        self._bars: list[Bar] = [Bar()]  # list of notes divided into bars
         self._current_bar_length = 0
 
         self.time = _comp.time
         self.name = name
         self.instrument = instrument
         self._config(tempo, instrument, dynamic, transpose)
+
+    def __iter__(self):
+        yield from self._bars
+
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return super().__str__()
 
     def _config(
         self,
@@ -128,10 +144,10 @@ class Voice:
             # organize into bars
             for note in notes:
                 if self._current_bar_length == self.time:
-                    self._notes.append([note])
+                    self._bars.append(Bar([note]))
                     self._current_bar_length = 1
                 else:
-                    self._notes[-1].append(note)
+                    self._bars[-1].append(note)
                     self._current_bar_length += 1
 
         except KeyError:
@@ -147,6 +163,7 @@ class Note:
         dynamic: int = None,
         transpose: int = None,
     ):
+        self.pitch = pitch
         self.delay = _voice.tempo
 
         if transpose is None:
@@ -168,6 +185,9 @@ class Note:
             dynamic = _voice.dynamic
         self.dynamic = dynamic
 
+    def __str__(self):
+        return self.pitch
+
 
 class _Rest(Note):
     def __init__(self, _voice: Voice):
@@ -175,3 +195,14 @@ class _Rest(Note):
         self.instrument = ""
         self.note = 0
         self.dynamic = 0
+
+    def __str__(self):
+        return "r"
+
+
+class Bar(list[Note]):
+    def __str__(self):
+        return str([str(note) for note in self])
+
+    def __repr__(self) -> str:
+        return str([repr(note) for note in self])
