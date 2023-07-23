@@ -120,7 +120,8 @@ class Voice:
         dynamic: int = None,
         transpose: int = None,
     ):
-        self.instrument = instrument
+        if instrument is not None:
+            self.instrument = instrument
         if tempo is not None:
             self.tempo = tempo
         if dynamic is not None:
