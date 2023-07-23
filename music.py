@@ -91,30 +91,33 @@ class Voice:
         _composition: Composition,
         notes: list[str | dict],
         name: str = None,
+        time: int = None,
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
         autoReplaceOctaveEquivalent: bool = None,
     ):
-        self.time = _composition.time
-        self.name = name
-        self.instrument = instrument
+        if time is None:
+            time = _composition.time
         if tempo is None:
             tempo = _composition.tempo
-        self.tempo = tempo
         if dynamic is None:
             dynamic = _composition.dynamic
-        self.dynamic = dynamic
         if transpose is None:
             transpose = _composition.transpose
-        self.transpose = transpose
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
+
+        self.name = name
+        self.time = time
+        self.instrument = instrument
+        self.tempo = tempo
+        self.dynamic = dynamic
+        self.transpose = transpose
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
         self._bars: list[Bar] = [Bar()]
-        self._current_position = 0
         for note in notes:
             if isinstance(note, str):
                 note = {"name": note}
@@ -123,8 +126,7 @@ class Voice:
     @property
     def current_position(self):
         """For error message"""
-        div, mod = divmod(self._current_position, self.time)
-        return (div + 1, mod + 1)
+        return (len(self._bars), len(self._bars[-1]) + 1)
 
     def __iter__(self):
         yield from self._bars
@@ -140,16 +142,19 @@ class Voice:
 
     def _config(
         self,
+        time: int = None,
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
         autoReplaceOctaveEquivalent: bool = None,
     ):
-        if instrument is not None:
-            self.instrument = instrument
+        if time is not None:
+            self.time = time
         if tempo is not None:
             self.tempo = tempo
+        if instrument is not None:
+            self.instrument = instrument
         if dynamic is not None:
             self.dynamic = dynamic
         if transpose is not None:
@@ -169,14 +174,17 @@ class Voice:
                 notes = self._rest(duration)
             else:
                 notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
-            self._current_position += duration
 
             # organize into bars
             for note in notes:
-                if len(self._bars[-1]) == self.time:
+                if (L := len(self._bars[-1])) < self.time:
+                    self._bars[-1].append(note)
+                elif L == self.time:
                     self._bars.append(Bar([note]))
                 else:
-                    self._bars[-1].append(note)
+                    raise ValueError(f"{self} at {self.current_position}: time error.")
+            if len(self._bars[-1]) == self.time:
+                self._bars.append(Bar())
         else:
             self._config(**kwargs)
 
