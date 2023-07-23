@@ -132,7 +132,7 @@ class Voice:
         return [_Rest(self)] * duration
 
     def add_note(self, **kwargs):
-        try:
+        if "name" in kwargs:
             # parse note name
             pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
             duration = int(_duration)
@@ -149,8 +149,7 @@ class Voice:
                 else:
                     self._bars[-1].append(note)
                     self._current_bar_length += 1
-
-        except KeyError:
+        else:
             self._config(**kwargs)
 
 
