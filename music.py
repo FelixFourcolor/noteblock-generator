@@ -186,13 +186,14 @@ class Note:
         self,
         _voice: Voice,
         pitch: str,
+        tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
         autoReplaceOctaveEquivalent: bool = None,
     ):
-        self.delay = _voice.tempo
-
+        if tempo is None:
+            tempo = _voice.tempo
         if instrument is None:
             instrument = _voice.instrument
         if dynamic is None:
@@ -201,6 +202,10 @@ class Note:
             transpose = _voice.transpose
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
+
+        self.delay = tempo
+        self.instrument = instrument
+        self.dynamic = dynamic
 
         self._value = PITCHES[pitch] + transpose
         try:
@@ -219,7 +224,7 @@ class Note:
             else:
                 raise UNREACHABLE
 
-        if instrument is None:
+        if self.instrument is None:
             # choose instrument based on pitch
             for _instrument, _range in INSTRUMENTS.items():
                 if self._value in _range:
@@ -230,10 +235,7 @@ class Note:
                 raise UNREACHABLE("Pitch_value was already checked to be in range")
         else:
             # choose note based on pitch and instrument
-            self.instrument = instrument
             self.note = instrument_range.index(self._value)
-
-        self.dynamic = dynamic
 
     def __str__(self):
         for name, value in ORIGINAL_PITCHES.items():
