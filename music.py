@@ -168,8 +168,14 @@ class Voice:
         return [Rest(self)] * duration
 
     def _add_note(self, **kwargs):
+        # prepare current bar
+        if (L := len(self._bars[-1])) == self.time:
+            self._bars.append(Bar())
+        elif L > self.time:
+            raise ValueError(f"{self} at {self.current_position}: time error.")
+
         if "name" in kwargs:
-            # parse note name
+            # parse note name, divide into actual note + rests
             pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
             duration = int(_duration)
             if pitch == "r":
@@ -177,16 +183,13 @@ class Voice:
             else:
                 notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
 
-            # organize into bars
+            # organize those into bars
             for note in notes:
-                if (L := len(self._bars[-1])) < self.time:
+                if len(self._bars[-1]) < self.time:
                     self._bars[-1].append(note)
-                elif L == self.time:
-                    self._bars.append(Bar([note]))
                 else:
-                    raise ValueError(f"{self} at {self.current_position}: time error.")
-            if len(self._bars[-1]) == self.time:
-                self._bars.append(Bar())
+                    self._bars.append(Bar([note]))
+
         else:
             self._config(**kwargs)
 
@@ -232,12 +235,11 @@ class Note:
                 raise ValueError(
                     f"{_voice} at {_voice.current_position}: {self} is out of range."
                 )
-            elif pitch_value < (start := instrument_range.start):
+            start, stop = instrument_range.start, instrument_range.stop
+            if pitch_value < start:
                 pitch_value += 12 * math.ceil((start - pitch_value) / 12)
-            elif pitch_value >= (stop := instrument_range.stop):
-                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
             else:
-                raise UNREACHABLE
+                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
 
         if self.instrument is None:
             # choose instrument based on pitch
@@ -258,7 +260,7 @@ class Note:
                     self.name = name
                     break
             else:
-                raise UNREACHABLE(pitch_value)
+                raise UNREACHABLE("Pitch_value was already checked to be in range.")
 
     def __str__(self):
         return self.name
