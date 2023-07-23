@@ -193,7 +193,7 @@ class Note:
     def __init__(
         self,
         _voice: Voice,
-        pitch: str,
+        name: str,
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
@@ -211,45 +211,55 @@ class Note:
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
+        self.name = name
+        if transpose > 0:
+            self.name += f"+{transpose}"
+        elif transpose < 0:
+            self.name += f"{transpose}"
         self.delay = tempo
         self.instrument = instrument
         self.dynamic = dynamic
 
-        self._value = PITCHES[pitch] + transpose
+        pitch_value = PITCHES[name] + transpose
         try:
             instrument_range = INSTRUMENTS[instrument]
         except KeyError:
             raise KeyError(f"{_voice}: invalid instrument.")
-        if self._value not in instrument_range:
+        if pitch_value not in instrument_range:
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
                     f"{_voice} at {_voice.current_position}: {self} is out of range."
                 )
-            elif self._value < (start := instrument_range.start):
-                self._value += 12 * math.ceil((start - self._value) / 12)
-            elif self._value >= (stop := instrument_range.stop):
-                self._value -= 12 * math.ceil((self._value - stop + 1) / 12)
+            elif pitch_value < (start := instrument_range.start):
+                pitch_value += 12 * math.ceil((start - pitch_value) / 12)
+            elif pitch_value >= (stop := instrument_range.stop):
+                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
             else:
                 raise UNREACHABLE
 
         if self.instrument is None:
             # choose instrument based on pitch
             for _instrument, _range in INSTRUMENTS.items():
-                if self._value in _range:
+                if pitch_value in _range:
                     self.instrument = _instrument
-                    self.note = _range.index(self._value)
+                    self.note = _range.index(pitch_value)
                     break
             else:
                 raise UNREACHABLE("Pitch_value was already checked to be in range")
         else:
             # choose note based on pitch and instrument
-            self.note = instrument_range.index(self._value)
+            self.note = instrument_range.index(pitch_value)
+
+        if transpose:
+            for name, value in ORIGINAL_PITCHES.items():
+                if value == pitch_value:
+                    self.name = name
+                    break
+            else:
+                raise UNREACHABLE(pitch_value)
 
     def __str__(self):
-        for name, value in ORIGINAL_PITCHES.items():
-            if value == self._value:
-                return name
-        return str(self._value)
+        return self.name
 
 
 class Rest(Note):
