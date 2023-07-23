@@ -171,11 +171,14 @@ class Note:
         pitch_value = PITCHES[pitch] + transpose
 
         if instrument is None and (instrument := _voice.instrument) is None:
-            # choose instrument based on pitch
+            # choose instrument based on pitch, error if none is in range
             for _instrument, _range in INSTRUMENTS.items():
                 if pitch_value in _range:
                     self.instrument = instrument
                     self.note = _range.index(pitch_value)
+                    break
+            else:
+                raise ValueError(f"{pitch_value} is out of range.")
         else:
             # choose note based on pitch and instrument, error if not in range
             self.instrument = instrument
