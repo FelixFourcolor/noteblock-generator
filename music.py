@@ -202,46 +202,42 @@ class Note:
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
-        pitch_value = PITCHES[pitch] + transpose
+        self._value = PITCHES[pitch] + transpose
         instrument_range = INSTRUMENTS[instrument]
-        if pitch_value not in instrument_range:
+
+        if self._value not in instrument_range:
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
-                    f"{_voice} at {_voice.current_position}: "
-                    f"{pitch_value} is out of range."
+                    f"{_voice} at {_voice.current_position}: {self} is out of range."
                 )
-            elif pitch_value < (start := instrument_range.start):
-                pitch_value += 12 * math.ceil((start - pitch_value) / 12)
-            elif pitch_value >= (stop := instrument_range.stop):
-                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
+            elif self._value < (start := instrument_range.start):
+                self._value += 12 * math.ceil((start - self._value) / 12)
+            elif self._value >= (stop := instrument_range.stop):
+                self._value -= 12 * math.ceil((self._value - stop + 1) / 12)
             else:
                 raise UNREACHABLE
 
         if instrument is None:
             # choose instrument based on pitch
             for _instrument, _range in INSTRUMENTS.items():
-                if pitch_value in _range:
+                if self._value in _range:
                     self.instrument = _instrument
-                    self.note = _range.index(pitch_value)
+                    self.note = _range.index(self._value)
                     break
             else:
                 raise UNREACHABLE("Pitch_value was already checked to be in range")
         else:
             # choose note based on pitch and instrument
             self.instrument = instrument
-            self.note = instrument_range.index(pitch_value)
+            self.note = instrument_range.index(self._value)
 
         self.dynamic = dynamic
 
-        if transpose == 0:
-            self._name = pitch
-        else:
-            for name, value in ORIGINAL_PITCHES.items():
-                if value == pitch_value:
-                    self._name = name
-
     def __str__(self):
-        return self._name
+        for name, value in ORIGINAL_PITCHES.items():
+            if value == self._value:
+                return name
+        return str(self._value)
 
 
 class Rest(Note):
