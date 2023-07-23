@@ -64,6 +64,7 @@ class Composition:
         tempo: int,
         voices: list[dict],
         name: str = None,
+        instrument: str = None,
         dynamic=2,
         transpose=0,
         autoReplaceOctaveEquivalent=False,
@@ -71,6 +72,7 @@ class Composition:
         self.time = time
         self.tempo = tempo
         self.name = name
+        self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = transpose
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
@@ -98,10 +100,13 @@ class Voice:
         transpose: int = None,
         autoReplaceOctaveEquivalent: bool = None,
     ):
+        self.name = name
         if time is None:
             time = _composition.time
         if tempo is None:
             tempo = _composition.tempo
+        if instrument is None:
+            instrument = _composition.instrument
         if dynamic is None:
             dynamic = _composition.dynamic
         if transpose is None:
@@ -110,12 +115,9 @@ class Voice:
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
 
         self.name = name
-        self.time = time
-        self.instrument = instrument
-        self.tempo = tempo
-        self.dynamic = dynamic
-        self.transpose = transpose
-        self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
+        self._config(
+            time, tempo, instrument, dynamic, transpose, autoReplaceOctaveEquivalent
+        )
 
         self._bars: list[Bar] = [Bar()]
         for note in notes:
