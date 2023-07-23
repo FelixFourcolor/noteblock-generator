@@ -8,28 +8,28 @@ _octaves = [_first]
 for _ in range(6):
     _octaves.append([p[:-1] + str(int(p[-1]) + 1) for p in _octaves[-1]])
 # flatten and convert to dict
-_ORIGINAL_PITCHES = {
+ORIGINAL_PITCHES = {
     name: value
     for value, name in enumerate([pitch for octave in _octaves for pitch in octave])
 }
 # extend accidentals
-_PITCHES = dict(_ORIGINAL_PITCHES)
-for name, value in _ORIGINAL_PITCHES.items():
+PITCHES = dict(ORIGINAL_PITCHES)
+for name, value in ORIGINAL_PITCHES.items():
     if name[-2] == "s":
         # double sharps
         if value + 1 < 84:
-            _PITCHES[name[:-1] + "s" + name[-1]] = value + 1
-            _PITCHES[name[:-2] + "x" + name[-1]] = value + 1
+            PITCHES[name[:-1] + "s" + name[-1]] = value + 1
+            PITCHES[name[:-2] + "x" + name[-1]] = value + 1
     else:
         # flats
         if value - 1 >= 0:
-            _PITCHES[name[:-1] + "b" + name[-1]] = value - 1
+            PITCHES[name[:-1] + "b" + name[-1]] = value - 1
         # double flats
         if value - 2 >= 0:
-            _PITCHES[name[:-1] + "bb" + name[-1]] = value - 2
+            PITCHES[name[:-1] + "bb" + name[-1]] = value - 2
 
 # MAPPING OF INSTRUMENTS TO NUMERICAL RANGES
-_INSTRUMENTS = {
+INSTRUMENTS = {
     "bass": range(6, 31),
     "didgeridoo": range(6, 31),
     "guitar": range(18, 43),
@@ -54,16 +54,17 @@ class Composition:
         self,
         time: int,
         tempo: int,
+        voices: list[dict],
         name: str = None,
         dynamic=2,
         transpose=0,
     ):
-        self._voices: list[Voice] = []
         self.time = time
         self.tempo = tempo
         self.name = name
         self.dynamic = dynamic
         self.transpose = transpose
+        self._voices = [Voice(self, **voice) for voice in voices]
 
     def __iter__(self):
         yield from self._voices
@@ -73,38 +74,37 @@ class Composition:
             return self.name
         return super().__str__()
 
-    def add_voice(self, **kwargs) -> Voice:
-        self._voices.append(voice := Voice(self, **kwargs))
-        return voice
-
-    def generate(self, path: str):
-        """TODO"""
-
 
 class Voice:
     def __init__(
         self,
-        _comp: Composition,
+        _composition: Composition,
+        notes: list[str | dict],
         name: str = None,
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
     ):
-        if dynamic is None:
-            dynamic = _comp.dynamic
-        if transpose is None:
-            transpose = _comp.transpose
-        if tempo is None:
-            tempo = _comp.tempo
-
-        self._bars: list[Bar] = [Bar()]  # list of notes divided into bars
-        self._current_bar_length = 0
-
-        self.time = _comp.time
+        self.time = _composition.time
         self.name = name
         self.instrument = instrument
-        self._config(tempo, instrument, dynamic, transpose)
+        if tempo is None:
+            tempo = _composition.tempo
+        self.tempo = tempo
+        if dynamic is None:
+            dynamic = _composition.dynamic
+        self.dynamic = dynamic
+        if transpose is None:
+            transpose = _composition.transpose
+        self.transpose = transpose
+
+        self._bars: list[Bar] = [Bar()]
+        self._current_bar_length = 0
+        for note in notes:
+            if isinstance(note, str):
+                note = {"name": note}
+            self._add_note(**note)
 
     def __iter__(self):
         yield from self._bars
@@ -131,9 +131,9 @@ class Voice:
             self.transpose = transpose
 
     def _rest(self, duration: int) -> list[Note]:
-        return [_Rest(self)] * duration
+        return [Rest(self)] * duration
 
-    def add_note(self, **kwargs):
+    def _add_note(self, **kwargs):
         if "name" in kwargs:
             # parse note name
             pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
@@ -168,18 +168,18 @@ class Note:
 
         if transpose is None:
             transpose = _voice.transpose
-        pitch_value = _PITCHES[pitch] + transpose
+        pitch_value = PITCHES[pitch] + transpose
 
         if instrument is None and (instrument := _voice.instrument) is None:
             # choose instrument based on pitch
-            for _instrument, _range in _INSTRUMENTS.items():
+            for _instrument, _range in INSTRUMENTS.items():
                 if pitch_value in _range:
                     self.instrument = instrument
                     self.note = _range.index(pitch_value)
         else:
             # choose note based on pitch and instrument, error if not in range
             self.instrument = instrument
-            self.note = _INSTRUMENTS[instrument].index(pitch_value)
+            self.note = INSTRUMENTS[instrument].index(pitch_value)
 
         if dynamic is None:
             dynamic = _voice.dynamic
@@ -188,7 +188,7 @@ class Note:
         if transpose == 0:
             self._name = pitch
         else:
-            for name, value in _ORIGINAL_PITCHES.items():
+            for name, value in ORIGINAL_PITCHES.items():
                 if value == pitch_value:
                     self._name = name
 
@@ -196,7 +196,7 @@ class Note:
         return self._name
 
 
-class _Rest(Note):
+class Rest(Note):
     def __init__(self, _voice: Voice):
         self.delay = _voice.tempo
         self.instrument = ""
