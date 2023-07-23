@@ -124,6 +124,11 @@ class Voice:
             if isinstance(note, str):
                 note = {"name": note}
             self._add_note(**note)
+        if self._bars[0]:
+            if (L := len(last_bar := self._bars[-1])) < self.time:
+                last_bar += self._rest(self.time - L)
+        else:
+            self._bars = []
 
     @property
     def current_position(self):
