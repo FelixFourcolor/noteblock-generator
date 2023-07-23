@@ -124,8 +124,12 @@ class Voice:
         yield from self._bars
 
     def __str__(self):
-        if self.name is not None:
+        if self.name:
             return self.name
+        if self._bars:
+            if first_bar := self._bars[0]:
+                if instrument := first_bar[0].instrument:
+                    return instrument
         return super().__str__()
 
     def _config(
@@ -235,7 +239,7 @@ class Note:
 class Rest(Note):
     def __init__(self, _voice: Voice):
         self.delay = _voice.tempo
-        self.instrument = ""
+        self.instrument = _voice.instrument
         self.note = 0
         self.dynamic = 0
 

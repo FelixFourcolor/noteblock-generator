@@ -7,7 +7,6 @@
     
     "voices": [
         {
-            "name": "tenor",
             "instrument": "guitar",
 
             "notes": [
