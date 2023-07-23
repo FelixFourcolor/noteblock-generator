@@ -203,8 +203,10 @@ class Note:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
         self._value = PITCHES[pitch] + transpose
-        instrument_range = INSTRUMENTS[instrument]
-
+        try:
+            instrument_range = INSTRUMENTS[instrument]
+        except KeyError:
+            raise KeyError(f"{_voice}: invalid instrument.")
         if self._value not in instrument_range:
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
