@@ -29,22 +29,22 @@ for name, value in dict(_PITCHES).items():
 
 # MAPPING OF INSTRUMENTS TO NUMERICAL RANGES
 _INSTRUMENTS = {
-    "bass": range(6, 30),
-    "didgeridoo": range(6, 30),
-    "guitar": range(18, 42),
-    "harp": range(30, 54),
-    "bit": range(30, 54),
-    "banjo": range(30, 54),
-    "iron_xylophone": range(30, 54),
-    "pling": range(30, 54),
-    "flute": range(42, 66),
-    "cow_bell": range(42, 66),
-    "bell": range(54, 78),
-    "xylophone": range(54, 78),
-    "chime": range(54, 78),
-    "basedrum": range(78),
-    "hat": range(78),
-    "snare": range(78),
+    "bass": range(6, 31),
+    "didgeridoo": range(6, 31),
+    "guitar": range(18, 43),
+    "harp": range(30, 55),
+    "bit": range(30, 55),
+    "banjo": range(30, 55),
+    "iron_xylophone": range(30, 55),
+    "pling": range(30, 55),
+    "flute": range(42, 67),
+    "cow_bell": range(42, 67),
+    "bell": range(54, 79),
+    "xylophone": range(54, 79),
+    "chime": range(54, 79),
+    "basedrum": range(79),
+    "hat": range(79),
+    "snare": range(79),
 }
 
 
