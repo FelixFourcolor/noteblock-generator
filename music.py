@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import math
+
+
+class UNREACHABLE(Exception):
+    """For comment and debugging"""
+
+
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
 # create first octave
 _first = ["c1", "cs1", "d1", "ds1", "e1", "f1", "fs1", "g1", "gs1", "a1", "as1", "b1"]
@@ -46,6 +53,7 @@ INSTRUMENTS = {
     "basedrum": range(79),
     "hat": range(79),
     "snare": range(79),
+    None: range(79),
 }
 
 
@@ -58,12 +66,14 @@ class Composition:
         name: str = None,
         dynamic=2,
         transpose=0,
+        autoReplaceOctaveEquivalent=False,
     ):
         self.time = time
         self.tempo = tempo
         self.name = name
         self.dynamic = dynamic
         self.transpose = transpose
+        self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
         self._voices = [Voice(self, **voice) for voice in voices]
 
     def __iter__(self):
@@ -85,6 +95,7 @@ class Voice:
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
+        autoReplaceOctaveEquivalent: bool = None,
     ):
         self.time = _composition.time
         self.name = name
@@ -98,6 +109,9 @@ class Voice:
         if transpose is None:
             transpose = _composition.transpose
         self.transpose = transpose
+        if autoReplaceOctaveEquivalent is None:
+            autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
+        self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
         self._bars: list[Bar] = [Bar()]
         self._current_bar_length = 0
@@ -120,6 +134,7 @@ class Voice:
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
+        autoReplaceOctaveEquivalent: bool = None,
     ):
         if instrument is not None:
             self.instrument = instrument
@@ -129,6 +144,8 @@ class Voice:
             self.dynamic = dynamic
         if transpose is not None:
             self.transpose = transpose
+        if autoReplaceOctaveEquivalent is not None:
+            self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
     def _rest(self, duration: int) -> list[Note]:
         return [Rest(self)] * duration
@@ -163,29 +180,45 @@ class Note:
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
+        autoReplaceOctaveEquivalent: bool = None,
     ):
         self.delay = _voice.tempo
 
+        if instrument is None:
+            instrument = _voice.instrument
+        if dynamic is None:
+            dynamic = _voice.dynamic
         if transpose is None:
             transpose = _voice.transpose
-        pitch_value = PITCHES[pitch] + transpose
+        if autoReplaceOctaveEquivalent is None:
+            autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
-        if instrument is None and (instrument := _voice.instrument) is None:
-            # choose instrument based on pitch, error if none is in range
+        pitch_value = PITCHES[pitch] + transpose
+        instrument_range = INSTRUMENTS[instrument]
+        if pitch_value not in instrument_range:
+            if not autoReplaceOctaveEquivalent:
+                raise ValueError(f"{pitch_value} is out of range.")
+            elif pitch_value < (start := instrument_range.start):
+                pitch_value += 12 * math.ceil((start - pitch_value) / 12)
+            elif pitch_value >= (stop := instrument_range.stop):
+                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
+            else:
+                raise UNREACHABLE
+
+        if instrument is None:
+            # choose instrument based on pitch
             for _instrument, _range in INSTRUMENTS.items():
                 if pitch_value in _range:
-                    self.instrument = instrument
+                    self.instrument = _instrument
                     self.note = _range.index(pitch_value)
                     break
             else:
-                raise ValueError(f"{pitch_value} is out of range.")
+                raise UNREACHABLE("Pitch_value was already checked to be in range")
         else:
-            # choose note based on pitch and instrument, error if not in range
+            # choose note based on pitch and instrument
             self.instrument = instrument
-            self.note = INSTRUMENTS[instrument].index(pitch_value)
+            self.note = instrument_range.index(pitch_value)
 
-        if dynamic is None:
-            dynamic = _voice.dynamic
         self.dynamic = dynamic
 
         if transpose == 0:
