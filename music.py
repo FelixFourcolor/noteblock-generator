@@ -97,9 +97,10 @@ class Voice:
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
-        transpose: int = None,
+        transpose=0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
+        self._composition = _composition
         self.name = name
         if time is None:
             time = _composition.time
@@ -109,8 +110,6 @@ class Voice:
             instrument = _composition.instrument
         if dynamic is None:
             dynamic = _composition.dynamic
-        if transpose is None:
-            transpose = _composition.transpose
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
 
@@ -165,7 +164,7 @@ class Voice:
         if dynamic is not None:
             self.dynamic = dynamic
         if transpose is not None:
-            self.transpose = transpose
+            self.transpose = self._composition.transpose + transpose
         if autoReplaceOctaveEquivalent is not None:
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
@@ -207,7 +206,7 @@ class Note:
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
-        transpose: int = None,
+        transpose: int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
         if tempo is None:
@@ -216,12 +215,11 @@ class Note:
             instrument = _voice.instrument
         if dynamic is None:
             dynamic = _voice.dynamic
-        if transpose is None:
-            transpose = _voice.transpose
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
         self.name = name
+        transpose += _voice.transpose
         if transpose > 0:
             self.name += f"+{transpose}"
         elif transpose < 0:
