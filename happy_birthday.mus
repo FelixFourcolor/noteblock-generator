@@ -3,11 +3,12 @@
     "time": 12,
     "tempo": 2,
     "transpose": 0,
+    "autoTranspose": true,
     "autoReplaceOctaveEquivalent": false,
 
     "voices": [
         {
-            "instrument": "guitar",
+            "instrument": "flute",
 
             "notes": [
                 { "dynamic": 1 },

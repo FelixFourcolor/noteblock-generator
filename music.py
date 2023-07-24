@@ -57,6 +57,11 @@ INSTRUMENTS = {
 }
 
 
+class RequireTranspose(Exception):
+    def __init__(self, value: int):
+        self.value = value
+
+
 class Composition:
     def __init__(
         self,
@@ -67,6 +72,7 @@ class Composition:
         instrument: str = None,
         dynamic=2,
         transpose=0,
+        autoTranspose=False,
         autoReplaceOctaveEquivalent=False,
     ):
         self.time = time
@@ -75,8 +81,27 @@ class Composition:
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = transpose
+        self.autoTranspose = autoTranspose
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
+
+        self._required_transpose = 0
+        while True:
+            if not self.autoTranspose:
+                return self._set_voices(voices)
+            try:
+                return self._set_voices(voices)
+            except RequireTranspose as e:
+                value = e.value
+                if self._required_transpose * value < 0:
+                    self.autoTranspose = False
+                else:
+                    self._required_transpose += value
+                    self.transpose += value
+
+    def _set_voices(self, voices: list[dict]):
         self._voices = [Voice(self, **voice) for voice in voices]
+        if transpose := self._required_transpose:
+            print(f"autoTransposed: {transpose}")
 
     def __iter__(self):
         yield from self._voices
@@ -101,6 +126,7 @@ class Voice:
         autoReplaceOctaveEquivalent: bool = None,
     ):
         self._composition = _composition
+        self.autoTranspose = _composition.autoTranspose
         self.name = name
         if time is None:
             time = _composition.time
@@ -123,11 +149,6 @@ class Voice:
             if isinstance(note, str):
                 note = {"name": note}
             self._add_note(**note)
-        if self._bars[0]:
-            if (L := len(last_bar := self._bars[-1])) < self.time:
-                last_bar += self._rest(self.time - L)
-        else:
-            self._bars = []
 
     @property
     def current_position(self):
@@ -234,15 +255,21 @@ class Note:
         except KeyError:
             raise KeyError(f"{_voice}: invalid instrument.")
         if pitch_value not in instrument_range:
+            start, stop = instrument_range.start, instrument_range.stop
+            if pitch_value < start:
+                required_transpose = start - pitch_value
+            else:
+                required_transpose = stop - 1 - pitch_value
+            if _voice.autoTranspose:
+                raise RequireTranspose(required_transpose)
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
                     f"{_voice} at {_voice.current_position}: {self} is out of range."
                 )
-            start, stop = instrument_range.start, instrument_range.stop
             if pitch_value < start:
-                pitch_value += 12 * math.ceil((start - pitch_value) / 12)
+                pitch_value += 12 * math.ceil(required_transpose / 12)
             else:
-                pitch_value -= 12 * math.ceil((pitch_value - stop + 1) / 12)
+                pitch_value += 12 * math.floor(required_transpose / 12)
 
         if self.instrument is None:
             # choose instrument based on pitch
