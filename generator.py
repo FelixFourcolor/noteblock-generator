@@ -1,3 +1,6 @@
+from enum import Enum
+from typing import Iterable
+
 import amulet as _amulet
 
 from music import INSTRUMENTS, Composition
@@ -21,22 +24,58 @@ class NoteBlock(Block):
         super().__init__("note_block", note=note, instrument=instrument)
 
 
+class Direction(Enum):
+    north = (0, -1)
+    south = (0, 1)
+    east = (1, 0)
+    west = (-1, 0)
+
+    def __neg__(self):
+        match self:
+            case Direction.north:
+                return Direction.south
+            case Direction.south:
+                return Direction.north
+            case Direction.east:
+                return Direction.west
+            case Direction.west:
+                return Direction.east
+            case _:
+                return NotImplemented
+
+
+DirectionType = Direction | tuple[int, int]
+
+
 class Repeater(Block):
-    def __init__(self, delay: int, direction: tuple[int, int]):
+    def __init__(self, delay: int, direction: DirectionType):
         if delay not in range(1, 5):
             raise ValueError("delay must be in range(1, 5).")
-        match direction:
-            case (0, 1):
+        # Minecraft's bug: repeater's direction is reversed
+        match Direction(direction):
+            case Direction.south:
                 facing = "north"
-            case (0, -1):
+            case Direction.north:
                 facing = "south"
-            case (1, 0):
-                facing = "west"
-            case (-1, 0):
+            case Direction.west:
                 facing = "east"
-            case _:
-                raise ValueError("Invalid direction.")
+            case Direction.east:
+                facing = "west"
+            case _ as x:
+                raise ValueError(f"Invalid direction: {x}.")
         super().__init__("repeater", delay=delay, facing=facing)
+
+
+class Redstone(Block):
+    # redstone wire, connected to all sides by default
+    def __init__(
+        self,
+        connections: Iterable[DirectionType] = list(Direction),
+    ):
+        super().__init__(
+            "redstone_wire",
+            **{direction.name: "side" for direction in map(Direction, connections)},
+        )
 
 
 class World:
@@ -48,7 +87,7 @@ class World:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        if self._level.changed:
+        if exc_type is None and self._level.changed:
             self._level.save()
         self._level.close()
 
@@ -63,45 +102,46 @@ class World:
 
 def generate(composition: Composition, path: str):
     def generate_skeleton():
-        world[x, y, z] = Repeater(note.delay, (0, z_vector))
-        world[x, y + 1, z] = Stone
-        world[x, y, z + z_vector] = Stone
+        world[x, y, z] = Repeater(note.delay, z_direction)
+        world[x, y, z + z_i] = Block("stone")
+        world[x, y + 1, z + z_i * 2] = Block("stone")
 
     def generate_notes():
-        noteblock_order = [1, -1, 2, -2]
-        world[x, y + 1, z + z_vector] = Redstone
+        x_i = [1, -1, 2, -2]  # noteblock build order
+        world[x, y + 1, z + z_i] = Redstone()
         for k in range(note.dynamic):
-            x_i = x + noteblock_order[k]
-            world[x_i, y + 1, z + z_vector] = NoteBlock(note.note, note.instrument)
+            world[x + x_i[k], y + 1, z + z_i] = NoteBlock(note.note, note.instrument)
 
     def generate_bar_change():
-        bridge = [
-            (0, z_vector * 2),
-            (0, z_vector * 3),
-            (1, z_vector * 3),
-            (2, z_vector * 3),
-            (3, z_vector * 3),
-            (4, z_vector * 3),
-            (5, z_vector * 3),
-        ]
-        for X, Z in bridge:
-            world[x + X, y, z + Z] = Redstone
+        world[x, y, z + z_i * 2] = Redstone((z_direction, -z_direction))
+        world[x, y, z + z_i * 3] = Redstone((x_direction, -z_direction))
+        world[x + 1, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        world[x + 2, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        world[x + 3, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        world[x + 4, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        world[x + 5, y, z + z_i * 3] = Redstone((-z_direction, -x_direction))
 
-    Redstone = Block("redstone_wire")
-    Stone = Block("stone")
+    x_direction = Direction((1, 0))
     with World(path) as world:
         for i, voice in enumerate(composition):
             y = 2 * i  # each voice takes 2 blocks of height
             for j, bar in enumerate(voice):
                 x = 5 * j  # each bar takes 5 blocks of width
-                if j % 2:  # build direction alternates each bar
-                    z_vector = 1
-                    z = 0
+                if j % 2 == 0:  # build direction alternates each bar
+                    z_i = 1
+                    z0 = 0
                 else:
-                    z_vector = -1
-                    z = 2 * len(bar)
-                for note in bar:
-                    z += 2 * z_vector  # each note takes 2 blocks of length
+                    z_i = -1
+                    z0 = 2 * len(bar)
+                z_direction = Direction((0, z_i))
+
+                world[x, y + 1, z0] = Block("stone")
+                for k, note in enumerate(bar):
+                    z = z0 + 2 * k * z_i  # each note takes 2 blocks of length
                     generate_skeleton()
                     generate_notes()
-                generate_bar_change()
+                try:
+                    voice[j + 1]
+                    generate_bar_change()
+                except IndexError:
+                    pass

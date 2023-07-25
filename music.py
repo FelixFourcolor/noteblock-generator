@@ -93,7 +93,7 @@ class Composition:
             except RequireTranspose as e:
                 value = e.value
                 if self._auto_transpose * value < 0:
-                    # no transpose available, revert all attempt to autoTranspose
+                    # no transpose available, revert all attempts to autoTranspose
                     self.autoTranspose = False
                     self.transpose = transpose
                     self._auto_transpose = 0
@@ -102,9 +102,15 @@ class Composition:
                     self.transpose += value
 
     def _set_voices(self, voices: list[dict]):
-        self._voices = [Voice(self, **voice) for voice in voices]
+        self._voices = [Voice(self, i + 1, **voice) for i, voice in enumerate(voices)]
         if transpose := self._auto_transpose:
             print(f"autoTransposed: {transpose}")
+
+    def __getitem__(self, index: int):
+        return self._voices[index]
+
+    def __len__(self):
+        return len(self._voices)
 
     def __iter__(self):
         yield from self._voices
@@ -119,6 +125,7 @@ class Voice:
     def __init__(
         self,
         _composition: Composition,
+        _index: int,
         notes: list[str | dict],
         name: str = None,
         time: int = None,
@@ -129,6 +136,7 @@ class Voice:
         autoReplaceOctaveEquivalent: bool = None,
     ):
         self._composition = _composition
+        self._index = _index
         self.autoTranspose = _composition.autoTranspose
         self.name = name
         if time is None:
@@ -153,10 +161,16 @@ class Voice:
                 note = {"name": note}
             self._add_note(**note)
 
+    def __getitem__(self, index: int):
+        return self._bars[index]
+
+    def __len__(self):
+        return len(self._bars)
+
     @property
     def current_position(self):
         """For error message"""
-        return (len(self._bars), len(self._bars[-1]) + 1)
+        return (len(self), len(self[-1]) + 1)
 
     def __iter__(self):
         yield from self._bars
@@ -164,11 +178,7 @@ class Voice:
     def __str__(self):
         if self.name:
             return self.name
-        if self._bars:
-            if first_bar := self._bars[0]:
-                if instrument := first_bar[0].instrument:
-                    return instrument
-        return super().__str__()
+        return f"Voice {self._index}"
 
     def _config(
         self,
@@ -267,7 +277,8 @@ class Note:
                 raise RequireTranspose(required_transpose)
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
-                    f"{_voice} at {_voice.current_position}: {self} is out of range."
+                    f"{_voice} at {_voice.current_position}: {self} is out of range"
+                    + (f" for {instrument}." if instrument is not None else ".")
                 )
             if pitch_value < start:
                 pitch_value += 12 * math.ceil(required_transpose / 12)
