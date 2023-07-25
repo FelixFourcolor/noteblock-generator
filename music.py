@@ -45,9 +45,9 @@ INSTRUMENTS = {
     "bell": range(54, 79),
     "xylophone": range(54, 79),
     "chime": range(54, 79),
-    "basedrum": range(79),
-    "hat": range(79),
-    "snare": range(79),
+    "basedrum": range(6, 31),
+    "hat": range(42, 67),
+    "snare": range(42, 67),
     None: range(79),
 }
 
