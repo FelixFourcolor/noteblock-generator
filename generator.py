@@ -101,10 +101,18 @@ class World:
 
 
 def generate(composition: Composition, path: str):
+    def prepare_space():
+        longest_bar = max(map(lambda voice: max(map(len, voice)), composition))
+        for x in range(-1, 5 * len(composition[0]) + 1):
+            for z in range(-1, 2 * longest_bar + 3):
+                world[x, -1, z] = Stone
+                for y in range(2 * len(composition) + 1):
+                    world[x, y, z] = Air
+
     def generate_skeleton():
         world[x, y, z] = Repeater(note.delay, z_direction)
-        world[x, y, z + z_i] = Block("stone")
-        world[x, y + 1, z + z_i * 2] = Block("stone")
+        world[x, y, z + z_i] = Stone
+        world[x, y + 1, z + z_i * 2] = Stone
 
     def generate_notes():
         x_i = [1, -1, 2, -2]  # noteblock build order
@@ -115,27 +123,33 @@ def generate(composition: Composition, path: str):
     def generate_bar_change():
         world[x, y, z + z_i * 2] = Redstone((z_direction, -z_direction))
         world[x, y, z + z_i * 3] = Redstone((x_direction, -z_direction))
-        world[x + 1, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
-        world[x + 2, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
-        world[x + 3, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
-        world[x + 4, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        for i in range(1, 5):
+            world[x + i, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
         world[x + 5, y, z + z_i * 3] = Redstone((-z_direction, -x_direction))
 
+    if not composition:
+        return
+
+    Air = Block("air")
+    Stone = Block("stone")
     x_direction = Direction((1, 0))
+
     with World(path) as world:
+        prepare_space()
+
         for i, voice in enumerate(composition):
             y = 2 * i  # each voice takes 2 blocks of height
             for j, bar in enumerate(voice):
-                x = 5 * j  # each bar takes 5 blocks of width
+                x = 5 * j + 2  # each bar takes 5 blocks of width
                 if j % 2 == 0:  # build direction alternates each bar
                     z_i = 1
-                    z0 = 0
+                    z0 = 1
                 else:
                     z_i = -1
-                    z0 = 2 * len(bar)
+                    z0 = 2 * len(bar) + 1
                 z_direction = Direction((0, z_i))
 
-                world[x, y + 1, z0] = Block("stone")
+                world[x, y + 1, z0] = Stone
                 for k, note in enumerate(bar):
                     z = z0 + 2 * k * z_i  # each note takes 2 blocks of length
                     generate_skeleton()
