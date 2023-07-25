@@ -99,10 +99,14 @@ def generate(composition: Composition, path: str):
             world[x + x_i[k], y + 1, z + z_i] = NoteBlock(note.note, note.instrument)
 
     def generate_bar_change():
+        world[x, y - 1, z + z_i * 2] = Stone
         world[x, y, z + z_i * 2] = Redstone((z_direction, -z_direction))
+        world[x, y - 1, z + z_i * 3] = Stone
         world[x, y, z + z_i * 3] = Redstone((x_direction, -z_direction))
         for i in range(1, 5):
+            world[x + i, y - 1, z + z_i * 3] = Stone
             world[x + i, y, z + z_i * 3] = Redstone((x_direction, -x_direction))
+        world[x + 5, y - 1, z + z_i * 3] = Stone
         world[x + 5, y, z + z_i * 3] = Redstone((-z_direction, -x_direction))
 
     if not composition:
