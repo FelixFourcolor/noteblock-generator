@@ -1,27 +1,45 @@
 import amulet as _amulet
 
-from music import Composition
+from music import INSTRUMENTS, Composition
 
 _namespace = "minecraft:overworld"
 _version = ("java", (1, 20))
 
 
 class Block(_amulet.api.block.Block):
-    """A wrapper for amulet Block,
-    with a more convenient constructor.
-    """
-
     def __init__(self, name: str, **properties):
-        # WARNING: there is no error message if 'name' is not a valid block name
         properties = {k: _amulet.StringTag(v) for k, v in properties.items()}
         super().__init__("minecraft", name, properties)
 
 
-class World:
-    """A wrapper for amulet.load_level,
-    with some conveniece methods to edit world and a context manager to auto-save.
-    """
+class NoteBlock(Block):
+    def __init__(self, note: int, instrument="harp"):
+        if note not in range(25):
+            raise ValueError("note must be in range(25).")
+        if instrument not in INSTRUMENTS:
+            raise ValueError(f"{instrument} is not a valid instrument.")
+        super().__init__("note_block", note=note, instrument=instrument)
 
+
+class Repeater(Block):
+    def __init__(self, delay: int, direction: tuple[int, int]):
+        if delay not in range(1, 5):
+            raise ValueError("delay must be in range(1, 5).")
+        match direction:
+            case (0, 1):
+                facing = "north"
+            case (0, -1):
+                facing = "south"
+            case (1, 0):
+                facing = "west"
+            case (-1, 0):
+                facing = "south"
+            case _:
+                raise ValueError("Invalid direction.")
+        super().__init__("repeater", delay=delay, facing=facing)
+
+
+class World:
     def __init__(self, path: str):
         self._path = path
 

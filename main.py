@@ -5,7 +5,7 @@ import sys
 
 
 def generate(path_in: str, path_out: str):
-    from minecraft import generate
+    from generator import generate
     from music import Composition
 
     with open(path_in, "r") as f:
