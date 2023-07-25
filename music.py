@@ -62,176 +62,6 @@ class RequireTranspose(Exception):
         self.value = value
 
 
-class Composition:
-    def __init__(
-        self,
-        time: int,
-        tempo: int,
-        voices: list[dict],
-        name: str = None,
-        instrument: str = None,
-        dynamic=2,
-        transpose=0,
-        autoTranspose=False,
-        autoReplaceOctaveEquivalent=False,
-    ):
-        self.time = time
-        self.tempo = tempo
-        self.name = name
-        self.instrument = instrument
-        self.dynamic = dynamic
-        self.transpose = transpose
-        self.autoTranspose = autoTranspose
-        self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
-
-        self._auto_transpose = 0
-        while True:
-            if not self.autoTranspose:
-                return self._set_voices(voices)
-            try:
-                return self._set_voices(voices)
-            except RequireTranspose as e:
-                value = e.value
-                if self._auto_transpose * value < 0:
-                    # no transpose available, revert all attempts to autoTranspose
-                    self.autoTranspose = False
-                    self.transpose = transpose
-                    self._auto_transpose = 0
-                else:
-                    self._auto_transpose += value
-                    self.transpose += value
-
-    def _set_voices(self, voices: list[dict]):
-        self._voices = [Voice(self, i + 1, **voice) for i, voice in enumerate(voices)]
-        if transpose := self._auto_transpose:
-            print(f"autoTransposed: {transpose}")
-
-    def __getitem__(self, index: int):
-        return self._voices[index]
-
-    def __len__(self):
-        return len(self._voices)
-
-    def __iter__(self):
-        yield from self._voices
-
-    def __str__(self):
-        if self.name is not None:
-            return self.name
-        return super().__str__()
-
-
-class Voice:
-    def __init__(
-        self,
-        _composition: Composition,
-        _index: int,
-        notes: list[str | dict],
-        name: str = None,
-        time: int = None,
-        tempo: int = None,
-        instrument: str = None,
-        dynamic: int = None,
-        transpose=0,
-        autoReplaceOctaveEquivalent: bool = None,
-    ):
-        self._composition = _composition
-        self._index = _index
-        self.autoTranspose = _composition.autoTranspose
-        self.name = name
-        if time is None:
-            time = _composition.time
-        if tempo is None:
-            tempo = _composition.tempo
-        if instrument is None:
-            instrument = _composition.instrument
-        if dynamic is None:
-            dynamic = _composition.dynamic
-        if autoReplaceOctaveEquivalent is None:
-            autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
-
-        self.name = name
-        self._config(
-            time, tempo, instrument, dynamic, transpose, autoReplaceOctaveEquivalent
-        )
-
-        self._bars: list[Bar] = [Bar()]
-        for note in notes:
-            if isinstance(note, str):
-                note = {"name": note}
-            self._add_note(**note)
-
-    def __getitem__(self, index: int):
-        return self._bars[index]
-
-    def __len__(self):
-        return len(self._bars)
-
-    @property
-    def current_position(self):
-        """For error message"""
-        return (len(self), len(self[-1]) + 1)
-
-    def __iter__(self):
-        yield from self._bars
-
-    def __str__(self):
-        if self.name:
-            return self.name
-        return f"Voice {self._index}"
-
-    def _config(
-        self,
-        time: int = None,
-        tempo: int = None,
-        instrument: str = None,
-        dynamic: int = None,
-        transpose: int = None,
-        autoReplaceOctaveEquivalent: bool = None,
-    ):
-        if time is not None:
-            self.time = time
-        if tempo is not None:
-            self.tempo = tempo
-        if instrument is not None:
-            self.instrument = instrument
-        if dynamic is not None:
-            self.dynamic = dynamic
-        if transpose is not None:
-            self.transpose = self._composition.transpose + transpose
-        if autoReplaceOctaveEquivalent is not None:
-            self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
-
-    def _rest(self, duration: int) -> list[Note]:
-        return [Rest(self)] * duration
-
-    def _add_note(self, **kwargs):
-        # prepare current bar
-        if (L := len(self._bars[-1])) == self.time:
-            self._bars.append(Bar())
-        elif L > self.time:
-            raise ValueError(f"{self} at {self.current_position}: time error.")
-
-        if "name" in kwargs:
-            # parse note name, divide into actual note + rests
-            pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
-            duration = int(_duration)
-            if pitch == "r":
-                notes = self._rest(duration)
-            else:
-                notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
-
-            # organize those into bars
-            for note in notes:
-                if len(self._bars[-1]) < self.time:
-                    self._bars[-1].append(note)
-                else:
-                    self._bars.append(Bar([note]))
-
-        else:
-            self._config(**kwargs)
-
-
 class Note:
     def __init__(
         self,
@@ -327,3 +157,165 @@ class Bar(list[Note]):
 
     def __repr__(self) -> str:
         return str([repr(note) for note in self])
+
+
+class Voice(list[Bar]):
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        _composition: Composition,
+        notes: list[str | dict],
+        name: str = None,
+        time: int = None,
+        tempo: int = None,
+        instrument: str = None,
+        dynamic: int = None,
+        transpose=0,
+        autoReplaceOctaveEquivalent: bool = None,
+    ):
+        self._composition = _composition
+        self._index = len(_composition)
+        self.autoTranspose = _composition.autoTranspose
+        self.name = name
+        if time is None:
+            time = _composition.time
+        if tempo is None:
+            tempo = _composition.tempo
+        if instrument is None:
+            instrument = _composition.instrument
+        if dynamic is None:
+            dynamic = _composition.dynamic
+        if autoReplaceOctaveEquivalent is None:
+            autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
+
+        self.name = name
+        self._config(
+            time, tempo, instrument, dynamic, transpose, autoReplaceOctaveEquivalent
+        )
+
+        if notes:
+            self.append(Bar())
+        for note in notes:
+            if isinstance(note, str):
+                note = {"name": note}
+            self._add_note(**note)
+
+    @property
+    def current_position(self):
+        """For error message"""
+        return (len(self), len(self[-1]) + 1)
+
+    def __str__(self):
+        if self.name:
+            return self.name
+        return f"Voice {self._index + 1}"
+
+    def _config(
+        self,
+        time: int = None,
+        tempo: int = None,
+        instrument: str = None,
+        dynamic: int = None,
+        transpose: int = None,
+        autoReplaceOctaveEquivalent: bool = None,
+    ):
+        if time is not None:
+            self.time = time
+        if tempo is not None:
+            self.tempo = tempo
+        if instrument is not None:
+            self.instrument = instrument
+        if dynamic is not None:
+            self.dynamic = dynamic
+        if transpose is not None:
+            self.transpose = self._composition.transpose + transpose
+        if autoReplaceOctaveEquivalent is not None:
+            self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
+
+    def _rest(self, duration: int) -> list[Note]:
+        return [Rest(self)] * duration
+
+    def _add_note(self, **kwargs):
+        # prepare current bar
+        if (L := len(self[-1])) == self.time:
+            self.append(Bar())
+        elif L > self.time:
+            raise ValueError(f"{self} at {self.current_position}: time error.")
+
+        if "name" in kwargs:
+            # parse note name, divide into actual note + rests
+            pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
+            duration = int(_duration)
+            if pitch == "r":
+                notes = self._rest(duration)
+            else:
+                notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
+
+            # organize those into bars
+            for note in notes:
+                if len(self[-1]) < self.time:
+                    self[-1].append(note)
+                else:
+                    self.append(Bar([note]))
+
+        else:
+            self._config(**kwargs)
+
+
+class Composition(list[Voice]):
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        time: int,
+        tempo: int,
+        voices: list[dict],
+        name: str = None,
+        instrument: str = None,
+        dynamic=2,
+        transpose=0,
+        autoTranspose=False,
+        autoReplaceOctaveEquivalent=False,
+    ):
+        self.time = time
+        self.tempo = tempo
+        self.name = name
+        self.instrument = instrument
+        self.dynamic = dynamic
+        self.transpose = transpose
+        self.autoTranspose = autoTranspose
+        self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
+
+        self._auto_transpose = 0
+        while True:
+            if not self.autoTranspose:
+                return self._set_voices(voices)
+            try:
+                return self._set_voices(voices)
+            except RequireTranspose as e:
+                value = e.value
+                if self._auto_transpose * value < 0:
+                    # no transpose available, revert all attempts to autoTranspose
+                    self.autoTranspose = False
+                    self.transpose = transpose
+                    self._auto_transpose = 0
+                else:
+                    self._auto_transpose += value
+                    self.transpose += value
+                self.clear()
+
+    def _set_voices(self, voices: list[dict]):
+        for voice in voices:
+            self.append(Voice(self, **voice))
+        if (transpose := self._auto_transpose) > 0:
+            print(f"autoTransposed: +{transpose}")
+        elif transpose < 0:
+            print(f"autoTransposed: {transpose}")
+
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return super().__str__()
