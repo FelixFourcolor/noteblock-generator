@@ -79,8 +79,9 @@ class World:
 
 def generate(composition: Composition, path: str):
     def prepare_space():
+        longest_voice = max(map(len, composition))
         longest_bar = max(map(lambda voice: max(map(len, voice)), composition))
-        for x in range(-1, 5 * len(composition[0]) + 1):
+        for x in range(-1, 5 * longest_voice + 1):
             for z in range(-1, 2 * longest_bar + 3):
                 world[x, -1, z] = Stone
                 for y in range(2 * len(composition) + 1):
