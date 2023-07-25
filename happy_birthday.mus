@@ -8,6 +8,7 @@
 
     "voices": [
         {
+            "name": "bass",
             "instrument": "guitar",
 
             "notes": [
@@ -22,6 +23,16 @@
 
                 { "dynamic": 3, "tempo": 2 },
                 "bb3 3", "bb3 1", { "dynamic": 2, "tempo": 3 }, "a3 4", "f3 4", { "dynamic": 1, "tempo": 4 }, "g3 4", "f3 4"
+            ]
+        },
+
+        {
+            "name": "canto",
+
+            "notes": [
+                { "double": "bass 6B", "instrument": "flute", "transpose": 24 },
+                { "double": "bass", "instrument": "harp", "transpose": 12 }
+
             ]
         }
     ]

@@ -127,6 +127,8 @@ class Note:
                     self.name = name
                     break
 
+        _voice._notes.append(self)
+
     def __str__(self):
         return self.name
 
@@ -137,6 +139,8 @@ class _Rest(Note):
             tempo = _voice.tempo
         self.delay = tempo
         self.dynamic = 0
+        self.name = "r"
+        _voice._notes.append(self)
 
 
 class Voice(list[list[Note]]):
@@ -175,6 +179,7 @@ class Voice(list[list[Note]]):
             time, tempo, instrument, dynamic, transpose, autoReplaceOctaveEquivalent
         )
 
+        self._notes: list[Note] = []
         if notes:
             self.append([])
         for note in notes:
@@ -215,7 +220,7 @@ class Voice(list[list[Note]]):
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
     def _rest(self, duration: int, **kwargs) -> list[Note]:
-        return [_Rest(self, **kwargs)] * duration
+        return [_Rest(self, **kwargs) for _ in range(duration)]
 
     def _add_note(self, **kwargs):
         # prepare current bar
@@ -243,11 +248,32 @@ class Voice(list[list[Note]]):
                 else:
                     self.append([note])
 
+        elif "double" in kwargs:
+            value = kwargs.pop("double").lower().split(maxsplit=1)
+            other_voice = self._composition[value[0]]
+            L = len(self._notes)
+
+            self._config(**kwargs)
+
+            if len(value) == 2:
+                if value[1][-1] == "b":
+                    duration = self.time * int(value[1][:-1])
+                else:
+                    duration = int(value[1])
+                try:
+                    for note in other_voice._notes[L : L + duration]:
+                        self._add_note(name=f"{note.name} {1}")
+                except IndexError:
+                    raise ValueError(f"{self} at {self.current_position}: time error.")
+            else:
+                for note in other_voice._notes[L:]:
+                    self._add_note(name=f"{note.name} {1}")
+
         else:
             self._config(**kwargs)
 
 
-class Composition(list[Voice]):
+class Composition(dict[str, Voice]):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
 
@@ -291,8 +317,9 @@ class Composition(list[Voice]):
                 self.clear()
 
     def _set_voices(self, voices: list[dict]):
-        for voice in voices:
-            self.append(Voice(self, **voice))
+        for kwarg in voices:
+            voice = Voice(self, **kwarg)
+            self[str(voice)] = voice
         if (transpose := self._auto_transpose) > 0:
             print(f"autoTransposed: +{transpose}")
         elif transpose < 0:

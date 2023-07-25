@@ -79,7 +79,7 @@ class World:
 
 def generate(composition: Composition, path: str):
     def prepare_space():
-        longest_voice = max(map(len, composition))
+        longest_voice = max(map(len, composition.values()))
         longest_bar = max(map(lambda voice: max(map(len, voice)), composition))
         for x in range(-1, 5 * longest_voice + 1):
             for z in range(-1, 2 * longest_bar + 3):
@@ -119,7 +119,7 @@ def generate(composition: Composition, path: str):
     with World(path) as world:
         prepare_space()
 
-        for i, voice in enumerate(composition):
+        for i, voice in enumerate(composition.values()):
             y = 2 * i  # each voice takes 2 blocks of height
             for j, bar in enumerate(voice):
                 x = 5 * j + 2  # each bar takes 5 blocks of width
