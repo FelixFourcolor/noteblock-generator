@@ -4,7 +4,7 @@ import math
 
 
 class UNREACHABLE(Exception):
-    """For comment and debugging"""
+    pass
 
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
@@ -277,7 +277,7 @@ class Note:
         if self.instrument is None:
             # choose instrument based on pitch
             for _instrument, _range in INSTRUMENTS.items():
-                if pitch_value in _range:
+                if _instrument is not None and pitch_value in _range:
                     self.instrument = _instrument
                     self.note = _range.index(pitch_value)
                     break
