@@ -203,7 +203,7 @@ class Voice(list[list[Note]]):
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
-        transpose: int = None,
+        transpose: str | int = None,
         autoReplaceOctaveEquivalent: bool = None,
     ):
         if time is not None:
