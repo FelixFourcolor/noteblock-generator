@@ -9,7 +9,8 @@
     "voices": [
         {
             "name": "bass",
-            "instrument": "guitar",
+            "instrument": "didgeridoo",
+            "transpose": "-1oc",
 
             "notes": [
                 { "dynamic": 1 },
@@ -30,8 +31,8 @@
             "name": "canto",
 
             "notes": [
-                { "double": "bass 6B", "instrument": "flute", "transpose": 24 },
-                { "double": "bass", "instrument": "harp", "transpose": 12 }
+                { "double": "bass 6B", "instrument": "chime", "transpose": "4oc" },
+                { "double": "bass", "instrument": "harp", "transpose": "2oc" }
 
             ]
         }

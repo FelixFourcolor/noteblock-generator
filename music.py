@@ -57,6 +57,21 @@ class _RequireTranspose(Exception):
         self.value = value
 
 
+def _parse_transpose(value: int | str):
+    if isinstance(value, int):
+        return value
+    if value.lower()[-2:] == "oc":  # "oc" for "octave"
+        return 12 * int(value[:-2])
+    return int(value)
+
+
+def _parse_duration(voice: Voice, value: str):
+    if value[-1] == "b":  # "b" for "bar"
+        return voice.time * int(value[:-1])
+    else:
+        return int(value)
+
+
 class Note:
     def __init__(
         self,
@@ -65,7 +80,7 @@ class Note:
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
-        transpose: int = 0,
+        transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
         if tempo is None:
@@ -78,7 +93,7 @@ class Note:
             autoReplaceOctaveEquivalent = _voice.autoReplaceOctaveEquivalent
 
         self.name = name
-        transpose += _voice.transpose
+        transpose = _voice.transpose + _parse_transpose(transpose)
         if transpose > 0:
             self.name += f"+{transpose}"
         elif transpose < 0:
@@ -156,7 +171,7 @@ class Voice(list[list[Note]]):
         tempo: int = None,
         instrument: str = None,
         dynamic: int = None,
-        transpose=0,
+        transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
         self._composition = _composition
@@ -215,7 +230,7 @@ class Voice(list[list[Note]]):
         if dynamic is not None:
             self.dynamic = dynamic
         if transpose is not None:
-            self.transpose = self._composition.transpose + transpose
+            self.transpose = self._composition.transpose + _parse_transpose(transpose)
         if autoReplaceOctaveEquivalent is not None:
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
@@ -232,10 +247,7 @@ class Voice(list[list[Note]]):
         if "name" in kwargs:
             # parse note name, divide into actual note + rests
             pitch, duration = kwargs.pop("name").lower().split(maxsplit=1)
-            if duration[-1] == "b":
-                delay = self.time * int(duration[:-1])
-            else:
-                delay = int(duration)
+            delay = _parse_duration(self, duration)
             if pitch == "r":
                 notes = self._rest(delay, **kwargs)
             else:
@@ -256,10 +268,7 @@ class Voice(list[list[Note]]):
             self._config(**kwargs)
 
             if len(value) == 2:
-                if value[1][-1] == "b":
-                    duration = self.time * int(value[1][:-1])
-                else:
-                    duration = int(value[1])
+                duration = _parse_duration(self, value[1])
                 try:
                     for note in other_voice._notes[L : L + duration]:
                         self._add_note(name=f"{note.name} {1}")
@@ -285,7 +294,7 @@ class Composition(dict[str, Voice]):
         name: str = None,
         instrument: str = None,
         dynamic=2,
-        transpose=0,
+        transpose: str | int = 0,
         autoTranspose=False,
         autoReplaceOctaveEquivalent=False,
     ):
@@ -294,7 +303,7 @@ class Composition(dict[str, Voice]):
         self.name = name
         self.instrument = instrument
         self.dynamic = dynamic
-        self.transpose = transpose
+        self.transpose = _parse_transpose(transpose)
         self.autoTranspose = autoTranspose
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
@@ -309,7 +318,7 @@ class Composition(dict[str, Voice]):
                 if self._auto_transpose * value < 0:
                     # no transpose available, revert all attempts to autoTranspose
                     self.autoTranspose = False
-                    self.transpose = transpose
+                    self.transpose = _parse_transpose(transpose)
                     self._auto_transpose = 0
                 else:
                     self._auto_transpose += value
