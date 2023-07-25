@@ -227,7 +227,10 @@ class Voice(list[list[Note]]):
         if "name" in kwargs:
             # parse note name, divide into actual note + rests
             pitch, duration = kwargs.pop("name").lower().split(maxsplit=1)
-            delay = int(duration)
+            if duration[-1] == "b":
+                delay = self.time * int(duration[:-1])
+            else:
+                delay = int(duration)
             if pitch == "r":
                 notes = self._rest(delay, **kwargs)
             else:
