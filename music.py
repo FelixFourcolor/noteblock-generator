@@ -132,8 +132,10 @@ class Note:
 
 
 class _Rest(Note):
-    def __init__(self, _voice: Voice):
-        self.delay = _voice.tempo
+    def __init__(self, _voice: Voice, tempo: int = None):
+        if tempo is None:
+            tempo = _voice.tempo
+        self.delay = tempo
         self.dynamic = 0
 
 
@@ -212,8 +214,8 @@ class Voice(list[list[Note]]):
         if autoReplaceOctaveEquivalent is not None:
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
-    def _rest(self, duration: int) -> list[Note]:
-        return [_Rest(self)] * duration
+    def _rest(self, duration: int, **kwargs) -> list[Note]:
+        return [_Rest(self, **kwargs)] * duration
 
     def _add_note(self, **kwargs):
         # prepare current bar
@@ -227,9 +229,9 @@ class Voice(list[list[Note]]):
             pitch, duration = kwargs.pop("name").lower().split(maxsplit=1)
             delay = int(duration)
             if pitch == "r":
-                notes = self._rest(delay)
+                notes = self._rest(delay, **kwargs)
             else:
-                notes = [Note(self, pitch)] + self._rest(delay - 1)
+                notes = [Note(self, pitch, **kwargs)] + self._rest(delay - 1, **kwargs)
 
             # organize those into bars
             for note in notes:
