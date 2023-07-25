@@ -84,7 +84,7 @@ class Composition:
         self.autoTranspose = autoTranspose
         self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
-        self._required_transpose = 0
+        self._auto_transpose = 0
         while True:
             if not self.autoTranspose:
                 return self._set_voices(voices)
@@ -92,15 +92,18 @@ class Composition:
                 return self._set_voices(voices)
             except RequireTranspose as e:
                 value = e.value
-                if self._required_transpose * value < 0:
+                if self._auto_transpose * value < 0:
+                    # no transpose available, revert all attempt to autoTranspose
                     self.autoTranspose = False
+                    self.transpose = transpose
+                    self._auto_transpose = 0
                 else:
-                    self._required_transpose += value
+                    self._auto_transpose += value
                     self.transpose += value
 
     def _set_voices(self, voices: list[dict]):
         self._voices = [Voice(self, **voice) for voice in voices]
-        if transpose := self._required_transpose:
+        if transpose := self._auto_transpose:
             print(f"autoTransposed: {transpose}")
 
     def __iter__(self):

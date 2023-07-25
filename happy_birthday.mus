@@ -8,7 +8,7 @@
 
     "voices": [
         {
-            "instrument": "flute",
+            "instrument": "guitar",
 
             "notes": [
                 { "dynamic": 1 },
