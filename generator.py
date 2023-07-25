@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Iterable
 
 import amulet as _amulet
 
@@ -24,7 +23,7 @@ class NoteBlock(Block):
         super().__init__("note_block", note=note, instrument=instrument)
 
 
-class Direction(Enum):
+class Direction(tuple[int, int], Enum):
     north = (0, -1)
     south = (0, 1)
     east = (1, 0)
@@ -40,41 +39,24 @@ class Direction(Enum):
                 return Direction.west
             case Direction.west:
                 return Direction.east
-            case _:
-                return NotImplemented
-
-
-DirectionType = Direction | tuple[int, int]
 
 
 class Repeater(Block):
-    def __init__(self, delay: int, direction: DirectionType):
+    def __init__(self, delay: int, direction: Direction):
         if delay not in range(1, 5):
             raise ValueError("delay must be in range(1, 5).")
         # Minecraft's bug: repeater's direction is reversed
-        match Direction(direction):
-            case Direction.south:
-                facing = "north"
-            case Direction.north:
-                facing = "south"
-            case Direction.west:
-                facing = "east"
-            case Direction.east:
-                facing = "west"
-            case _ as x:
-                raise ValueError(f"Invalid direction: {x}.")
-        super().__init__("repeater", delay=delay, facing=facing)
+        super().__init__("repeater", delay=delay, facing=(-direction).name)
 
 
 class Redstone(Block):
-    # redstone wire, connected to all sides by default
     def __init__(
         self,
-        connections: Iterable[DirectionType] = list(Direction),
+        connections=list(Direction),
     ):
         super().__init__(
             "redstone_wire",
-            **{direction.name: "side" for direction in map(Direction, connections)},
+            **{direction.name: "side" for direction in connections},
         )
 
 
@@ -91,13 +73,8 @@ class World:
             self._level.save()
         self._level.close()
 
-    def __getitem__(self, coordinates: tuple[int, int, int]):
-        return self._level.get_version_block(*coordinates, _namespace, _version)
-
-    def __setitem__(self, coordinates: tuple[int, int, int], block: Block | str):
-        if isinstance(_block := block, str):
-            _block = Block(_block)
-        self._level.set_version_block(*coordinates, _namespace, _version, _block)
+    def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
+        self._level.set_version_block(*coordinates, _namespace, _version, block)
 
 
 def generate(composition: Composition, path: str):

@@ -2,11 +2,6 @@ from __future__ import annotations
 
 import math
 
-
-class UNREACHABLE(Exception):
-    pass
-
-
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
 # create first octave
 _first = ["c1", "cs1", "d1", "ds1", "e1", "f1", "fs1", "g1", "gs1", "a1", "as1", "b1"]
@@ -15,13 +10,13 @@ _octaves = [_first]
 for _ in range(6):
     _octaves.append([p[:-1] + str(int(p[-1]) + 1) for p in _octaves[-1]])
 # flatten and convert to dict
-ORIGINAL_PITCHES = {
+_ORIGINAL_PITCHES = {
     name: value
     for value, name in enumerate([pitch for octave in _octaves for pitch in octave])
 }
 # extend accidentals
-PITCHES = dict(ORIGINAL_PITCHES)
-for name, value in ORIGINAL_PITCHES.items():
+PITCHES = dict(_ORIGINAL_PITCHES)
+for name, value in _ORIGINAL_PITCHES.items():
     if name[-2] == "s":
         # double sharps
         if value + 1 < 84:
@@ -57,7 +52,7 @@ INSTRUMENTS = {
 }
 
 
-class RequireTranspose(Exception):
+class _RequireTranspose(Exception):
     def __init__(self, value: int):
         self.value = value
 
@@ -104,7 +99,7 @@ class Note:
             else:
                 required_transpose = stop - 1 - pitch_value
             if _voice.autoTranspose:
-                raise RequireTranspose(required_transpose)
+                raise _RequireTranspose(required_transpose)
             if not autoReplaceOctaveEquivalent:
                 raise ValueError(
                     f"{_voice} at {_voice.current_position}: {self} is out of range"
@@ -122,44 +117,27 @@ class Note:
                     self.instrument = _instrument
                     self.note = _range.index(pitch_value)
                     break
-            else:
-                raise UNREACHABLE("Pitch_value was already checked to be in range")
         else:
             # choose note based on pitch and instrument
             self.note = instrument_range.index(pitch_value)
 
         if transpose:
-            for name, value in ORIGINAL_PITCHES.items():
+            for name, value in _ORIGINAL_PITCHES.items():
                 if value == pitch_value:
                     self.name = name
                     break
-            else:
-                raise UNREACHABLE("Pitch_value was already checked to be in range.")
 
     def __str__(self):
         return self.name
 
 
-class Rest(Note):
+class _Rest(Note):
     def __init__(self, _voice: Voice):
         self.delay = _voice.tempo
-        self.instrument = _voice.instrument
-        self.note = 0
         self.dynamic = 0
 
-    def __str__(self):
-        return ""
 
-
-class Bar(list[Note]):
-    def __str__(self):
-        return str([str(note) for note in self])
-
-    def __repr__(self) -> str:
-        return str([repr(note) for note in self])
-
-
-class Voice(list[Bar]):
+class Voice(list[list[Note]]):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
 
@@ -196,7 +174,7 @@ class Voice(list[Bar]):
         )
 
         if notes:
-            self.append(Bar())
+            self.append([])
         for note in notes:
             if isinstance(note, str):
                 note = {"name": note}
@@ -235,30 +213,30 @@ class Voice(list[Bar]):
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
     def _rest(self, duration: int) -> list[Note]:
-        return [Rest(self)] * duration
+        return [_Rest(self)] * duration
 
     def _add_note(self, **kwargs):
         # prepare current bar
         if (L := len(self[-1])) == self.time:
-            self.append(Bar())
+            self.append([])
         elif L > self.time:
             raise ValueError(f"{self} at {self.current_position}: time error.")
 
         if "name" in kwargs:
             # parse note name, divide into actual note + rests
-            pitch, _duration = kwargs.pop("name").lower().split(maxsplit=1)
-            duration = int(_duration)
+            pitch, duration = kwargs.pop("name").lower().split(maxsplit=1)
+            delay = int(duration)
             if pitch == "r":
-                notes = self._rest(duration)
+                notes = self._rest(delay)
             else:
-                notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1)
+                notes = [Note(self, pitch)] + self._rest(delay - 1)
 
             # organize those into bars
             for note in notes:
                 if len(self[-1]) < self.time:
                     self[-1].append(note)
                 else:
-                    self.append(Bar([note]))
+                    self.append([note])
 
         else:
             self._config(**kwargs)
@@ -295,7 +273,7 @@ class Composition(list[Voice]):
                 return self._set_voices(voices)
             try:
                 return self._set_voices(voices)
-            except RequireTranspose as e:
+            except _RequireTranspose as e:
                 value = e.value
                 if self._auto_transpose * value < 0:
                     # no transpose available, revert all attempts to autoTranspose
@@ -318,4 +296,4 @@ class Composition(list[Voice]):
     def __str__(self):
         if self.name is not None:
             return self.name
-        return super().__str__()
+        return "Unnamed composition"
