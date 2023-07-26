@@ -65,13 +65,6 @@ def _parse_transpose(value: int | str):
     return int(value)
 
 
-def _parse_duration(voice: Voice, value: str):
-    if value[-1] == "b":  # "b" for "bar"
-        return voice.time * int(value[:-1])
-    else:
-        return int(value)
-
-
 class Note:
     def __init__(
         self,
@@ -169,6 +162,7 @@ class Voice(list[list[Note]]):
         name: str = None,
         time: int = None,
         tempo: int = None,
+        beats: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: str | int = 0,
@@ -182,6 +176,8 @@ class Voice(list[list[Note]]):
             time = _composition.time
         if tempo is None:
             tempo = _composition.tempo
+        if beats is None:
+            beats = _composition.beats
         if instrument is None:
             instrument = _composition.instrument
         if dynamic is None:
@@ -190,8 +186,14 @@ class Voice(list[list[Note]]):
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
 
         self.name = name
+        self.beats = beats
         self._config(
-            time, tempo, instrument, dynamic, transpose, autoReplaceOctaveEquivalent
+            time=time,
+            tempo=tempo,
+            instrument=instrument,
+            dynamic=dynamic,
+            transpose=transpose,
+            autoReplaceOctaveEquivalent=autoReplaceOctaveEquivalent,
         )
 
         self._notes: list[Note] = []
@@ -216,6 +218,7 @@ class Voice(list[list[Note]]):
         self,
         time: int = None,
         tempo: int = None,
+        beats: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: str | int = None,
@@ -225,6 +228,8 @@ class Voice(list[list[Note]]):
             self.time = time
         if tempo is not None:
             self.tempo = tempo
+        if beats is not None:
+            self.beats = beats
         if instrument is not None:
             self.instrument = instrument
         if dynamic is not None:
@@ -240,6 +245,12 @@ class Voice(list[list[Note]]):
     def _append(self, note: Note):
         self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)
 
+    def _parse_duration(self, value: str):
+        if value[-1] == "b":  # "b" for "bar"
+            return self.time * int(value[:-1])
+        else:
+            return int(value)
+
     def _add_note(self, **kwargs):
         # prepare current bar
         if (L := len(self[-1])) == self.time:
@@ -249,8 +260,15 @@ class Voice(list[list[Note]]):
 
         if "name" in kwargs:
             # parse note name, divide into actual note + rests
-            pitch, duration = kwargs.pop("name").lower().split(maxsplit=1)
-            delay = _parse_duration(self, duration)
+            _value = kwargs.pop("name").lower().split(maxsplit=1)
+            pitch = _value[0]
+            if len(_value) == 2:
+                delay = self._parse_duration(_value[1])
+            elif self.beats is not None:
+                delay = self.beats
+            else:
+                raise ValueError("Duration is missing.")
+
             if pitch == "r":
                 notes = self._rest(delay, **kwargs)
             else:
@@ -264,14 +282,14 @@ class Voice(list[list[Note]]):
                     self.append([note])
 
         elif "copy" in kwargs:
-            value = kwargs.pop("copy").lower().split(maxsplit=1)
-            other_voice = self._composition[value[0]]
+            _value = kwargs.pop("copy").lower().split(maxsplit=1)
+            other_voice = self._composition[_value[0]]
             L = len(self._notes)
 
             self._config(**kwargs)
 
-            if len(value) == 2:
-                duration = _parse_duration(self, value[1])
+            if len(_value) == 2:
+                duration = self._parse_duration(_value[1])
                 try:
                     for note in other_voice._notes[L : L + duration]:
                         self._append(note)
@@ -294,7 +312,7 @@ class Composition(list[Voice]):
         time: int,
         tempo: int,
         voices: list[dict],
-        name: str = None,
+        beats: int = None,
         instrument: str = None,
         dynamic=2,
         transpose: str | int = 0,
@@ -303,7 +321,7 @@ class Composition(list[Voice]):
     ):
         self.time = time
         self.tempo = tempo
-        self.name = name
+        self.beats = beats
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = _parse_transpose(transpose)
@@ -343,8 +361,3 @@ class Composition(list[Voice]):
             if voice.name == key:
                 return voice
         raise KeyError(key)
-
-    def __str__(self):
-        if self.name is not None:
-            return self.name
-        return "Unnamed composition"

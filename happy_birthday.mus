@@ -1,7 +1,7 @@
 {
-    "name": "Happy Birthday",
     "time": 12,
     "tempo": 1,
+    "beats": 4,
     "transpose": 0,
     "autoTranspose": false,
     "autoReplaceOctaveEquivalent": false,
@@ -14,16 +14,16 @@
 
             "notes": [
                 { "dynamic": 1 },
-                "r 8", "c3 3", "c3 1", "d3 4", "c3 4", "f3 4", "e3 4", "r 4",
+                "r 8", "c3 3", "c3 1", "d3", "c3", "f3", "e3", "r",
 
                 { "dynamic": 2 },
-                "c3 3", "c3 1", "d3 4", "c3 4", "g3 4", "f3 4", "r 4",
+                "c3 3", "c3 1", "d3", "c3", "g3", "f3", "r",
 
                 { "dynamic": 4 },
-                "c3 3", "c3 1", "c4 4", "a3 4", "f3 4", "e3 4", "d3 4",
+                "c3 3", "c3 1", "c4", "a3", "f3", "e3", "d3",
 
                 { "dynamic": 3, "tempo": 2 },
-                "bb3 3", "bb3 1", { "dynamic": 2, "tempo": 3 }, "a3 4", "f3 4", { "dynamic": 1, "tempo": 4 }, "g3 4", "f3 4"
+                "bb3 3", "bb3 1", { "dynamic": 2, "tempo": 3 }, "a3", "f3", { "dynamic": 1, "tempo": 4 }, "g3", "f3"
             ]
         },
 
