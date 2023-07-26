@@ -60,7 +60,7 @@ class _RequireTranspose(Exception):
 def _parse_transpose(value: int | str):
     if isinstance(value, int):
         return value
-    if value.lower()[-2:] == "oc":  # "oc" for "octave"
+    if value.lower()[-2:] == "oc":
         return 12 * int(value[:-2])
     return int(value)
 
@@ -246,8 +246,12 @@ class Voice(list[list[Note]]):
         self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)
 
     def _parse_duration(self, value: str):
-        if value[-1] == "b":  # "b" for "bar"
-            return self.time * int(value[:-1])
+        if value[-1] == "b":
+            if self.beats is None:
+                raise ValueError("Duration is missing.")
+            return self.beats * int(value[:-1])
+        elif value[-3:] == "bar":
+            return self.time * int(value[:-3])
         else:
             return int(value)
 

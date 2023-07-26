@@ -13,7 +13,7 @@
             "transpose": "-1oc",
 
             "notes": [
-                "|1", { "dynamic": 1 }, "r 8", "c3 3", "c3 1",
+                "|1", { "dynamic": 1 }, "r 2b", "c3 3", "c3 1",
                 "|2", "d3", "c3", "f3",
                 "|3", "e3", "r", { "dynamic": 2 }, "c3 3", "c3 1",
                 "|4", "d3", "c3", "g3",
@@ -29,7 +29,7 @@
             "name": "canto",
 
             "notes": [
-                { "copy": "bass 6B", "instrument": "chime", "transpose": "4oc" },
+                { "copy": "bass 6bar", "instrument": "chime", "transpose": "4oc" },
                 { "copy": "bass", "instrument": "flute", "transpose": "3oc" }
 
             ]
