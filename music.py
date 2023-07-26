@@ -288,13 +288,18 @@ class Voice(list[list[Note]]):
             # parse note name
             _value = kwargs.pop("name").lower().split(maxsplit=1)
 
-            # do a bar check if pitch name is "|" (self-enforced linter)
-            # "|" can also be followed by a number to mark bar number
-            # (this part is not checked)
-            if (pitch := _value[0]).startswith("|"):
+            # if note name is "||", fill the rest of the bar with rests
+            if (pitch := _value[0]).startswith("||"):
+                self[-1] += self._rest(self.time - len(self[-1]))
+                return
+            # if "|", do a bar check (self-enforced linter)
+            if pitch.startswith("|"):
                 if self[-1]:
                     raise ValueError(f"{self} at {self.current_position}: time error.")
                 return
+            # we do ".startswith" rather than "=="
+            # so that "|" or "||" can be followed by a numberc,
+            # acting as the bar number, even though this number is not checked
 
             # read duration
             try:
