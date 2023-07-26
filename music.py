@@ -148,7 +148,7 @@ class Note:
         return self.name
 
 
-class _Rest(Note):
+class Rest(Note):
     def __init__(self, _voice: Voice, tempo: int = None, **kwargs):
         if tempo is None:
             tempo = _voice.tempo
@@ -235,7 +235,7 @@ class Voice(list[list[Note]]):
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
     def _rest(self, duration: int, **kwargs) -> list[Note]:
-        return [_Rest(self, **kwargs) for _ in range(duration)]
+        return [Rest(self, **kwargs) for _ in range(duration)]
 
     def _append(self, note: Note):
         self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)

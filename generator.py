@@ -1,8 +1,9 @@
+import math
 from enum import Enum
 
 import amulet as _amulet
 
-from music import INSTRUMENTS, Composition
+from music import INSTRUMENTS, Composition, Rest
 
 _namespace = "minecraft:overworld"
 _version = ("java", (1, 20))
@@ -39,6 +40,9 @@ class Direction(tuple[int, int], Enum):
                 return Direction.west
             case Direction.west:
                 return Direction.east
+
+    def __str__(self):
+        return self.name
 
 
 class Repeater(Block):
@@ -78,14 +82,20 @@ class World:
 
 
 def generate(composition: Composition, path: str):
-    def prepare_space():
-        longest_voice = max(map(len, composition))
+    def clear_space():
+        longest_voice = max(map(len, composition)) + init_length
         longest_bar = max(map(lambda voice: max(map(len, voice)), composition))
         for x in range(-1, 5 * longest_voice + 1):
             for z in range(-1, 2 * longest_bar + 3):
                 world[x, -1, z] = Stone
                 for y in range(2 * len(composition) + 1):
                     world[x, y, z] = Air
+
+    def generate_init_system():
+        for voice in composition:
+            for _ in range(init_length):
+                voice.insert(0, [Rest(voice, tempo=1)] * composition.time)
+        world[1, 2 * len(composition) - 1, 1] = Block("lever", facing=-x_direction)
 
     def generate_skeleton():
         world[x, y, z] = Repeater(note.delay, z_direction)
@@ -114,10 +124,13 @@ def generate(composition: Composition, path: str):
 
     Air = Block("air")
     Stone = Block("stone")
+
     x_direction = Direction((1, 0))
+    init_length = math.ceil(len(composition) / composition.time)
 
     with World(path) as world:
-        prepare_space()
+        clear_space()
+        generate_init_system()
 
         for i, voice in enumerate(composition):
             y = 2 * i  # each voice takes 2 blocks of height
