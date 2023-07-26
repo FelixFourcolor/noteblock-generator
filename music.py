@@ -76,6 +76,14 @@ class Note:
         transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
+        try:
+            int(name[-1])
+        except ValueError:
+            if (octave := _voice.octave) is None:
+                raise ValueError(
+                    f"{_voice} at {_voice.current_position}: Octave is missing."
+                )
+            name += str(octave)
         if tempo is None:
             tempo = _voice.tempo
         if instrument is None:
@@ -163,6 +171,7 @@ class Voice(list[list[Note]]):
         time: int = None,
         tempo: int = None,
         beats: int = None,
+        octave: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: str | int = 0,
@@ -178,6 +187,8 @@ class Voice(list[list[Note]]):
             tempo = _composition.tempo
         if beats is None:
             beats = _composition.beats
+        if octave is None:
+            octave = _composition.octave
         if instrument is None:
             instrument = _composition.instrument
         if dynamic is None:
@@ -185,8 +196,9 @@ class Voice(list[list[Note]]):
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
 
-        self.name = name
         self.beats = beats
+        self.octave = octave
+        self.time = time
         self._config(
             time=time,
             tempo=tempo,
@@ -219,6 +231,7 @@ class Voice(list[list[Note]]):
         time: int = None,
         tempo: int = None,
         beats: int = None,
+        octave: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: str | int = None,
@@ -230,6 +243,8 @@ class Voice(list[list[Note]]):
             self.tempo = tempo
         if beats is not None:
             self.beats = beats
+        if octave is not None:
+            self.octave = octave
         if instrument is not None:
             self.instrument = instrument
         if dynamic is not None:
@@ -327,6 +342,7 @@ class Composition(list[Voice]):
         tempo: int,
         voices: list[dict],
         beats: int = None,
+        octave: int = None,
         instrument: str = None,
         dynamic=2,
         transpose: str | int = 0,
@@ -336,6 +352,7 @@ class Composition(list[Voice]):
         self.time = time
         self.tempo = tempo
         self.beats = beats
+        self.octave = octave
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = _parse_transpose(transpose)

@@ -9,19 +9,20 @@
     "voices": [
         {
             "name": "bass",
+            "octave": 3,
             "instrument": "bass",
             "transpose": "-1oc",
 
             "notes": [
-                "|1", { "dynamic": 1 }, "r 2b", "c3 3", "c3 1",
-                "|2", "d3", "c3", "f3",
-                "|3", "e3", "r", { "dynamic": 2 }, "c3 3", "c3 1",
-                "|4", "d3", "c3", "g3",
-                "|5", "f3", "r", { "dynamic": 4 }, "c3 3", "c3 1",
-                "|6", "c4", "a3", "f3",
-                "|7", "e3", "d3", { "dynamic": 3, "tempo": 2 }, "bb3 3", "bb3 1",
-                "|8", { "dynamic": 2, "tempo": 3 }, "a3", "f3", { "dynamic": 1, "tempo": 4 }, "g3",
-                "|9", "f3"
+                "|1", { "dynamic": 1 }, "r 2b", "c 3", "c 1",
+                "|2", "d", "c", "f",
+                "|3", "e", "r", { "dynamic": 2 }, "c 3", "c 1",
+                "|4", "d", "c", "g",
+                "|5", "f", "r", { "dynamic": 4 }, "c 3", "c 1",
+                "|6", "c4", "a", "f",
+                "|7", "e", "d", { "dynamic": 3, "tempo": 2 }, "bb 3", "bb 1",
+                "|8", { "dynamic": 2, "tempo": 3 }, "a", "f", { "dynamic": 1, "tempo": 4 }, "g",
+                "|9", "f"
             ]
         },
 
