@@ -149,7 +149,7 @@ class Note:
 
 
 class _Rest(Note):
-    def __init__(self, _voice: Voice, tempo: int = None):
+    def __init__(self, _voice: Voice, tempo: int = None, **kwargs):
         if tempo is None:
             tempo = _voice.tempo
         self.delay = tempo
@@ -237,6 +237,9 @@ class Voice(list[list[Note]]):
     def _rest(self, duration: int, **kwargs) -> list[Note]:
         return [_Rest(self, **kwargs) for _ in range(duration)]
 
+    def _append(self, note: Note):
+        self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)
+
     def _add_note(self, **kwargs):
         # prepare current bar
         if (L := len(self[-1])) == self.time:
@@ -253,15 +256,15 @@ class Voice(list[list[Note]]):
             else:
                 notes = [Note(self, pitch, **kwargs)] + self._rest(delay - 1, **kwargs)
 
-            # organize those into bars
+            # organize those into barss
             for note in notes:
                 if len(self[-1]) < self.time:
                     self[-1].append(note)
                 else:
                     self.append([note])
 
-        elif "double" in kwargs:
-            value = kwargs.pop("double").lower().split(maxsplit=1)
+        elif "copy" in kwargs:
+            value = kwargs.pop("copy").lower().split(maxsplit=1)
             other_voice = self._composition[value[0]]
             L = len(self._notes)
 
@@ -271,12 +274,12 @@ class Voice(list[list[Note]]):
                 duration = _parse_duration(self, value[1])
                 try:
                     for note in other_voice._notes[L : L + duration]:
-                        self._add_note(name=f"{note.name} {1}")
+                        self._append(note)
                 except IndexError:
                     raise ValueError(f"{self} at {self.current_position}: time error.")
             else:
                 for note in other_voice._notes[L:]:
-                    self._add_note(name=f"{note.name} {1}")
+                    self._append(note)
 
         else:
             self._config(**kwargs)

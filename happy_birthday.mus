@@ -31,8 +31,8 @@
             "name": "canto",
 
             "notes": [
-                { "double": "bass 6B", "instrument": "chime", "transpose": "4oc" },
-                { "double": "bass", "instrument": "flute", "transpose": "3oc" }
+                { "copy": "bass 6B", "instrument": "chime", "transpose": "4oc" },
+                { "copy": "bass", "instrument": "flute", "transpose": "3oc" }
 
             ]
         }
