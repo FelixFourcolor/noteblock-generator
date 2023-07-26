@@ -282,7 +282,7 @@ class Voice(list[list[Note]]):
             self._config(**kwargs)
 
 
-class Composition(dict[str, Voice]):
+class Composition(list[Voice]):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
 
@@ -326,13 +326,20 @@ class Composition(dict[str, Voice]):
                 self.clear()
 
     def _set_voices(self, voices: list[dict]):
-        for kwarg in voices:
-            voice = Voice(self, **kwarg)
-            self[str(voice)] = voice
+        for voice in voices:
+            self.append(Voice(self, **voice))
         if (transpose := self._auto_transpose) > 0:
             print(f"autoTransposed: +{transpose}")
         elif transpose < 0:
             print(f"autoTransposed: {transpose}")
+
+    def __getitem__(self, key: int | str) -> Voice:
+        if isinstance(key, int):
+            return self[key]
+        for voice in self:
+            if voice.name == key:
+                return voice
+        raise KeyError(key)
 
     def __str__(self):
         if self.name is not None:

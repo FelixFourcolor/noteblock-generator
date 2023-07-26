@@ -9,7 +9,7 @@
     "voices": [
         {
             "name": "bass",
-            "instrument": "didgeridoo",
+            "instrument": "bass",
             "transpose": "-1oc",
 
             "notes": [
@@ -32,7 +32,7 @@
 
             "notes": [
                 { "double": "bass 6B", "instrument": "chime", "transpose": "4oc" },
-                { "double": "bass", "instrument": "harp", "transpose": "2oc" }
+                { "double": "bass", "instrument": "flute", "transpose": "3oc" }
 
             ]
         }
