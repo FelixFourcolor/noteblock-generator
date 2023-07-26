@@ -95,7 +95,7 @@ def generate(composition: Composition, path: str):
         for voice in composition:
             for _ in range(init_length):
                 voice.insert(0, [Rest(voice, tempo=1)] * composition.time)
-        world[1, 2 * len(composition) - 1, 1] = Block("lever", facing=-x_direction)
+        world[1, 2 * len(composition) - 1, 1] = Block("oak_button", facing=-x_direction)
 
     def generate_skeleton():
         world[x, y, z] = Repeater(note.delay, z_direction)
@@ -126,7 +126,7 @@ def generate(composition: Composition, path: str):
     Stone = Block("stone")
 
     x_direction = Direction((1, 0))
-    init_length = math.ceil(len(composition) / composition.time)
+    init_length = math.ceil((len(composition) - 1) / composition.time)
 
     with World(path) as world:
         clear_space()
