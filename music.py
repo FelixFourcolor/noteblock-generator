@@ -261,6 +261,13 @@ class Voice(list[list[Note]]):
         self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)
 
     def _parse_duration(self, value: str):
+        if not value:
+            if self.beats is not None:
+                return self.beats
+            else:
+                raise ValueError("Duration is missing.")
+        if value[-1] == ".":
+            return int(self._parse_duration(value[:-1]) * 1.5)
         if value[-1] == "b":
             if self.beats is None:
                 raise ValueError("Duration is missing.")
@@ -290,12 +297,11 @@ class Voice(list[list[Note]]):
                 return
 
             # read duration
-            if len(_value) == 2:
-                delay = self._parse_duration(_value[1])
-            elif self.beats is not None:
-                delay = self.beats
-            else:
-                raise ValueError("Duration is missing.")
+            try:
+                duration = _value[1]
+            except IndexError:
+                duration = ""
+            delay = self._parse_duration(duration)
 
             # divide note into actual note + rests
             if pitch == "r":
