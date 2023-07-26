@@ -321,22 +321,34 @@ class Voice(list[list[Note]]):
                 else:
                     self.append([note])
 
-        elif "copy" in kwargs:
-            _value = kwargs.pop("copy").lower().split(maxsplit=1)
-            other_voice = self._composition[_value[0]]
-            L = len(self._notes)
+        elif "double" in kwargs:
+            other_voice = self._composition[kwargs.pop("double")]
+            try:
+                _from = self._parse_duration(kwargs.pop("from"))
+            except KeyError:
+                _from = len(self._notes)
+            try:
+                _for = self._parse_duration(kwargs.pop("for"))
+            except KeyError:
+                _for = None
+            try:
+                _to = self._parse_duration(kwargs.pop("to"))
+            except KeyError:
+                if _for is not None:
+                    _to = _from + _for
+                else:
+                    _to = None
 
             self._config(**kwargs)
 
-            if len(_value) == 2:
-                duration = self._parse_duration(_value[1])
+            if _to is not None:
                 try:
-                    for note in other_voice._notes[L : L + duration]:
+                    for note in other_voice._notes[_from:_to]:
                         self._append(note)
                 except IndexError:
                     raise ValueError(f"{self} at {self.current_position}: time error.")
             else:
-                for note in other_voice._notes[L:]:
+                for note in other_voice._notes[_from:]:
                     self._append(note)
 
         else:
