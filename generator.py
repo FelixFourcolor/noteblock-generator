@@ -121,6 +121,7 @@ def generate(composition: Composition, path: str):
 
         for i, voice in enumerate(composition):
             y = 2 * i  # each voice takes 2 blocks of height
+            z = 1
             for j, bar in enumerate(voice):
                 x = 5 * j + 2  # each bar takes 5 blocks of width
                 if j % 2 == 0:  # build direction alternates each bar
@@ -128,7 +129,7 @@ def generate(composition: Composition, path: str):
                     z0 = 1
                 else:
                     z_i = -1
-                    z0 = 2 * len(bar) + 1
+                    z0 = z + 2
                 z_direction = Direction((0, z_i))
 
                 world[x, y + 1, z0] = Stone
