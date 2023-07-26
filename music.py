@@ -259,9 +259,18 @@ class Voice(list[list[Note]]):
             raise ValueError(f"{self} at {self.current_position}: time error.")
 
         if "name" in kwargs:
-            # parse note name, divide into actual note + rests
+            # parse note name
             _value = kwargs.pop("name").lower().split(maxsplit=1)
-            pitch = _value[0]
+
+            # do a bar check if pitch name is "|" (self-enforced linter)
+            # "|" can also be followed by a number to mark bar number
+            # (this part is not checked)
+            if (pitch := _value[0]).startswith("|"):
+                if self[-1]:
+                    raise ValueError(f"{self} at {self.current_position}: time error.")
+                return
+
+            # read duration
             if len(_value) == 2:
                 delay = self._parse_duration(_value[1])
             elif self.beats is not None:
@@ -269,6 +278,7 @@ class Voice(list[list[Note]]):
             else:
                 raise ValueError("Duration is missing.")
 
+            # divide note into actual note + rests
             if pitch == "r":
                 notes = self._rest(delay, **kwargs)
             else:
