@@ -143,20 +143,17 @@ class Note:
                     self.name = name
                     break
 
-        _voice._notes.append(self)
-
     def __str__(self):
         return self.name
 
 
 class Rest(Note):
-    def __init__(self, _voice: Voice, tempo: int = None, **kwargs):
+    def __init__(self, _voice: Voice, tempo: int = None):
         if tempo is None:
             tempo = _voice.tempo
         self.delay = tempo
         self.dynamic = 0
         self.name = "r"
-        _voice._notes.append(self)
 
 
 class Voice(list[list[Note]]):
@@ -177,10 +174,6 @@ class Voice(list[list[Note]]):
         transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
-        self._composition = _composition
-        self._index = len(_composition)
-        self.autoTranspose = _composition.autoTranspose
-        self.name = name
         if time is None:
             time = _composition.time
         if tempo is None:
@@ -196,9 +189,12 @@ class Voice(list[list[Note]]):
         if autoReplaceOctaveEquivalent is None:
             autoReplaceOctaveEquivalent = _composition.autoReplaceOctaveEquivalent
 
+        self._composition = _composition
+        self._index = len(_composition)
+        self.name = name
         self.beats = beats
         self.octave = octave
-        self.time = time
+        self.autoTranspose = _composition.autoTranspose
         self._config(
             time=time,
             tempo=tempo,
@@ -208,13 +204,24 @@ class Voice(list[list[Note]]):
             autoReplaceOctaveEquivalent=autoReplaceOctaveEquivalent,
         )
 
-        self._notes: list[Note] = []
         if notes:
+            # for voice doubling
+            self._notes = []
+
+            # add notes
             self.append([])
-        for note in notes:
-            if isinstance(note, str):
-                note = {"name": note}
-            self._add_note(**note)
+            for note in notes:
+                self._add(note)
+
+            # reset params to original values
+            self._config(
+                time=time,
+                tempo=tempo,
+                instrument=instrument,
+                dynamic=dynamic,
+                transpose=transpose,
+                autoReplaceOctaveEquivalent=autoReplaceOctaveEquivalent,
+            )
 
     @property
     def current_position(self):
@@ -254,11 +261,13 @@ class Voice(list[list[Note]]):
         if autoReplaceOctaveEquivalent is not None:
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
-    def _rest(self, duration: int, **kwargs) -> list[Note]:
-        return [Rest(self, **kwargs) for _ in range(duration)]
+    def _Note(self, pitch, **kwargs):
+        self._notes.append({"name": f"{pitch} 1"} | kwargs)
+        return Note(self, pitch, **kwargs)
 
-    def _append(self, note: Note):
-        self._add_note(name=f"{note.name} {1}", tempo=note.delay, dynamic=note.dynamic)
+    def _Rest(self, duration: int, *, tempo: int = None, **kwargs) -> list[Note]:
+        self._notes += ["r 1"] * duration
+        return [Rest(self, tempo=tempo)] * duration
 
     def _parse_duration(self, value: str):
         if not value:
@@ -277,82 +286,91 @@ class Voice(list[list[Note]]):
         else:
             return int(value)
 
-    def _add_note(self, **kwargs):
-        # prepare current bar
+    def _double(self, double: str, **kwargs):
+        other_voice = self._composition[double]
+        try:
+            _from = self._parse_duration(kwargs.pop("from"))
+        except KeyError:
+            _from = len(self._notes)
+        try:
+            _for = self._parse_duration(kwargs.pop("for"))
+        except KeyError:
+            _for = None
+        try:
+            _to = self._parse_duration(kwargs.pop("to"))
+        except KeyError:
+            if _for is not None:
+                _to = _from + _for
+            else:
+                _to = None
+
+        self._config(**kwargs)
+
+        if _to is not None:
+            try:
+                for note in other_voice._notes[_from:_to]:
+                    self._add(note)
+            except IndexError:
+                raise ValueError(f"{self} at {self.current_position}: time error.")
+        else:
+            for note in other_voice._notes[_from:]:
+                self._add(note)
+
+    def _add_note(self, name: str, **kwargs):
+        # parse note name
+        tokens = name.lower().split(maxsplit=1)
+
+        # if note name is "||", fill the rest of the bar with rests
+        if (pitch := tokens[0]).startswith("||"):
+            self[-1] += self._Rest(self.time - len(self[-1]))
+            return
+        # if "|", do a bar check (self-enforced linter)
+        if pitch.startswith("|"):
+            if self[-1]:
+                raise ValueError(f"{self} at {self.current_position}: time error.")
+            return
+        # we do ".startswith" rather than "=="
+        # so that "|" or "||" can be followed by a numberc,
+        # acting as the bar number, even though this number is not checked
+
+        # read duration
+        try:
+            duration = tokens[1]
+        except IndexError:
+            duration = ""
+        delay = self._parse_duration(duration)
+
+        # divide note into actual note + rests
+        if pitch == "r":
+            notes = self._Rest(delay, **kwargs)
+        else:
+            notes = [self._Note(pitch, **kwargs)] + self._Rest(delay - 1, **kwargs)
+
+        # organize those into barss
+        for note in notes:
+            if len(self[-1]) < self.time:
+                self[-1].append(note)
+            else:
+                self.append([note])
+
+    def _add(self, arg: str | dict):
         if (L := len(self[-1])) == self.time:
             self.append([])
         elif L > self.time:
             raise ValueError(f"{self} at {self.current_position}: time error.")
 
+        if isinstance(arg, str):
+            kwargs = {"name": arg}
+        else:
+            kwargs = arg
+
         if "name" in kwargs:
-            # parse note name
-            _value = kwargs.pop("name").lower().split(maxsplit=1)
-
-            # if note name is "||", fill the rest of the bar with rests
-            if (pitch := _value[0]).startswith("||"):
-                self[-1] += self._rest(self.time - len(self[-1]))
-                return
-            # if "|", do a bar check (self-enforced linter)
-            if pitch.startswith("|"):
-                if self[-1]:
-                    raise ValueError(f"{self} at {self.current_position}: time error.")
-                return
-            # we do ".startswith" rather than "=="
-            # so that "|" or "||" can be followed by a numberc,
-            # acting as the bar number, even though this number is not checked
-
-            # read duration
-            try:
-                duration = _value[1]
-            except IndexError:
-                duration = ""
-            delay = self._parse_duration(duration)
-
-            # divide note into actual note + rests
-            if pitch == "r":
-                notes = self._rest(delay, **kwargs)
-            else:
-                notes = [Note(self, pitch, **kwargs)] + self._rest(delay - 1, **kwargs)
-
-            # organize those into barss
-            for note in notes:
-                if len(self[-1]) < self.time:
-                    self[-1].append(note)
-                else:
-                    self.append([note])
-
+            self._add_note(kwargs.pop("name"), **kwargs)
         elif "double" in kwargs:
-            other_voice = self._composition[kwargs.pop("double")]
-            try:
-                _from = self._parse_duration(kwargs.pop("from"))
-            except KeyError:
-                _from = len(self._notes)
-            try:
-                _for = self._parse_duration(kwargs.pop("for"))
-            except KeyError:
-                _for = None
-            try:
-                _to = self._parse_duration(kwargs.pop("to"))
-            except KeyError:
-                if _for is not None:
-                    _to = _from + _for
-                else:
-                    _to = None
-
-            self._config(**kwargs)
-
-            if _to is not None:
-                try:
-                    for note in other_voice._notes[_from:_to]:
-                        self._append(note)
-                except IndexError:
-                    raise ValueError(f"{self} at {self.current_position}: time error.")
-            else:
-                for note in other_voice._notes[_from:]:
-                    self._append(note)
-
+            self._double(kwargs.pop("double"), **kwargs)
         else:
             self._config(**kwargs)
+            self._notes.append(arg)
 
 
 class Composition(list[Voice]):
