@@ -79,14 +79,6 @@ class Note:
         transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
     ):
-        try:
-            int(name[-1])
-        except ValueError:
-            if (octave := _voice.octave) is None:
-                raise ValueError(
-                    f"{_voice} at {_voice.current_position}: Octave is missing."
-                )
-            name += str(octave)
         if tempo is None:
             tempo = _voice.tempo
         if instrument is None:
@@ -268,12 +260,32 @@ class Voice(list[list[Note]]):
     def _rest(self, duration: int, *, tempo: int = None, **kwargs) -> list[Note]:
         return [Rest(self, tempo=tempo)] * duration
 
-    def _parse_duration(self, value: str):
-        if not value:
+    def _parse_pitch(self, name: str):
+        if name.startswith("r"):
+            return name
+
+        try:
+            int(name[-1])
+        except ValueError:
+            if (octave := self.octave) is None:
+                raise ValueError(
+                    f"{self} at {self.current_position}: Octave is missing."
+                )
+            if name.endswith("^"):
+                return name[:-1] + str(octave + 1)
+            elif name.endswith("_"):
+                return name[:-1] + str(octave - 1)
+            name += str(octave)
+        return name
+
+    def _parse_duration(self, *args: str):
+        if not args or not (value := args[0]):
             if self.beats is not None:
                 return self.beats
             else:
                 raise ValueError("Duration is missing.")
+        if len(args) > 1:
+            return self._parse_duration(value) + self._parse_duration(*args[1:])
         if value[-1] == ".":
             return int(self._parse_duration(value[:-1]) * 1.5)
         if value[-1] == "b":
@@ -286,35 +298,28 @@ class Voice(list[list[Note]]):
             return int(value)
 
     def _add_note(self, name: str, **kwargs):
-        # parse note name
-        tokens = name.lower().split(maxsplit=1)
-
+        # parse note name intp pitch + duration
+        tokens = name.lower().split()
         # if note name is "||", fill the rest of the bar with rests
-        if (pitch := tokens[0]).startswith("||"):
+        if tokens[0].startswith("||"):
             self[-1] += self._rest(self.time - len(self[-1]))
             return
         # if "|", do a bar check (self-enforced linter)
-        if pitch.startswith("|"):
+        if tokens[0].startswith("|"):
             if self[-1]:
                 raise ValueError(f"{self} at {self.current_position}: time error.")
             return
         # we do ".startswith" rather than "=="
         # so that "|" or "||" can be followed by a numberc,
         # acting as the bar number, even though this number is not checked
-
-        # read duration
-        try:
-            duration = tokens[1]
-        except IndexError:
-            duration = ""
-        delay = self._parse_duration(duration)
+        pitch = self._parse_pitch(tokens[0])
+        duration = self._parse_duration(*tokens[1:])
 
         # divide note into actual note + rests
         if pitch == "r":
-            notes = self._rest(delay, **kwargs)
+            notes = self._rest(duration, **kwargs)
         else:
-            notes = [Note(self, pitch, **kwargs)] + self._rest(delay - 1, **kwargs)
-
+            notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1, **kwargs)
         # organize those into barss
         for note in notes:
             if len(self[-1]) < self.time:
