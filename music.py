@@ -210,9 +210,6 @@ class Voice(list[list[Note]]):
         )
 
         if notes:
-            # for voice doubling
-            self._notes = []
-
             # add notes
             self.append([])
             for note in notes:
@@ -268,12 +265,7 @@ class Voice(list[list[Note]]):
         if autoReplaceOctaveEquivalent is not None:
             self.autoReplaceOctaveEquivalent = autoReplaceOctaveEquivalent
 
-    def _Note(self, pitch, **kwargs):
-        self._notes.append({"name": f"{pitch} 1"} | kwargs)
-        return Note(self, pitch, **kwargs)
-
-    def _Rest(self, duration: int, *, tempo: int = None, **kwargs) -> list[Note]:
-        self._notes += ["r 1"] * duration
+    def _rest(self, duration: int, *, tempo: int = None, **kwargs) -> list[Note]:
         return [Rest(self, tempo=tempo)] * duration
 
     def _parse_duration(self, value: str):
@@ -293,43 +285,13 @@ class Voice(list[list[Note]]):
         else:
             return int(value)
 
-    def _double(self, double: str, **kwargs):
-        other_voice = self._composition[double]
-        try:
-            _from = self._parse_duration(kwargs.pop("from"))
-        except KeyError:
-            _from = len(self._notes)
-        try:
-            _for = self._parse_duration(kwargs.pop("for"))
-        except KeyError:
-            _for = None
-        try:
-            _to = self._parse_duration(kwargs.pop("to"))
-        except KeyError:
-            if _for is not None:
-                _to = _from + _for
-            else:
-                _to = None
-
-        self._config(**kwargs)
-
-        if _to is not None:
-            try:
-                for note in other_voice._notes[_from:_to]:
-                    self._add(note)
-            except IndexError:
-                raise ValueError(f"{self} at {self.current_position}: time error.")
-        else:
-            for note in other_voice._notes[_from:]:
-                self._add(note)
-
     def _add_note(self, name: str, **kwargs):
         # parse note name
         tokens = name.lower().split(maxsplit=1)
 
         # if note name is "||", fill the rest of the bar with rests
         if (pitch := tokens[0]).startswith("||"):
-            self[-1] += self._Rest(self.time - len(self[-1]))
+            self[-1] += self._rest(self.time - len(self[-1]))
             return
         # if "|", do a bar check (self-enforced linter)
         if pitch.startswith("|"):
@@ -349,9 +311,9 @@ class Voice(list[list[Note]]):
 
         # divide note into actual note + rests
         if pitch == "r":
-            notes = self._Rest(delay, **kwargs)
+            notes = self._rest(delay, **kwargs)
         else:
-            notes = [self._Note(pitch, **kwargs)] + self._Rest(delay - 1, **kwargs)
+            notes = [Note(self, pitch, **kwargs)] + self._rest(delay - 1, **kwargs)
 
         # organize those into barss
         for note in notes:
@@ -373,11 +335,8 @@ class Voice(list[list[Note]]):
 
         if "name" in kwargs:
             self._add_note(kwargs.pop("name"), **kwargs)
-        elif "double" in kwargs:
-            self._double(kwargs.pop("double"), **kwargs)
         else:
             self._config(**kwargs)
-            self._notes.append(arg)
 
 
 class Composition(list[Voice]):
@@ -437,14 +396,6 @@ class Composition(list[Voice]):
             print(f"autoTransposed: +{transpose}")
         elif transpose < 0:
             print(f"autoTransposed: {transpose}")
-
-    def __getitem__(self, key: int | str) -> Voice:
-        if isinstance(key, int):
-            return self[key]
-        for voice in self:
-            if voice.name == key:
-                return voice
-        raise KeyError(key)
 
     def __str__(self):
         if self.name is not None:
