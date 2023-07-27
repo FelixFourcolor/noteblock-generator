@@ -65,6 +65,9 @@ def _parse_transpose(value: int | str):
     return int(value)
 
 
+MAX_DYNAMIC = 4
+
+
 class Note:
     def __init__(
         self,
@@ -101,6 +104,8 @@ class Note:
             self.name += f"{transpose}"
         self.delay = tempo
         self.instrument = instrument
+        if dynamic not in range(MAX_DYNAMIC + 1):
+            raise ValueError(f"{MAX_DYNAMIC = }.")
         self.dynamic = dynamic
 
         pitch_value = PITCHES[name] + transpose
@@ -255,6 +260,8 @@ class Voice(list[list[Note]]):
         if instrument is not None:
             self.instrument = instrument
         if dynamic is not None:
+            if dynamic not in range(MAX_DYNAMIC + 1):
+                raise ValueError(f"{MAX_DYNAMIC = }.")
             self.dynamic = dynamic
         if transpose is not None:
             self.transpose = self._composition.transpose + _parse_transpose(transpose)
@@ -382,6 +389,7 @@ class Composition(list[Voice]):
         time: int,
         tempo: int,
         voices: list[dict],
+        name: str = None,
         beats: int = None,
         octave: int = None,
         instrument: str = None,
@@ -390,9 +398,13 @@ class Composition(list[Voice]):
         autoTranspose=False,
         autoReplaceOctaveEquivalent=False,
     ):
+        if dynamic not in range(MAX_DYNAMIC + 1):
+            raise ValueError(f"{MAX_DYNAMIC = }.")
+
         self.time = time
         self.tempo = tempo
         self.beats = beats
+        self.name = name
         self.octave = octave
         self.instrument = instrument
         self.dynamic = dynamic
@@ -433,3 +445,8 @@ class Composition(list[Voice]):
             if voice.name == key:
                 return voice
         raise KeyError(key)
+
+    def __str__(self):
+        if self.name is not None:
+            return self.name
+        return "Unnamed Composition"
