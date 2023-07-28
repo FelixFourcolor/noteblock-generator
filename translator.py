@@ -48,7 +48,7 @@ INSTRUMENTS = {
     "basedrum": range(6, 31),
     "hat": range(42, 67),
     "snare": range(42, 67),
-    None: range(79),
+    None: range(6, 79),
 }
 
 
@@ -165,8 +165,8 @@ class Voice(list[list[Note]]):
         time: int = None,
         tempo: int = None,
         beats: int = None,
-        octave: int = None,
         instrument: str = None,
+        octave: int = None,
         dynamic: int = None,
         transpose: str | int = 0,
         autoReplaceOctaveEquivalent: bool = None,
@@ -177,10 +177,13 @@ class Voice(list[list[Note]]):
             tempo = _composition.tempo
         if beats is None:
             beats = _composition.beats
-        if octave is None:
-            octave = _composition.octave
         if instrument is None:
             instrument = _composition.instrument
+        if octave is None:
+            if instrument is None:
+                octave = None
+            else:
+                octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         if dynamic is None:
             dynamic = _composition.dynamic
         if autoReplaceOctaveEquivalent is None:
@@ -355,7 +358,6 @@ class Composition(list[Voice]):
         voices: list[dict],
         name: str = None,
         beats: int = None,
-        octave: int = None,
         instrument: str = None,
         dynamic=2,
         transpose: str | int = 0,
@@ -369,7 +371,6 @@ class Composition(list[Voice]):
         self.tempo = tempo
         self.beats = beats
         self.name = name
-        self.octave = octave
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = _parse_transpose(transpose)
