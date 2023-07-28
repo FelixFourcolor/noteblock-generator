@@ -6,26 +6,24 @@ import sys
 from pathlib import Path
 
 
-def generate(path_in: str | Path, path_out: str | Path = None):
+def _main(_in: str | Path, _out: str | Path = None):
     from generator import generate
     from music import Composition
 
-    path_in = Path(path_in)
-    with open(path_in, "r") as f:
-        kwargs = json.load(f)
-
-    composition = Composition(**kwargs)
-
-    if path_out is None:
-        path_out = path_in.parent / str(composition)
-    shutil.copytree(Path(sys.path[0]) / "New World", path_out, dirs_exist_ok=True)
-
-    generate(composition, path_out)
+    with open((_in := Path(_in)), "r") as f:
+        composition = Composition(**json.load(f))
+    if _out is None:
+        _out = _in.parent / str(composition)
+    try:
+        shutil.copytree(Path(sys.path[0]) / "New World", _out)
+    except FileExistsError:
+        pass
+    generate(composition, _out)
 
 
 def main():
     logging.basicConfig(level=logging.WARNING)
-    generate(*sys.argv[1:])
+    _main(*sys.argv[1:])
 
 
 if __name__ == "__main__":
