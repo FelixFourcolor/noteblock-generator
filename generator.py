@@ -84,30 +84,34 @@ class World:
 
 def generate(composition: Composition, path: str | Path):
     def generate_foundation():
-        longest_voice = max(map(len, composition))
-        longest_bar = max(map(lambda voice: max(map(len, voice)), composition))
-        for x in range(longest_voice * BAR_WIDTH):
-            for z in range(longest_bar * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH):
-                world[x, -1, z] = Stone
+        notes = max(map(lambda voice: max(map(len, voice)), composition))
+        bars = max(map(len, composition))
+        for z in range(notes * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH + 2 * MARGIN):
+            for x in range(bars * BAR_WIDTH + 2 * MARGIN):
+                world[x, 0, z] = Stone
 
     def generate_init_system():
+        # add this number of bars to the beginning of every voice
+        init_bars = math.ceil((len(composition) - 1) / composition.time)
         for voice in composition:
-            for _ in range(math.ceil((len(composition) - 1) / composition.time)):
+            for _ in range(init_bars):
                 voice.insert(0, [Rest(voice, tempo=1)] * composition.time)
-        world[1, 2 * len(composition) - 1, 1] = Block("oak_button", facing=-x_direction)
+        # so that with a push of this button, all voices start at the same time
+        world[2, 2 * len(composition), 2] = Block("oak_button", facing=-x_direction)
 
-    def generate_skeleton():
+    def generate_redstones():
         world[x, y, z] = Repeater(note.delay, z_direction)
         world[x, y, z + z_increment] = Stone
+        world[x, y + 1, z + z_increment] = Redstone()
         world[x, y + 1, z + z_increment * 2] = Stone
 
-    def generate_notes():
-        x_i = [1, -1, 2, -2]  # noteblock build order
-        world[x, y + 1, z + z_increment] = Redstone()
-        for k in range(note.dynamic):
-            world[x + x_i[k], y + 1, z + z_increment] = NoteBlock(note)
+    def generate_noteblocks():
+        # place noteblock positions in this order, depending on dynamic
+        positions = [1, -1, 2, -2]
+        for i in range(note.dynamic):
+            world[x + positions[i], y + 1, z + z_increment] = NoteBlock(note)
 
-    def generate_bar_change():
+    def generate_bar_changing_system():
         world[x, y - 1, z + z_increment * 2] = Stone
         world[x, y, z + z_increment * 2] = Redstone((z_direction, -z_direction))
         world[x, y - 1, z + z_increment * 3] = Stone
@@ -121,7 +125,7 @@ def generate(composition: Composition, path: str | Path):
     if not composition:
         return
 
-    Stone = Block("stone")
+    MARGIN = 1
     NOTE_LENGTH = 2
     BAR_WIDTH = MAX_DYNAMIC + 1  # MAX_DYNAMIC noteblocks + stone
     VOICE_HEIGHT = 2
@@ -129,26 +133,31 @@ def generate(composition: Composition, path: str | Path):
     BAR_CHANGING_TOTAL_LENGTH = BAR_CHANGING_LENGTH + 1  # 1 for z-offset every change
 
     with World(path) as world:
+        Stone = Block("stone")
         x_direction = Direction((1, 0))
+
         generate_init_system()
         generate_foundation()
+
         for i, voice in enumerate(composition):
-            y = i * VOICE_HEIGHT
-            z = BAR_CHANGING_TOTAL_LENGTH
+            y = MARGIN + i * VOICE_HEIGHT
+            z = MARGIN + BAR_CHANGING_TOTAL_LENGTH
             z_direction = Direction((0, 1))
+
             for j, bar in enumerate(voice):
-                x = MAX_DYNAMIC // 2 + j * BAR_WIDTH
+                x = MARGIN + MAX_DYNAMIC // 2 + j * BAR_WIDTH
                 z_increment = z_direction[1]
                 z0 = z - z_increment * BAR_CHANGING_LENGTH
+
                 world[x, y + 1, z0] = Stone
                 for k, note in enumerate(bar):
                     z = z0 + k * z_increment * NOTE_LENGTH
-                    generate_skeleton()
-                    generate_notes()
+                    generate_redstones()
+                    generate_noteblocks()
                 try:
                     voice[j + 1]
                 except IndexError:
                     pass
                 else:
-                    generate_bar_change()
+                    generate_bar_changing_system()
                     z_direction = -z_direction
