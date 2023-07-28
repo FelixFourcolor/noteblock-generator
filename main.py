@@ -8,7 +8,7 @@ from pathlib import Path
 
 def _main(_in: str | Path, _out: str | Path = None):
     from generator import generate
-    from music import Composition
+    from translator import Composition
 
     with open((_in := Path(_in)), "r") as f:
         composition = Composition(**json.load(f))

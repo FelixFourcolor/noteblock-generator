@@ -4,7 +4,7 @@ from pathlib import Path
 
 import amulet as _amulet
 
-from music import INSTRUMENTS, MAX_DYNAMIC, Composition, Note, Rest
+from translator import INSTRUMENTS, MAX_DYNAMIC, Composition, Note, Rest
 
 _namespace = "minecraft:overworld"
 _version = ("java", (1, 20))
