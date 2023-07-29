@@ -70,7 +70,8 @@ class World:
         self._path = str(path)
 
     def __enter__(self):
-        self._level = _amulet.load_level(self._path)
+        self._level = (level := _amulet.load_level(self._path))
+        self.players = list(map(level.get_player, level.all_player_ids()))
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
@@ -82,22 +83,27 @@ class World:
         self._level.set_version_block(*coordinates, _namespace, _version, block)
 
 
-def generate(composition: Composition, path: str | Path):
-    def generate_foundation():
+def generate(
+    composition: Composition, path: str | Path, location: tuple[float, float, float]
+):
+    def generate_space():
         notes = max(map(lambda voice: max(map(len, voice)), composition))
-        bars = max(map(len, composition))
+        bars = max(map(len, composition)) + INIT_BARS
+        voices = len(composition)
         for z in range(notes * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH + 2 * MARGIN):
             for x in range(bars * BAR_WIDTH + 2 * MARGIN):
-                world[x, 0, z] = Stone
+                world[X0 + x, Y0, Z0 + z] = Stone
+                for y in range(1, voices * VOICE_HEIGHT + 2 * MARGIN):
+                    world[X0 + x, Y0 + y, Z0 + z] = Air
 
     def generate_init_system():
-        # add this number of bars to the beginning of every voice
-        init_bars = math.ceil((len(composition) - 1) / composition.time)
         for voice in composition:
-            for _ in range(init_bars):
+            for _ in range(INIT_BARS):
                 voice.insert(0, [Rest(voice, tempo=1)] * composition.time)
         # so that with a push of this button, all voices start at the same time
-        world[2, 2 * len(composition), 2] = Block("oak_button", facing=-x_direction)
+        world[X0 + 2, Y0 + 2 * len(composition), Z0 + 2] = Block(
+            "oak_button", facing=-x_direction
+        )
 
     def generate_redstones():
         world[x, y, z] = Repeater(note.delay, z_direction)
@@ -131,21 +137,28 @@ def generate(composition: Composition, path: str | Path):
     VOICE_HEIGHT = 2
     BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around and change bar
     BAR_CHANGING_TOTAL_LENGTH = BAR_CHANGING_LENGTH + 1  # 1 for z-offset every change
+    # add this number of bars to the beginning of every voice
+    INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
 
     with World(path) as world:
         Stone = Block("stone")
-        x_direction = Direction((1, 0))
+        Air = Block("air")
 
+        x_direction = Direction((1, 0))
+        if not location:
+            location = world.players[0].location
+        X0, Y0, Z0 = map(math.floor, location)
+
+        generate_space()
         generate_init_system()
-        generate_foundation()
 
         for i, voice in enumerate(composition):
-            y = MARGIN + i * VOICE_HEIGHT
-            z = MARGIN + BAR_CHANGING_TOTAL_LENGTH
+            y = Y0 + MARGIN + i * VOICE_HEIGHT
+            z = Z0 + MARGIN + BAR_CHANGING_TOTAL_LENGTH
             z_direction = Direction((0, 1))
 
             for j, bar in enumerate(voice):
-                x = MARGIN + MAX_DYNAMIC // 2 + j * BAR_WIDTH
+                x = X0 + MARGIN + MAX_DYNAMIC // 2 + j * BAR_WIDTH
                 z_increment = z_direction[1]
                 z0 = z - z_increment * BAR_CHANGING_LENGTH
 

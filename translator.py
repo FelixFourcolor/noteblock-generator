@@ -356,7 +356,6 @@ class Composition(list[Voice]):
         time: int,
         tempo: int,
         voices: list[dict],
-        name: str = None,
         beats: int = None,
         instrument: str = None,
         dynamic=2,
@@ -402,8 +401,3 @@ class Composition(list[Voice]):
             print(f"autoTransposed: +{transpose}")
         elif transpose < 0:
             print(f"autoTransposed: {transpose}")
-
-    def __str__(self):
-        if self.name is not None:
-            return self.name
-        return "Unnamed Composition"
