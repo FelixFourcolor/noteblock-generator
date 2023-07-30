@@ -10,6 +10,5 @@
     "reportUnusedExpression": true,
     "reportMatchNotExhaustive": true,
     "reportOverlappingOverload": true,
-    "reportShadowedImports": true,
     "strictParameterNoneValue": false
 }
