@@ -233,6 +233,8 @@ class Voice(list[list[Note]]):
     def _parse_duration(self, *args: str):
         if not args or not (value := args[0]):
             return self.beat
+        if len(args) > 1:
+            return self._parse_duration(args[0]) + self._parse_duration(*args[1:])
         try:
             if value[-1] == ".":
                 return int(self._parse_duration(value[:-1]) * 1.5)
@@ -245,7 +247,7 @@ class Voice(list[list[Note]]):
 
     def _add_note(self, name: str, **kwargs):
         # parse note name into pitch + duration
-        tokens = name.lower().split(maxsplit=1)
+        tokens = name.lower().split()
         # if note name is "||", fill the rest of the bar with rests
         if tokens[0].startswith("||"):
             self[-1] += self._rest(self.time - len(self[-1]))
