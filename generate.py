@@ -135,7 +135,7 @@ class Voice(list[list[Note]]):
         name: str = None,
         time: int = None,
         delay: int = None,
-        beats: int = None,
+        beat: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose=0,
@@ -144,8 +144,8 @@ class Voice(list[list[Note]]):
             time = _composition.time
         if delay is None:
             delay = _composition.delay
-        if beats is None:
-            beats = _composition.beats
+        if beat is None:
+            beat = _composition.beat
         if instrument is None:
             instrument = _composition.instrument
         if dynamic is None:
@@ -157,7 +157,7 @@ class Voice(list[list[Note]]):
         self._config(
             time=time,
             delay=delay,
-            beats=beats,
+            beat=beat,
             instrument=instrument,
             dynamic=dynamic,
             transpose=transpose,
@@ -193,7 +193,7 @@ class Voice(list[list[Note]]):
         self,
         time: int = None,
         delay: int = None,
-        beats: int = None,
+        beat: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose: int = None,
@@ -203,8 +203,8 @@ class Voice(list[list[Note]]):
         if delay is not None:
             # delay of out range is handled by Note.__init__
             self.delay = delay
-        if beats is not None:
-            self.beats = beats
+        if beat is not None:
+            self.beat = beat
         if instrument is not None:
             # invalid instrument is handled by Note.__init__
             self.instrument = instrument
@@ -232,12 +232,12 @@ class Voice(list[list[Note]]):
 
     def _parse_duration(self, *args: str):
         if not args or not (value := args[0]):
-            return self.beats
+            return self.beat
         try:
             if value[-1] == ".":
                 return int(self._parse_duration(value[:-1]) * 1.5)
             if value[-1] == "b":
-                return self.beats * int(value[:-1])
+                return self.beat * int(value[:-1])
             else:
                 return int(value)
         except ValueError:
@@ -283,7 +283,7 @@ class Composition(list[Voice]):
         voices: list[dict] = [],
         time=16,
         delay=1,
-        beats=1,
+        beat=1,
         instrument="harp",
         dynamic=2,
         transpose=0,
@@ -291,7 +291,7 @@ class Composition(list[Voice]):
         # values out of range are handled by Voice or Note __init__
         self.time = time
         self.delay = delay
-        self.beats = beats
+        self.beat = beat
         self.name = name
         self.instrument = instrument
         self.dynamic = dynamic
