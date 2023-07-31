@@ -28,6 +28,9 @@ for name, value in dict(PITCHES).items():
             PITCHES[name[:-1] + "s" + name[-1]] = value + 1
             PITCHES[name[:-2] + "x" + name[-1]] = value + 1
     else:
+        # sharps
+        if value + 1 < 84:
+            PITCHES[name[:-1] + "s" + name[-1]] = value + 1
         # flats
         if value - 1 >= 0:
             PITCHES[name[:-1] + "b" + name[-1]] = value - 1
