@@ -62,6 +62,9 @@ INSTRUMENTS = {
 # 0 for rest, upto 4 for loudest
 DYNAMIC_RANGE = range(0, 5)
 
+# how many redstone ticks between two consecutive notes
+DELAY_RANGE = range(1, 5)
+
 
 class UserError(Exception):
     pass
@@ -86,8 +89,8 @@ class Note:
 
         if delay is None:
             delay = _voice.delay
-        if delay < 1:
-            raise UserError("delay must be >= 1.")
+        if delay not in DELAY_RANGE:
+            raise UserError(f"delay must be in {DELAY_RANGE}.")
         self.delay = delay
 
         if instrument is None:
@@ -120,8 +123,8 @@ class Rest(Note):
     def __init__(self, _voice: Voice, delay: int = None):
         if delay is None:
             delay = _voice.delay
-        if delay < 1:
-            raise UserError("delay must be >= 1.")
+        if delay not in DELAY_RANGE:
+            raise UserError(f"delay must be in {DELAY_RANGE}.")
         self.delay = delay
         self.dynamic = 0
         self._name = "r"
@@ -338,8 +341,6 @@ class Direction(tuple[int, int], Enum):
 
 class Repeater(Block):
     def __init__(self, delay: int, direction: Direction):
-        if delay not in range(1, 5):
-            raise ValueError("delay must be in range(1, 5).")
         # Minecraft's bug: repeater's direction is reversed
         super().__init__("repeater", delay=delay, facing=(-direction).name)
 
