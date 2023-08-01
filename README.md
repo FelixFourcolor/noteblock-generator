@@ -1,10 +1,10 @@
 # Minecraft noteblock generator
 
-Generate a music composition in minecraft noteblocks.
+Generate a music composition in Minecraft noteblocks.
 
 ## Usage
 ```
-python generate.py [path to music JSON file] [path to minecraft world] [(optional) build coordinates]
+python generate.py [path to music JSON file] [path to Minecraft world] [(optional) build coordinates]
 ```
 
 Example: 
@@ -21,11 +21,11 @@ See the Generation section for what the generated structure will look like.
 ## Dependencies
 python 3.10+
 
-amulet-core, available on PyPI
+[Amulet-Core](https://github.com/Amulet-Team/Amulet-Core)
 
 ## JSON
 
-The user writes a JSON file that specifies a music composition. This file is first translated into python objects, then generated in minecraft noteblocks.
+The user writes a JSON file that specifies a music composition. This file is first translated into python objects, then generated in Minecraft noteblocks.
 
 The JSON file should be in this format:
 ```json5
@@ -45,10 +45,10 @@ The JSON file should be in this format:
     "beat": [how many steps in a beat],
     // Does not affect the build, but is useful for writing notes (explained later).
     // Default value is 1.
-    "instrument": "[noteblock instrument to play the notes]",
+    "instrument": [noteblock instrument to play the notes],
     // Default value is "harp".
-    // See minecraft's documentations for all available instruments.
-    "dynamic": [how many noteblocks to play the note],
+    // See Minecraft's documentation for all available instruments.
+    "dynamic": [how many noteblocks to play each note],
     // Must be from 0 to 4, where 0 is silent and 4 is loudest.
     // Default value is 2.
     "transpose": [transpose the entire composition, in semitones],
@@ -67,14 +67,14 @@ The JSON file should be in this format:
             // you've made an error, e.g. invalid note name.
             "transpose": [transpose this particular voice, in semitones],
             // This value is compounded with the composition's transposition.
-            //Default value is 0.
+            // Default value is 0.
             "time": [override the composition time],
             "delay": [override the composition delay],
             "beat": [override the composition beat],
-            "instrument": "[override the composition's instrument]",
+            "instrument": [override the composition instrument],
             "dynamic": [override the composition dynamic],
             // Some instruments are inherently louder than others, 
-            // it is recommened to adjust the dynamic level of every voice 
+            // it is recommended to adjust the dynamic level of every voice 
             // to compensate for this fact.
             
             // Mandatory argument
@@ -91,7 +91,7 @@ The JSON file should be in this format:
                     // Default value is 0.
                     "delay": [override the voice delay],
                     "dynamic": [override the voice dynamic],
-                    "instrument": "[override the voice's instrument]",
+                    "instrument": [override the voice instrument],
 
                     // (sort-of) Mandatory argument
                     "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
@@ -108,7 +108,7 @@ The JSON file should be in this format:
                     // Octave number can be inferred from the instrument's range.
                     // For example, using the harp whose range is F#3 - F#5, 
                     // "fs" is inferred as "fs 4", "fs^" as "fs 5", and "fs_" as "fs 3".
-                    // See minecraft's documentation for the range of each instrument.
+                    // See Minecraft's documentation for the range of each instrument.
 
                     // Duration is the number of steps. For example, if a voice has 
                     // 4/4 time and use time 8, a quarter note has duration 2.
@@ -136,13 +136,18 @@ The JSON file should be in this format:
 
                 // Note 3, etc.
 
-                // Another way is to write it as a string, 
-                // which is the same as { "name": "that string" }.
+                // Another way is to write it as a string, like this
+                "[note name][octave] [duration 1] [duration 2] [etc.]",
+                // which is the same as 
+                {
+                    // omit all optional arguments
+                    "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
+                }
 
                 // Bar changes are handled automatically based on the voice's time. 
-                // However, the recommended practice is to write a pseudo-note 
+                // However, it is recommended to write a pseudo-note 
                 // "| [bar number]" at the beginning of every bar. 
-                // The "|" note tells the translator to check if it's indeed 
+                // The "|" pseudo-note tells the translator to check if it's indeed 
                 // the beginning of a bar, and raise an error if it isn't. 
                 // Meanwhile, the bar number is just for your own reference.
             ]
@@ -160,7 +165,7 @@ The JSON file should be in this format:
 For an example, see "frere jacques.json", which writes the Frere Jacques round in C major for 5 voices. And see the "Frere Jacques" world for the build result.
 
 ## Generation
-The generated structure of one voice looks something like this
+The generated structure of one voice looks like this
 ```
 x
 ↑
@@ -179,10 +184,9 @@ O------------------------------------------> z
 ```
 Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file, from bottom to top. It is recommended to give lower voices higher dynamic levels to compensate for the fact that being further away from the player who flies above, they are harder to hear.
 
-The "O" of the first voice is considered the location of the build.
-The build coordinates mentioned in the Usage section are the coordinates of this location.
+The "O" of the first voice is considered the location of the build. The build coordinates mentioned in the Usage section are the coordinates of this location.
 
-Each "note" in the above diagram is a group that looks something like this
+Each "note" in the above diagram is a group that looks like this
 ```
 x
 ↑
@@ -194,11 +198,9 @@ x
 
 |------------------------> z
 ```
-The number of noteblocks depends on the note's dynamic level,
-this diagram shows one with maximum dynamic level 4.
+The number of noteblocks depends on the note's dynamic level, this diagram shows one with maximum dynamic level 4.
 
-Upon being called, the generator fills the required space
-starting from the build c with air, then generates the structure.
+Upon being called, the generator fills the required space starting from the build location with air, then generates the structure.
 
 ## License
 
