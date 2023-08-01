@@ -8,6 +8,172 @@ from enum import Enum
 
 import amulet
 
+# ---------------------------------------- MAIN ----------------------------------------
+
+"""Program usage: 
+    generate.py [path to json file] [path to mc world] [(optional) build coordinates]
+Example: "generate.py /home/user/my-song.json /home/user/minecraft/saves/My-World 0 0 0"
+If build coordinates are not provided, it will be the player's location.
+
+See the TRANSLATOR section for how to write the json file.
+See the GENERATOR section for what the generated structure will look like.
+"""
+
+
+def main(path_in: str, path_out: str, *location: str):
+    with open(path_in, "r") as f:
+        try:
+            composition = Composition(**json.load(f))
+        except UserError as e:
+            print(e)
+            sys.exit(1)
+
+    generate(composition, path_out, tuple(map(int, location)))
+
+
+# ------------------------------------- TRANSLATOR -------------------------------------
+
+"""The json file should be in this format:
+{
+    // Composition
+
+    // optional arguments
+
+    "time": [how many steps in a bar],
+    // If the time signature is 3/4, and we want to be able to play 16th notes,
+    // the number of steps in a bar is 12.
+    // Default value is 16, that is, 4/4 time and the ability to play 16th notes.
+    // See GENERATOR section for how this value affects the build.
+
+    "delay": [how many redstone ticks between each step],
+    // Must be from 1 to 4, default value is 1.
+    // For reference, if time is 16 and delay is 1, 
+    // it is equivalent to the tempo "quarter note = 150 bpm"
+
+    "beat": [how many steps in a beat],
+    // Does not affect the build, but is useful for writing notes (explained later).
+    // Default value is 1.
+
+    "instrument": "[noteblock instrument to play the notes]",
+    // Default value is "harp".
+    // See minecraft's documentations for all available instruments.
+
+    "dynamic": [how many noteblocks to play the note],
+    // Must be from 0 to 4, where 0 is silent and 4 is loudest.
+    // Default value is 2.
+
+    "transpose": [transpose the entire composition, in semitones],
+    // Default value is 0.
+
+    // Mandatory argument
+    "voices": // an array of voices
+    [
+        {
+            // Voice 1
+
+            // Optional arguments
+
+            "name": "[voice name]",
+            // Does not affect the build, but is useful for error messages, which, if
+            // voice name is given, will tell you at which voice you've made an error,
+            // e.g. invalid note name, note out of range for instrument, etc.
+
+            "transpose": [transpose this particular voice, in semitones],
+            // This value is compounded with the composition's transposition.
+            // Default value is 0
+
+            "time": [override the composition's time value],
+            "delay": [override the composition's delay value],
+            "beat": [override the composition's beat value],
+            "instrument": "[override the composition's instrument value]"
+            "dynamic": [override the composition's dynamic value]
+            // some instruments are inherently louder than others,
+            // it is recommened to adjust dynamic level of every voice
+            // to compensate for this fact.
+            
+            // Mandatory argument
+            "notes":  // an array of notes
+            [
+                // There are two ways to write notes.
+                // First is as a json object, like this
+
+                {
+                    // Note 1
+
+                    // Optional arguments
+
+                    "transpose": [transpose this particular note, in semitones],
+                    // This value is compounded with the voice's transposition.
+                    // Default value: 0
+        
+                    "delay": [override the voice's delay value],
+                    "dynamic": [override the voice's dynamic value],
+                    "instrument": "[override the voice's instrument value]",
+
+                    // (sort-of) Mandatory argument
+                    "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
+
+                    // Valid note names are "r" (for rest) and "c", "cs", "db", etc.
+                    // where "s" is for sharp and "b" is for flat.
+                    // Double sharps, double flats are supported.
+
+                    // Octaves are from 1 to 7. Note, however, that the lowest pitch 
+                    // noteblocks can play is F#1 and the highest is F#7,
+                    // so just because you can write it doesn't mean it will build
+                    // (but you can transpose it to fit the range).
+                    // Octave number can be inferred from the instrument's range.
+                    // For example, the harp's range is F#3 - F#5, so
+                    // "fs" is inferred as F#4, "fs^" as F#5, and "fs_" as F#3.
+                    // See minecraft's documentation for the range of each instrument.
+
+                    // Duration is the number of steps.
+                    // If duration is omitted, it will be the beat number.
+                    // If multiple durations are given, they will be summed up,
+                    // for example, note name "cs4 1 2 3" is the same as "cs4 6",
+                    // which is C#4 for 6 steps.
+                    // Because noteblocks cannot sustain, a note with duration n
+                    // is the same as the note with duration 1 and n-1 rests. 
+                    // However it is recommended to write notes as they are written 
+                    // in the score for readability.
+
+                    // The note name "||" is short for 
+                    "rest for the remaining of the current bar."
+
+                    // If a note object does not have the "name" value, the other key-
+                    // -value pairs will be applied all subsequent notes in its voice.
+                    // If a subsequent note defines its own values, some of which
+                    // overlap with these values, the note's values take precedence.
+                },
+
+                {
+                    // Note 2
+                    // etc.
+                },
+
+                // Note 3, etc.
+
+                // Another way is to write it as a string, which is the same as
+                // { "name": "that string" }
+
+                // Bar changes are handled automatically based on the voice's time;
+                // however, the recommended practice is to write a pseudo-note 
+                // "| [bar number]" at the beginning of every bar. 
+                // The "|" symbol tells the translator to check if it's 
+                indeed the beginning of a bar, and raise an error if it isn't.
+                // Meanwhile, the bar number is just for your own reference.
+            ]
+        },
+        
+        {
+            // Voice 2
+            // etc.
+        },
+        
+        // Voice 3, etc.
+    ]
+}
+"""
+
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
 # create first octave
 _first = ["c1", "cs1", "d1", "ds1", "e1", "f1", "fs1", "g1", "gs1", "a1", "as1", "b1"]
@@ -58,22 +224,26 @@ INSTRUMENTS = {
     "snare": range(42, 67),
 }
 
-# number of noteblocks to play the note,
-# 0 for rest, upto 4 for loudest
-DYNAMIC_RANGE = range(0, 5)
-
-# how many redstone ticks between two consecutive notes
 DELAY_RANGE = range(1, 5)
+DYNAMIC_RANGE = range(0, 5)
 
 
 class UserError(Exception):
-    pass
+    """To be raised if there is an error when translating the json file,
+    e.g. invalid instrument name or note out of the instrument's range.
+    """
+
+
+# The following classes -- Note, Voice, Composition -- are
+# almost 1-1 translation of the json file in python's format.
 
 
 class Note:
     def __init__(
         self,
         _voice: Voice,
+        /,
+        *,
         name: str,
         delay: int = None,
         dynamic: int = None,
@@ -120,7 +290,7 @@ class Note:
 
 
 class Rest(Note):
-    def __init__(self, _voice: Voice, delay: int = None):
+    def __init__(self, _voice: Voice, /, *, delay: int = None):
         if delay is None:
             delay = _voice.delay
         if delay not in DELAY_RANGE:
@@ -137,6 +307,8 @@ class Voice(list[list[Note]]):
     def __init__(
         self,
         _composition: Composition,
+        /,
+        *,
         notes: list[str | dict] = [],
         name: str = None,
         time: int = None,
@@ -197,6 +369,8 @@ class Voice(list[list[Note]]):
 
     def _config(
         self,
+        /,
+        *,
         time: int = None,
         delay: int = None,
         beat: int = None,
@@ -273,7 +447,9 @@ class Voice(list[list[Note]]):
         if pitch == "r":
             notes = self._rest(duration, **kwargs)
         else:
-            notes = [Note(self, pitch, **kwargs)] + self._rest(duration - 1, **kwargs)
+            notes = [Note(self, name=pitch, **kwargs)] + self._rest(
+                duration - 1, **kwargs
+            )
         # organize those into barss
         for note in notes:
             if len(self[-1]) < self.time:
@@ -288,6 +464,8 @@ class Composition(list[Voice]):
 
     def __init__(
         self,
+        /,
+        *,
         voices: list[dict] = [],
         time=16,
         delay=1,
@@ -296,7 +474,7 @@ class Composition(list[Voice]):
         dynamic=2,
         transpose=0,
     ):
-        # values out of range are handled by Voice or Note __init__
+        # values out of range are handled by Voice/Note.__init__
         self.time = time
         self.delay = delay
         self.beat = beat
@@ -309,18 +487,72 @@ class Composition(list[Voice]):
             self.append(Voice(self, **voice))
 
 
+# ------------------------------------- GENERATOR -------------------------------------
+
+"""The structure of one voice looks something like this
+
+x
+↑ 
+| [BAR 5] etc.
+|          ↑
+|          -- note <- note <- note [BAR 4]
+|                               ↑
+| [BAR 3] note -> note -> note --
+|          ↑
+|          -- note <- note <- note [BAR 2]
+|                               ↑
+| [BAR 1] note -> note -> note --
+|
+O--------------------------------------> z
+
+and each voice is a vertical layer on top of another.
+Voices are built in the order that they are written in the json file,
+from bottom to top.
+For this reason it is recommended to give lower voices higher dynamic levels,
+to compensate for the fact that being further away from the player who flies above
+they are harder to hear.
+
+The "O" of the first voice is considered the location of the build.
+The build coordinates mentioned in MAIN section are the coordinates of this location.
+
+Each "note" in the above diagram is a group that looks something like this
+
+x
+↑
+|           [noteblock]
+|           [noteblock]
+| [repeater]  [stone] 
+|           [noteblock]
+|           [noteblock]
+|
+|-----------------------> z
+
+The number of noteblocks depends on the note's dynamic level,
+this diagram shows one with maximum dynamic level 4.
+
+Upon being called, the generator fills the required space start from the build location
+with air, then generates the structure.
+"""
+
+
 class Block(amulet.api.block.Block):
+    """A thin wrapper of amulet block, with a more convenient constructor"""
+
     def __init__(self, name: str, **properties):
         properties = {k: amulet.StringTag(v) for k, v in properties.items()}
         super().__init__("minecraft", name, properties)
 
 
 class NoteBlock(Block):
+    """A cnvenience class for noteblocks"""
+
     def __init__(self, _note: Note):
         super().__init__("note_block", note=_note.note, instrument=_note.instrument)
 
 
 class Direction(tuple[int, int], Enum):
+    """Minecraft's cardinal direction"""
+
     north = (0, -1)
     south = (0, 1)
     east = (1, 0)
@@ -340,16 +572,22 @@ class Direction(tuple[int, int], Enum):
 
 
 class Repeater(Block):
+    """A convenience class for repeaters"""
+
     def __init__(self, delay: int, direction: Direction):
-        # Minecraft's bug: repeater's direction is reversed
+        # MiNECRAFT's BUG: repeater's direction is reversed
         super().__init__("repeater", delay=delay, facing=(-direction).name)
 
 
 class Redstone(Block):
+    """A convenience class for redstone dusts"""
+
     def __init__(
         self,
-        connections=list(Direction),
+        connections=list(Direction),  # connected to all sides by default
     ):
+        # only support connecting sideways,
+        # because that's all we need for this build
         super().__init__(
             "redstone_wire",
             **{direction.name: "side" for direction in connections},
@@ -357,6 +595,13 @@ class Redstone(Block):
 
 
 class World:
+    """A thin wrapper of amulet World,
+    with __setitem__ as a convenience method for World.set_version_block,
+    and a context manager to load and save.
+    """
+
+    # to be updated in the future
+    # as for now, this works for java 1.18+
     VERSION = ("java", (1, 20))
 
     def __init__(self, path: str):
@@ -373,6 +618,8 @@ class World:
         self._level.close()
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
+        # only support placing blocks in the overworld,
+        # because that's all we need for this build
         self._level.set_version_block(
             *coordinates, "minecraft:overworld", self.VERSION, block
         )
@@ -470,17 +717,6 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
                 else:
                     generate_bar_changing_system()
                     z_direction = -z_direction
-
-
-def main(path_in: str, path_out: str, *location_args: str):
-    with open(path_in, "r") as f:
-        try:
-            composition = Composition(**json.load(f))
-        except UserError as e:
-            print(e)
-            sys.exit(1)
-
-    generate(composition, path_out, tuple(map(int, location_args)))
 
 
 if __name__ == "__main__":

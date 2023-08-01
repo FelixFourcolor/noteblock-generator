@@ -5,6 +5,7 @@
     "reportUntypedFunctionDecorator": true,
     "reportUntypedClassDecorator": true,
     "reportUntypedBaseClass": true,
+    "reportIncompatibleMethodOverride": true,
     "reportIncompatibleVariableOverride": true,
     "reportInconsistentConstructor": true,
     "reportUnusedExpression": true,
