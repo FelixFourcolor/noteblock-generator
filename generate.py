@@ -87,8 +87,8 @@ def main(path_in: str, path_out: str, *location: str):
             "beat": [override the composition's beat value],
             "instrument": "[override the composition's instrument value]"
             "dynamic": [override the composition's dynamic value]
-            // some instruments are inherently louder than others,
-            // it is recommened to adjust dynamic level of every voice
+            // Some instruments are inherently louder than others,
+            // it is recommened to adjust the dynamic level of every voice
             // to compensate for this fact.
             
             // Mandatory argument
@@ -172,6 +172,8 @@ def main(path_in: str, path_out: str, *location: str):
         // Voice 3, etc.
     ]
 }
+For an example, see "frere jacques.json", which writes the Frere Jacques round
+in C major for 5 voices. And see the "Frere Jacques" world for the build result.
 """
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
