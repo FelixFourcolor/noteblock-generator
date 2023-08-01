@@ -626,9 +626,14 @@ class World:
 
 
 def generate(composition: Composition, path: str, location: tuple[float, float, float]):
+    def equalize_voices():
+        for voice in composition:
+            if (L := len(voice)) < LONGEST_VOICE:
+                voice += [[Rest(voice)] * voice.time] * (LONGEST_VOICE - L)
+
     def generate_space():
         notes = max(map(lambda voice: max(map(len, voice)), composition))
-        bars = max(map(len, composition)) + INIT_BARS
+        bars = LONGEST_VOICE + INIT_BARS
         voices = len(composition)
         for z in range(notes * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH + 2 * MARGIN):
             for x in range(bars * BAR_WIDTH + 2 * MARGIN):
@@ -639,7 +644,7 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
     def generate_init_system():
         for voice in composition:
             for _ in range(INIT_BARS):
-                voice.insert(0, [Rest(voice, delay=1)] * composition.time)
+                voice.insert(0, [Rest(voice, delay=1)] * voice.time)
         world[X0 + 2, Y0 + 2 * len(composition), Z0 + 2] = Block(
             "oak_button", facing=-x_direction
         )
@@ -676,6 +681,7 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
     VOICE_HEIGHT = 2
     BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around and change bar
     BAR_CHANGING_TOTAL_LENGTH = BAR_CHANGING_LENGTH + 1  # 1 for z-offset every change
+    LONGEST_VOICE = max(map(len, composition))
     # add this number of bars to the beginning of every voice
     # so that with a push of a button, all voices start at the same time
     INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
@@ -692,6 +698,7 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
                 location = (0, 0, 0)
         X0, Y0, Z0 = map(math.floor, location)
 
+        equalize_voices()
         generate_space()
         generate_init_system()
 
