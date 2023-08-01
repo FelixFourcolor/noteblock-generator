@@ -11,12 +11,12 @@ import amulet
 # ---------------------------------------- MAIN ----------------------------------------
 
 """Program usage: 
-    generate.py [path to json file] [path to mc world] [(optional) build coordinates]
-Example: "generate.py /home/user/my-song.json /home/user/minecraft/saves/My-World 0 0 0"
+[(if on Windows) python] [path to this script] [path to song's json file] [path to minecraft world] [(optional) build coordinates]
+Example: "python generate.py my-song.json My-World 0 0 0"
 If build coordinates are not provided, it will be the player's location.
 
-See the TRANSLATOR section for how to write the json file.
-See the GENERATOR section for what the generated structure will look like.
+See TRANSLATOR section for how to write the json file.
+See GENERATOR section for what the generated structure will look like.
 """
 
 
@@ -505,7 +505,7 @@ x
 |                               ↑
 | [BAR 1] note -> note -> note --
 |
-O--------------------------------------> z
+O------------------------------------------> z
 
 and each voice is a vertical layer on top of another.
 Voices are built in the order that they are written in the json file,
@@ -532,8 +532,8 @@ x
 The number of noteblocks depends on the note's dynamic level,
 this diagram shows one with maximum dynamic level 4.
 
-Upon being called, the generator fills the required space start from the build location
-with air, then generates the structure.
+Upon being called, the generator fills the required space
+starting from the build location with air, then generates the structure.
 """
 
 
@@ -546,15 +546,16 @@ class Block(amulet.api.block.Block):
 
 
 class NoteBlock(Block):
-    """A cnvenience class for noteblocks"""
+    """A covenience class for noteblocks"""
 
     def __init__(self, _note: Note):
         super().__init__("note_block", note=_note.note, instrument=_note.instrument)
 
 
 class Direction(tuple[int, int], Enum):
-    """Minecraft's cardinal direction"""
+    """Minecraft's cardinal directions"""
 
+    # coordinates in (x, z)
     north = (0, -1)
     south = (0, 1)
     east = (1, 0)
@@ -582,7 +583,7 @@ class Repeater(Block):
 
 
 class Redstone(Block):
-    """A convenience class for redstone dusts"""
+    """A convenience class for redstone wires"""
 
     def __init__(
         self,
