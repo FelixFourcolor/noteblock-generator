@@ -233,7 +233,7 @@ class Voice(list[list[Note]]):
     def _rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
         return [Rest(self, delay=delay)] * duration
 
-    def _parse_pitch(self, name: str):
+    def _parse_note_name(self, name: str):
         if not name or name == "r":
             return "r"
         try:
@@ -276,14 +276,14 @@ class Voice(list[list[Note]]):
         # we do ".startswith" rather than "=="
         # so that "|" or "||" can be followed by a numberc,
         # acting as the bar number, even though this number is not checked
-        pitch = self._parse_pitch(tokens[0])
+        note_name = self._parse_note_name(tokens[0])
         duration = self._parse_duration(*tokens[1:])
 
         # divide note into actual note + rests
-        if pitch == "r":
+        if note_name == "r":
             notes = self._rest(duration, **kwargs)
         else:
-            notes = [Note(self, name=pitch, **kwargs)] + self._rest(
+            notes = [Note(self, name=note_name, **kwargs)] + self._rest(
                 duration - 1, **kwargs
             )
         # organize those into barss

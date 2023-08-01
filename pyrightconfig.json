@@ -1,0 +1,15 @@
+{
+    "strictListInference": true,
+    "strictDictionaryInference": true,
+    "strictSetInference": true,
+    "reportUntypedFunctionDecorator": true,
+    "reportUntypedClassDecorator": true,
+    "reportUntypedBaseClass": true,
+    "reportIncompatibleMethodOverride": true,
+    "reportIncompatibleVariableOverride": true,
+    "reportInconsistentConstructor": true,
+    "reportUnusedExpression": true,
+    "reportMatchNotExhaustive": true,
+    "reportOverlappingOverload": true,
+    "strictParameterNoneValue": false
+}
