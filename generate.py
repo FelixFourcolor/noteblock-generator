@@ -233,7 +233,7 @@ class Voice(list[list[Note]]):
         tokens = name.lower().split()
         # if note name is "||", fill the rest of the bar with rests
         if tokens[0].startswith("||"):
-            self[-1] += self._rest(self.time - len(self[-1]))
+            self[-1] += self._rest(self.time - len(self[-1]), **kwargs)
             return
         # if "|", do a bar check (self-enforced linter)
         if tokens[0].startswith("|"):
