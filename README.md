@@ -25,9 +25,7 @@ See the Generation section for what the generated structure will look like.
 
 ## JSON
 
-The user writes a JSON file that specifies a music composition. This file is first translated into python objects, then generated in Minecraft noteblocks.
-
-The JSON file should be in this format:
+The user writes a JSON file that specifies a music composition. The file should be in this format:
 ```json5
 {
     // Composition
@@ -93,6 +91,11 @@ The JSON file should be in this format:
                     "instrument": [override the voice instrument],
 
                     // (sort-of) Mandatory argument
+                    // If a note object does not have the "name" value, it's not an actual note,
+                    // but it tells the traslator to apply the other key-value pairs
+                    // to all subsequent notes in its voice.
+                    // If a subsequent note defines its own values, some of which
+                    // overlap with these values, the note's values take precedence.
                     "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
 
                     // Valid note names are "r" (rest) and "c", "cs", "db", etc.
@@ -112,6 +115,10 @@ The JSON file should be in this format:
                     // Duration is the number of steps. For example, if a voice has 
                     // 4/4 time and use time 8, a quarter note has duration 2.
                     // If duration is omitted, it will be the beat number.
+                    // If a duration number is followed by "b" (stands for "beats"),
+                    // the number is multiplied by the beat number.
+                    // Dotted rhythm is supported. If a duration is followed by a ".",
+                    // its value is multiplied by 1.5.
                     // If multiple durations are given, they will be summed up, 
                     // for example, note name "cs4 1 2 3" is the same as "cs4 6".
                     // Because noteblocks cannot sustain, a note with duration n 
@@ -119,13 +126,17 @@ The JSON file should be in this format:
                     // However, for readability, it is recommended to write notes 
                     // as they are written in the score.
 
-                    // Syntactic sugar:
-                    // 1) The note name "||" is short for "rest for the remaining
-                    //    of the current bar."
-                    // 2) If a note object does not have the "name" value, the other
-                    //    key-value pairs will be applied to all subsequent in its voice.
-                    //    If a subsequent note defines its own values, some of which
-                    //    overlap with these values, the note's values take precedence.
+                    // Bar-related helpers:
+                    // 0) Notes are automatically divided into bars based on composition's time,
+                    //    no user action is needed. However,
+                    // 1) A pseudo-note "|" tells the translator to check if that position is
+                    //    the beginning of a bar. An error will be raised it is's not.
+                    // 2) "||" is to rest for the entire bar. That is,
+                    "||",
+                    //    is syntactic sugar for
+                    "|", "r [number of steps in a bar]",
+                    // 3) Both "|" and "||" can optionally be followed by a number,
+                    //    if so, the translator check if it's the correct bar number.               
                 },
 
                 {
@@ -137,18 +148,11 @@ The JSON file should be in this format:
 
                 // Another way is to write it as a string, like this
                 "[note name][octave] [duration 1] [duration 2] [etc.]",
-                // which is the same as 
+                // which is syntactic sugar for
                 {
                     // omit all optional arguments
                     "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
                 }
-
-                // Bar changes are handled automatically based on the voice's time. 
-                // However, it is recommended to write a pseudo-note 
-                // "| [bar number]" at the beginning of every bar. 
-                // The "|" pseudo-note tells the translator to check if it's indeed 
-                // the beginning of a bar, and raise an error if it isn't. 
-                // Meanwhile, the bar number is just for your own reference.
             ]
         },
         
@@ -163,11 +167,13 @@ The JSON file should be in this format:
 ```
 For an example, see "frere jacques.json" which writes the Frere Jacques round in C major for 5 voices. And see the "Frere Jacques" world for the build result.
 
-Restrictions:
+Limitations:
 
 * One voice cannot play two different notes at the same time. This program is intended for orchestral music where such technique is rarely used, and it will complicate the codebase as well as the json syntax, so I'm not motivated to add it (yet).
 
 * Different voices cannot follow different times, i.e. no polyrhythm. (Notice that the "time" argument is only available at the composition level.) This program is intended for classical music where polythmn is rarely used, and it will complicate the generator's logic, so I'm not motivated to add it (yet).
+
+* Time cannot be changed half-way through. There is no excuse for this, I just haven't figured it out.
 
 ## Generation
 The generated structure of one voice looks like this

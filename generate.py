@@ -229,28 +229,32 @@ class Voice(list[list[Note]]):
             raise UserError(f"{value} is not a valid duration.")
 
     def _add_note(self, name: str, **kwargs):
-        # parse note name into pitch + duration
         tokens = name.lower().split()
-        # if note name is "||", fill the rest of the bar with rests
-        if tokens[0].startswith("||"):
-            self[-1] += self._rest(self.time - len(self[-1]), **kwargs)
-            return
-        # if "|", do a bar check (self-enforced linter)
+
+        # Bar-related helpers:
+        # "|" to do a bar check
+        # "||" to do a bar check AND rests for the entire bar
+        # optionally followed by a number to check bar number
         if tokens[0].startswith("|"):
             if self[-1]:
-                raise UserError("time error.")
+                raise UserError("bar error.")
+            if tokens[0].startswith("||"):
+                if (bar_num := tokens[0][2:].strip()) and int(bar_num) != len(self):
+                    raise UserError("bar error.")
+                self[-1] += self._rest(self.time, **kwargs)
+            elif (bar_num := tokens[0][1:].strip()) and int(bar_num) != len(self):
+                raise UserError("bar error.")
             return
-        # we do ".startswith" rather than "=="
-        # so that "|" or "||" can be followed by a numberc,
-        # acting as the bar number, even though this number is not checked
-        note_name = self._parse_note_name(tokens[0])
+
+        pitch = self._parse_note_name(tokens[0])
         duration = self._parse_duration(*tokens[1:])
 
-        # divide note into actual note + rests
-        if note_name == "r":
+        # divide note into actual note + rests (because noteblocks cannot sustain)
+        # TODO: fake sustain with tremolo
+        if pitch == "r":
             notes = self._rest(duration, **kwargs)
         else:
-            notes = [Note(self, name=note_name, **kwargs)] + self._rest(
+            notes = [Note(self, name=pitch, **kwargs)] + self._rest(
                 duration - 1, **kwargs
             )
         # organize those into barss
