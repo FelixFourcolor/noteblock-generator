@@ -164,71 +164,41 @@ class Voice(list[list[Note]]):
             instrument = _composition.instrument
         if dynamic is None:
             dynamic = _composition.dynamic
-
-        self._composition = _composition
-        self._index = len(_composition)
-        self._name = name
-        self._config(
-            time=time,
-            delay=delay,
-            beat=beat,
-            instrument=instrument,
-            dynamic=dynamic,
-            transpose=transpose,
-        )
         try:
             self._octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         except KeyError:
             raise UserError(f"{self}: {instrument} is not a valid instrument.")
+        self._composition = _composition
+        self._index = len(_composition)
+        self._name = name
+        self.time = time
+        self.delay = delay
+        self.beat = beat
+        self.instrument = instrument
+        self.dynamic = dynamic
+        self.transpose = _composition.transpose + transpose
+
         if notes:
+            self._note_config = {}
             self.append([])
             for note in notes:
                 if len(self[-1]) == self.time:
                     self.append([])
-                if isinstance(note, str):
-                    kwargs = {"name": note}
-                else:
-                    kwargs = note
+                kwargs = note if isinstance(note, dict) else {"name": note}
                 if "name" in kwargs:
+                    name = kwargs.pop("name")
                     try:
-                        self._add_note(kwargs.pop("name"), **kwargs)
+                        self._add_note(name, **(self._note_config | kwargs))
                     except UserError as e:
-                        at = (len(self), len(self[-1]) + 1)
-                        raise UserError(f"{self} at {at}: {e}")
+                        print(f"{self} at {(len(self), len(self[-1]) + 1)}: {e}")
+                        sys.exit(1)
                 else:
-                    self._config(**kwargs)
+                    self._note_config |= kwargs
 
     def __str__(self):
         if self._name:
             return self._name
         return f"Voice {self._index + 1}"
-
-    def _config(
-        self,
-        /,
-        *,
-        time: int = None,
-        delay: int = None,
-        beat: int = None,
-        instrument: str = None,
-        dynamic: int = None,
-        transpose: int = None,
-    ):
-        if time is not None:
-            self.time = time
-        if delay is not None:
-            # delay of out range is handled by Note.__init__
-            self.delay = delay
-        if beat is not None:
-            self.beat = beat
-        if instrument is not None:
-            # invalid instrument is handled by Note.__init__
-            self.instrument = instrument
-        if dynamic is not None:
-            # dynamic out of range is handled by Note.__init__
-            self.dynamic = dynamic
-        if transpose is not None:
-            self.transpose = self._composition.transpose + transpose
 
     def _rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
         return [Rest(self, delay=delay)] * duration
@@ -523,13 +493,7 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
 
 def main(path_in: str, path_out: str, *location: str):
     with open(path_in, "r") as f:
-        try:
-            composition = Composition(**json.load(f))
-        except UserError as e:
-            print(e)
-            sys.exit(1)
-
-    generate(composition, path_out, tuple(map(int, location)))
+        generate(Composition(**json.load(f)), path_out, tuple(map(int, location)))
 
 
 if __name__ == "__main__":
