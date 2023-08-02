@@ -19,9 +19,9 @@ See the JSON section for how to write the JSON file.
 See the Generation section for what the generated structure will look like.
 
 ## Dependencies
-python 3.10+
+* python 3.10+
 
-[Amulet-Core](https://github.com/Amulet-Team/Amulet-Core)
+* [Amulet-Core](https://github.com/Amulet-Team/Amulet-Core)
 
 ## JSON
 
@@ -68,7 +68,6 @@ The JSON file should be in this format:
             "transpose": [transpose this particular voice, in semitones],
             // This value is compounded with the composition's transposition.
             // Default value is 0.
-            "time": [override the composition time],
             "delay": [override the composition delay],
             "beat": [override the composition beat],
             "instrument": [override the composition instrument],
@@ -162,7 +161,13 @@ The JSON file should be in this format:
     ]
 }
 ```
-For an example, see "frere jacques.json", which writes the Frere Jacques round in C major for 5 voices. And see the "Frere Jacques" world for the build result.
+For an example, see "frere jacques.json" which writes the Frere Jacques round in C major for 5 voices. And see the "Frere Jacques" world for the build result.
+
+Restrictions:
+
+* One voice cannot play two different notes at the same time. This program is intended for orchestral music where such technique is rarely used, and it will complicate the codebase as well as the json syntax, so I'm not motivated to add it (yet).
+
+* Different voices cannot follow different times, i.e. no polyrhythm. (Notice that the "time" argument is only available at the composition level.) This program is intended for classical music where polythmn is rarely used, and it will complicate the generator's logic, so I'm not motivated to add it (yet).
 
 ## Generation
 The generated structure of one voice looks like this

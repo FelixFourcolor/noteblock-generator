@@ -147,15 +147,12 @@ class Voice(list[list[Note]]):
         *,
         notes: list[str | dict] = [],
         name: str = None,
-        time: int = None,
         delay: int = None,
         beat: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose=0,
     ):
-        if time is None:
-            time = _composition.time
         if delay is None:
             delay = _composition.delay
         if beat is None:
@@ -171,7 +168,7 @@ class Voice(list[list[Note]]):
         self._composition = _composition
         self._index = len(_composition)
         self._name = name
-        self.time = time
+        self.time = _composition.time
         self.delay = delay
         self.beat = beat
         self.instrument = instrument
@@ -394,7 +391,7 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
                 voice += [[Rest(voice)] * voice.time] * (LONGEST_VOICE - L)
 
     def generate_space():
-        notes = max(map(lambda voice: max(map(len, voice)), composition))
+        notes = composition.time
         bars = LONGEST_VOICE + INIT_BARS
         voices = len(composition)
         for z in range(notes * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH + 2 * MARGIN):
