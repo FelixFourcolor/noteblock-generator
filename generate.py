@@ -78,15 +78,14 @@ class Note:
     def __init__(
         self,
         _voice: Voice,
-        /,
         *,
-        name: str,
+        pitch: str,
         delay: int = None,
         dynamic: int = None,
         instrument: str = None,
         transpose=0,
     ):
-        self._name = name
+        self._name = pitch
         transpose = _voice.transpose + transpose
         if transpose > 0:
             self._name += f"+{transpose}"
@@ -110,9 +109,9 @@ class Note:
         self.dynamic = dynamic
 
         try:
-            pitch_value = PITCHES[name] + transpose
+            pitch_value = PITCHES[pitch] + transpose
         except KeyError:
-            raise UserError(f"{name} is not a valid note name.")
+            raise UserError(f"{pitch} is not a valid note name.")
         try:
             instrument_range = INSTRUMENTS[instrument]
         except KeyError:
@@ -143,15 +142,15 @@ class Voice(list[list[Note]]):
     def __init__(
         self,
         _composition: Composition,
-        /,
         *,
-        notes: list[str | dict] = [],
+        notes: list[str | dict],
         name: str = None,
         delay: int = None,
         beat: int = None,
         instrument: str = None,
         dynamic: int = None,
         transpose=0,
+        sustain: bool = None,
     ):
         if delay is None:
             delay = _composition.delay
@@ -161,6 +160,8 @@ class Voice(list[list[Note]]):
             instrument = _composition.instrument
         if dynamic is None:
             dynamic = _composition.dynamic
+        if sustain is None:
+            sustain = _composition.sustain
         try:
             self._octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         except KeyError:
@@ -174,6 +175,7 @@ class Voice(list[list[Note]]):
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = _composition.transpose + transpose
+        self.sustain = sustain
 
         if notes:
             self._note_config = {}
@@ -183,9 +185,8 @@ class Voice(list[list[Note]]):
                     self.append([])
                 kwargs = note if isinstance(note, dict) else {"name": note}
                 if "name" in kwargs:
-                    name = kwargs.pop("name")
                     try:
-                        self._add_note(name, **(self._note_config | kwargs))
+                        self._add_note(**(self._note_config | kwargs))
                     except UserError as e:
                         print(f"{self} at {(len(self), len(self[-1]) + 1)}: {e}")
                         sys.exit(1)
@@ -197,68 +198,77 @@ class Voice(list[list[Note]]):
             return self._name
         return f"Voice {self._index + 1}"
 
-    def _rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
-        return [Rest(self, delay=delay)] * duration
-
-    def _parse_note_name(self, name: str):
-        if not name or name == "r":
+    def _parse_pitch(self, value: str):
+        if not value or value == "r":
             return "r"
         try:
-            int(name[-1])
-            return name
+            int(value[-1])
+            return value
         except ValueError:
-            if name.endswith("^"):
-                return name[:-1] + str(self._octave + 1)
-            elif name.endswith("_"):
-                return name[:-1] + str(self._octave - 1)
-            return name + str(self._octave)
+            if value.endswith("^"):
+                return value[:-1] + str(self._octave + 1)
+            elif value.endswith("_"):
+                return value[:-1] + str(self._octave - 1)
+            return value + str(self._octave)
 
-    def _parse_duration(self, *args: str):
-        if not args or not (value := args[0]):
-            return self.beat
-        if len(args) > 1:
-            return self._parse_duration(args[0]) + self._parse_duration(*args[1:])
+    def _parse_duration(self, beat: int = None, *values: str):
+        if beat is None:
+            beat = self.beat
+
+        if not values or not (value := values[0]):
+            return beat
+
+        if len(values) > 1:
+            head = self._parse_duration(beat, values[0])
+            tails = self._parse_duration(beat, *values[1:])
+            return head + tails
         try:
             if value[-1] == ".":
-                return int(self._parse_duration(value[:-1]) * 1.5)
+                return int(self._parse_duration(beat, value[:-1]) * 1.5)
             if value[-1] == "b":
-                return self.beat * int(value[:-1])
+                return beat * int(value[:-1])
             else:
                 return int(value)
         except ValueError:
             raise UserError(f"{value} is not a valid duration.")
 
-    def _add_note(self, name: str, **kwargs):
-        tokens = name.lower().split()
+    def _Note(
+        self, pitch: str, duration: int, *, sustain: bool = None, **kwargs
+    ) -> list[Note]:
+        if pitch == "r":
+            return self._Rest(duration, **kwargs)
+        note = Note(self, pitch=pitch, **kwargs)
+        if sustain is None:
+            sustain = self.sustain
+        if sustain:
+            return [note] * duration
+        return [note] + self._Rest(duration - 1, **kwargs)
 
-        # Bar-related helpers:
-        # "|" to do a bar check
-        # "||" to do a bar check AND rests for the entire bar
-        # optionally followed by a number to check bar number
-        if tokens[0].startswith("|"):
+    def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
+        return [Rest(self, delay=delay)] * duration
+
+    def _add_note(self, *, name: str, beat: int = None, **kwargs):
+        # Bar helpers
+        # "|" to assert the beginning of a bar
+        if name.startswith("|"):
+            name = name[1:]
             if self[-1]:
-                raise UserError("bar error.")
-            if tokens[0].startswith("||"):
-                if (bar_num := tokens[0][2:].strip()) and int(bar_num) != len(self):
-                    raise UserError("bar error.")
-                self[-1] += self._rest(self.time, **kwargs)
-            elif (bar_num := tokens[0][1:].strip()) and int(bar_num) != len(self):
-                raise UserError("bar error.")
+                raise UserError("expected the beginning of a bar.")
+            # "||" to assert the beginning of a bar AND rest for the entire bar
+            if name.startswith("|"):
+                name = name[1:]
+                self[-1] += self._Rest(self.time, **kwargs)
+            # followed by a number to assert bar number
+            if name.strip() and int(name) != len(self):
+                raise UserError(f"expected bar {len(self)}, found {int(name)}.")
             return
 
-        pitch = self._parse_note_name(tokens[0])
-        duration = self._parse_duration(*tokens[1:])
-
-        # divide note into actual note + rests (because noteblocks cannot sustain)
-        # TODO: fake sustain with tremolo
-        if pitch == "r":
-            notes = self._rest(duration, **kwargs)
-        else:
-            notes = [Note(self, name=pitch, **kwargs)] + self._rest(
-                duration - 1, **kwargs
-            )
-        # organize those into barss
-        for note in notes:
+        # actual note
+        tokens = name.lower().split()
+        pitch = self._parse_pitch(tokens[0])
+        duration = self._parse_duration(beat, *tokens[1:])
+        # organize into bars
+        for note in self._Note(pitch, duration, **kwargs):
             if len(self[-1]) < self.time:
                 self[-1].append(note)
             else:
@@ -271,15 +281,15 @@ class Composition(list[Voice]):
 
     def __init__(
         self,
-        /,
         *,
-        voices: list[dict] = [],
+        voices: list[dict],
         time=16,
         delay=1,
         beat=1,
         instrument="harp",
         dynamic=2,
         transpose=0,
+        sustain=False,
     ):
         # values out of range are handled by Voice/Note.__init__
         self.time = time
@@ -289,6 +299,7 @@ class Composition(list[Voice]):
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = transpose
+        self.sustain = sustain
 
         for voice in voices:
             self.append(Voice(self, **voice))

@@ -4,7 +4,7 @@ Generate a music composition in Minecraft noteblocks.
 
 ## Usage
 ```
-python generate.py [path to music JSON file] [path to Minecraft world] [(optional) build coordinates]
+python generate.py [path to music JSON file] [path to Minecraft world] [build coordinates]
 ```
 
 Example: 
@@ -31,26 +31,37 @@ The user writes a JSON file that specifies a music composition. The file should 
     // Composition
 
     // Optional arguments
+    
     "time": [how many steps in a bar],
     // If the time signature is 3/4, and we want to be able to play 16th notes,
     // the number of steps in a bar is 12.
     // Default value is 16, that is, 4/4 time and the ability to play 16th notes.
     // See the Generation section for how this value affects the build.
+
     "delay": [how many redstone ticks between each step],
     // Must be from 1 to 4, default value is 1.
     // For reference, if time is 16 and delay is 1, it is equivalent to quarter note = 150 bpm.
+    
     "beat": [how many steps in a beat],
     // Does not affect the build, but is useful for writing notes (explained later).
     // Default value is 1.
+
     "instrument": [noteblock instrument to play the notes],
     // Default value is "harp".
     // See Minecraft's documentation for all available instruments.
+
     "dynamic": [how many noteblocks to play each note],
     // Must be from 0 to 4, where 0 is silent and 4 is loudest.
     // Warning: even with the same dynamic, some instruments are inherently louder than others.
     // Default value is 2.
+
     "transpose": [transpose the entire composition, in semitones],
     // Default value is 0.
+
+    "sustain": [whether to sustain the notes],
+    // Noteblocks cannot naturally sustain. 
+    // If set to true, the notes will fake sustain with tremolo.
+    // Default value is false.
 
     // Mandatory argument
     "voices":
@@ -59,18 +70,26 @@ The user writes a JSON file that specifies a music composition. The file should 
             // Voice 1
 
             // Optional arguments
+
             "name": [voice name],
             // Does not affect the build, but is useful for error messages, which,
             // if voice name is given, will tell you at which voice 
             // you've made an error, e.g. invalid note name.
+
             "transpose": [transpose this particular voice, in semitones],
             // This value is compounded with the composition's transposition.
             // Default value is 0.
-            "delay": [override the composition delay],
-            "beat": [override the composition beat],
-            "instrument": [override the composition instrument],
-            "dynamic": [override the composition dynamic],
-            
+
+            "delay": [override the composition delay value],
+
+            "beat": [override the composition beat value],
+
+            "instrument": [override the composition instrument value],
+
+            "dynamic": [override the composition dynamic value],
+
+            "sustain": [override the composition sustain value],
+
             // Mandatory argument
             "notes":
             [
@@ -80,20 +99,28 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // Note 1
 
                     // Optional arguments
+
                     "transpose": [transpose this particular note, in semitones],
                     // This value is compounded with the voice's transposition. 
                     // Default value is 0.
+
+                    "beat": [override the voice beat value],
+
                     "delay": [override the voice delay],
+
                     "dynamic": [override the voice dynamic],
+
                     "instrument": [override the voice instrument],
+
+                    "sustain": [override the voice sustain value],
 
                     // (sort-of) Mandatory argument
                     // If a note object does not have the "name" value, it's not an actual note,
-                    // but it tells the traslator to apply the other key-value pairs
+                    // but a syntactic sugar to apply the other key-value pairs
                     // to all subsequent notes in its voice.
                     // If a subsequent note defines its own values, some of which
-                    // overlap with these values, the note's values are applied.
-                    "name": "[note name][octave?] [duration 1] [duration 2?] [etc.?]",
+                    // overlap with these values, the note's values take precedence.
+                    "name": "[note name][octave] [duration]",
 
                     // Valid note names are "r" (rest) and "c", "cs", "db", etc.
                     // where "s" is for sharp and "b" is for flat. 
@@ -115,42 +142,13 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // If duration is omitted, it will be the beat number.
                     // If a duration number is followed by "b" (stands for "beats"),
                     // the number is multiplied by the beat number.
-                    // Dotted rhythm is supported. If a duration is followed by a ".",
+                    // Dotted rhythm is supported. If a duration value is followed by a ".",
                     // its value is multiplied by 1.5.
-                    // If multiple durations are given, they will be summed up, 
-                    // for example, note name "cs4 1 2 3" is the same as "cs4 6".
-                    // Because noteblocks cannot sustain, a note with duration n 
-                    // is the same as the note with duration 1 and n-1 rests. 
-                    // is the same as the note with duration 1 and n-1 rests. 
-                    // However, for readability, it is recommended to write notes 
-                    // as they are written in the score.
-
-                    // Bar-related helpers:
-                    // 0) Notes are automatically divided into bars based on composition's time,
-                    //    no user action is needed. However,
-                    // 1) A pseudo-note "|" tells the translator to check if that position is
-                    //    the beginning of a bar. An error will be raised it is's not.
-                    // 2) "||" is to rest for the entire bar. That is,
-                    "||",
-                    //    is syntactic sugar for
-                    "|", "r [number of steps in a bar]",
-                    // 3) Both "|" and "||" can optionally be followed by a number,
-                    //    if so, the translator check if it's the correct bar number.               
-                    // is the same as the note with duration 1 and n-1 rests.           
-                    // However, for readability, it is recommended to write notes 
-                    // as they are written in the score.
-
-                    // Bar-related helpers:
-                    // 0) Notes are automatically divided into bars based on composition's time,
-                    //    no user action is needed. However,
-                    // 1) A pseudo-note "|" tells the translator to check if that position is
-                    //    the beginning of a bar. An error will be raised it is's not.
-                    // 2) "||" is to rest for the entire bar. That is,
-                    "||",
-                    //    is syntactic sugar for
-                    "|", "r [number of steps in a bar]",
-                    // 3) Both "|" and "||" can optionally be followed by a number,
-                    //    if so, the translator check if it's the correct bar number.               
+                    // If multiple values are given, they will be summed up, 
+                    // for example, a note named "cs4 1 2 3" is the same as "cs4 6".
+                    // Noteblocks cannot naturally sustain. If "sustain" is set to false (default), 
+                    // a note with duration n is the same as the note with duration 1 and n-1 rests;
+                    // otherwise, it's n repeated notes of duration 1.
                 },
 
                 {
@@ -161,37 +159,37 @@ The user writes a JSON file that specifies a music composition. The file should 
                 // Note 3, etc.
 
                 // Another way is to write it as a string, like this:
-                "[note name][octave] [duration 1] [duration 2] [etc.]",
+                "[note name][octave] [duration]",
                 // which is syntactic sugar for
                 {
                     // omit all optional arguments
-                    "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
+                    "name": "[note name][octave] [duration]"
                 },
 
                 // Notes are automatically divided into bars based on composition's time,
                 // no user action is needed. However, the user may find these helpers useful:
-                // 1) A pseudo-note named "|" tells the translator to check if that position
-                //    is the beginning of a bar, and raise an error if it isn't.
+                // 1) A pseudo-note named "|" asks the compiler to check if that position
+                //    is the beginning of a bar and raise an error if it isn't.
                 // 2) A note named "||" is to rest for the entire bar. That is,
                 "||",
                 //    is syntactic sugar for
                 "|", "r [number of steps in a bar]",
-                // 3) Both "|" and "||" can optionally be followed by a number,
-                //    if so, the translator check if it's the correct bar number.
+                // 3) Both "|" and "||" can optionally be followed by a number, which asks
+                //    the compiler to check if it's the correct bar number at that position
+                //    and raise an error if it it isn't.
                 //    For example, to rest for the first 4 bar and starts on bar 5:
                 "||1", 
                 "||2", 
                 "||3", 
                 "||4", 
-                "| 5", "c", "d", "e", "c",
-                "| 6", // etc .
+                "| 5", "c", "d", "e", "c"
             ]
         },
         
         {
             // Voice 2
             // etc.
-        },
+        }
         
         // Voice 3, etc.
     ]
