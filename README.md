@@ -35,11 +35,10 @@ The user writes a JSON file that specifies a music composition. The file should 
     // If the time signature is 3/4, and we want to be able to play 16th notes,
     // the number of steps in a bar is 12.
     // Default value is 16, that is, 4/4 time and the ability to play 16th notes.
-    // See Generation section for how this value affects the build.
+    // See the Generation section for how this value affects the build.
     "delay": [how many redstone ticks between each step],
     // Must be from 1 to 4, default value is 1.
-    // For reference, if time is 16 and delay is 1, it is equivalent to 
-    // the tempo "quarter note = 150 bpm"
+    // For reference, if time is 16 and delay is 1, it is equivalent to quarter note = 150 bpm.
     "beat": [how many steps in a beat],
     // Does not affect the build, but is useful for writing notes (explained later).
     // Default value is 1.
@@ -48,6 +47,7 @@ The user writes a JSON file that specifies a music composition. The file should 
     // See Minecraft's documentation for all available instruments.
     "dynamic": [how many noteblocks to play each note],
     // Must be from 0 to 4, where 0 is silent and 4 is loudest.
+    // Warning: even with the same dynamic, some instruments are inherently louder than others.
     // Default value is 2.
     "transpose": [transpose the entire composition, in semitones],
     // Default value is 0.
@@ -70,15 +70,12 @@ The user writes a JSON file that specifies a music composition. The file should 
             "beat": [override the composition beat],
             "instrument": [override the composition instrument],
             "dynamic": [override the composition dynamic],
-            // Some instruments are inherently louder than others, 
-            // it is recommended to adjust the dynamic level of every voice 
-            // to compensate for this fact.
             
             // Mandatory argument
             "notes":
             [
                 // There are two ways to write notes.
-                // First is as an object, like this
+                // First is as an object, like this:
                 {
                     // Note 1
 
@@ -95,25 +92,26 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // but it tells the traslator to apply the other key-value pairs
                     // to all subsequent notes in its voice.
                     // If a subsequent note defines its own values, some of which
-                    // overlap with these values, the note's values take precedence.
-                    "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
+                    // overlap with these values, the note's values are applied.
+                    "name": "[note name][octave?] [duration 1] [duration 2?] [etc.?]",
 
                     // Valid note names are "r" (rest) and "c", "cs", "db", etc.
                     // where "s" is for sharp and "b" is for flat. 
                     // Double sharps, double flats are supported. 
                     // No octave value for rests.
 
-                    // Octaves range from 1 to 7. Note, however, that the 
-                    // lowest note noteblocks can play is F#1 and the highest is F#7, 
-                    // so just because you can write it doesn't mean it will build 
-                    //(but you can transpose it to fit the range).
+                    // Octaves range from 1 to 7.
+                    // Warning: the lowest note noteblocks can play is F#1 and the highest is F#7, 
+                    // so just because you can write it doesn't mean it will build
+                    // (but you can transpose it to fit the range).
                     // Octave number can be inferred from the instrument's range.
                     // For example, using the harp whose range is F#3 - F#5, 
                     // "fs" is inferred as "fs 4", "fs^" as "fs 5", and "fs_" as "fs 3".
                     // See Minecraft's documentation for the range of each instrument.
 
-                    // Duration is the number of steps. For example, if a voice has 
-                    // 4/4 time and use time 8, a quarter note has duration 2.
+                    // Duration is the number of steps. 
+                    // For example, if a voice has 4/4 time and use time 8, 
+                    // a quarter note has duration 2.
                     // If duration is omitted, it will be the beat number.
                     // If a duration number is followed by "b" (stands for "beats"),
                     // the number is multiplied by the beat number.
@@ -123,6 +121,22 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // for example, note name "cs4 1 2 3" is the same as "cs4 6".
                     // Because noteblocks cannot sustain, a note with duration n 
                     // is the same as the note with duration 1 and n-1 rests. 
+                    // is the same as the note with duration 1 and n-1 rests. 
+                    // However, for readability, it is recommended to write notes 
+                    // as they are written in the score.
+
+                    // Bar-related helpers:
+                    // 0) Notes are automatically divided into bars based on composition's time,
+                    //    no user action is needed. However,
+                    // 1) A pseudo-note "|" tells the translator to check if that position is
+                    //    the beginning of a bar. An error will be raised it is's not.
+                    // 2) "||" is to rest for the entire bar. That is,
+                    "||",
+                    //    is syntactic sugar for
+                    "|", "r [number of steps in a bar]",
+                    // 3) Both "|" and "||" can optionally be followed by a number,
+                    //    if so, the translator check if it's the correct bar number.               
+                    // is the same as the note with duration 1 and n-1 rests.           
                     // However, for readability, it is recommended to write notes 
                     // as they are written in the score.
 
@@ -146,13 +160,31 @@ The user writes a JSON file that specifies a music composition. The file should 
 
                 // Note 3, etc.
 
-                // Another way is to write it as a string, like this
+                // Another way is to write it as a string, like this:
                 "[note name][octave] [duration 1] [duration 2] [etc.]",
                 // which is syntactic sugar for
                 {
                     // omit all optional arguments
                     "name": "[note name][octave] [duration 1] [duration 2] [etc.]"
-                }
+                },
+
+                // Notes are automatically divided into bars based on composition's time,
+                // no user action is needed. However, the user may find these helpers useful:
+                // 1) A pseudo-note named "|" tells the translator to check if that position
+                //    is the beginning of a bar, and raise an error if it isn't.
+                // 2) A note named "||" is to rest for the entire bar. That is,
+                "||",
+                //    is syntactic sugar for
+                "|", "r [number of steps in a bar]",
+                // 3) Both "|" and "||" can optionally be followed by a number,
+                //    if so, the translator check if it's the correct bar number.
+                //    For example, to rest for the first 4 bar and starts on bar 5:
+                "||1", 
+                "||2", 
+                "||3", 
+                "||4", 
+                "| 5", "c", "d", "e", "c",
+                "| 6", // etc .
             ]
         },
         
@@ -165,18 +197,18 @@ The user writes a JSON file that specifies a music composition. The file should 
     ]
 }
 ```
-For an example, see "frere jacques.json" which writes the Frere Jacques round in C major for 5 voices. And see the "Frere Jacques" world for the build result.
+See "example.json" which writes the Frere Jacques round in C major for 5 voices. And see "World" for the build result.
 
 Limitations:
 
 * One voice cannot play two different notes at the same time. This program is intended for orchestral music where such technique is rarely used, and it will complicate the codebase as well as the json syntax, so I'm not motivated to add it (yet).
 
-* Different voices cannot follow different times, i.e. no polyrhythm. (Notice that the "time" argument is only available at the composition level.) This program is intended for classical music where polythmn is rarely used, and it will complicate the generator's logic, so I'm not motivated to add it (yet).
+* Different voices cannot follow different times, i.e. no polyrhythm. (Notice that the "time" argument is only available at the composition level.) This program is intended for classical music where polyrhythm is rarely used, and it will complicate the generator's logic, so I'm not motivated to add it (yet).
 
 * Time cannot be changed half-way through. There is no excuse for this, I just haven't figured it out.
 
 ## Generation
-The generated structure of one voice looks like this
+The generated structure of one voice looks like this:
 ```
 x
 ↑
@@ -193,11 +225,12 @@ x
 |
 O------------------------------------------> z
 ```
-Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file, from bottom to top. It is recommended to give lower voices higher dynamic levels to compensate for the fact that being further away from the player who flies above, they are harder to hear.
+Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file, from bottom to top.
+Warning: noteblocks that are further away from the player sound softer; take this into account when choosing voice orders and/or dynamics.
 
 The "O" of the first voice is considered the location of the build. The build coordinates mentioned in the Usage section are the coordinates of this location.
 
-Each "note" in the above diagram is a group that looks like this
+Each "note" in the above diagram is a group that looks like this:
 ```
 x
 ↑
