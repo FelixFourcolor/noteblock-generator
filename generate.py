@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import sys
+from argparse import ArgumentParser
+from dataclasses import dataclass
 from enum import Enum
 
-import amulet
+logging.basicConfig(level=logging.WARNING)
+import amulet  # noqa: E402
 
-# ------------------------------------- TRANSLATOR -------------------------------------
+# ===================================== COMPILER =====================================
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
 # create first octave
@@ -188,8 +192,9 @@ class Voice(list[list[Note]]):
                     try:
                         self._add_note(**(self._note_config | kwargs))
                     except UserError as e:
-                        print(f"{self} at {(len(self), len(self[-1]) + 1)}: {e}")
-                        sys.exit(1)
+                        raise UserError(
+                            f"{self} at {(len(self), len(self[-1]) + 1)}: {e}",
+                        )
                 else:
                     self._note_config |= kwargs
 
@@ -305,7 +310,12 @@ class Composition(list[Voice]):
             self.append(Voice(self, **voice))
 
 
-# ------------------------------------- GENERATOR -------------------------------------
+def translate(json_path: str) -> Composition:
+    with open(json_path, "r") as f:
+        return Composition(**json.load(f))
+
+
+# ===================================== GENERATOR =====================================
 
 
 class Block(amulet.api.block.Block):
@@ -370,8 +380,7 @@ class Redstone(Block):
 
 class World:
     """A thin wrapper of amulet World,
-    with __setitem__ as a convenience method for World.set_version_block,
-    and a context manager to load and save.
+    with convenient methods to load, set blocks, and save.
     """
 
     # to be updated in the future
@@ -399,7 +408,15 @@ class World:
         )
 
 
-def generate(composition: Composition, path: str, location: tuple[float, float, float]):
+def generate(
+    composition: Composition,
+    world: World,
+    *,
+    location: Location,
+    orientatation: Orientation,
+    block: str,
+    clear=False,
+):
     def equalize_voices():
         for voice in composition:
             if (L := len(voice)) < LONGEST_VOICE:
@@ -460,53 +477,162 @@ def generate(composition: Composition, path: str, location: tuple[float, float, 
     # so that with a push of a button, all voices start at the same time
     INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
 
-    with World(path) as world:
-        Stone = Block("stone")
-        Air = Block("air")
+    Air = Block("air")
+    Stone = Block(block)
 
-        x_direction = Direction((1, 0))
-        if not location:
+    x_direction = Direction((1, 0))
+    if not location:
+        try:
+            location = world.players[0].location
+        except IndexError:
+            location = (0, 0, 0)
+    X0, Y0, Z0 = map(math.floor, location)
+
+    equalize_voices()
+    generate_space()
+    generate_init_system()
+
+    for i, voice in enumerate(composition):
+        y = Y0 + MARGIN + i * VOICE_HEIGHT
+        z = Z0 + MARGIN + BAR_CHANGING_TOTAL_LENGTH
+        z_direction = Direction((0, 1))
+
+        for j, bar in enumerate(voice):
+            x = X0 + MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH
+            z_increment = z_direction[1]
+            z0 = z - z_increment * BAR_CHANGING_LENGTH
+
+            world[x, y + 1, z0] = Stone
+            for k, note in enumerate(bar):
+                z = z0 + k * z_increment * NOTE_LENGTH
+                generate_redstones()
+                generate_noteblocks()
             try:
-                location = world.players[0].location
+                voice[j + 1]
             except IndexError:
-                location = (0, 0, 0)
-        X0, Y0, Z0 = map(math.floor, location)
-
-        equalize_voices()
-        generate_space()
-        generate_init_system()
-
-        for i, voice in enumerate(composition):
-            y = Y0 + MARGIN + i * VOICE_HEIGHT
-            z = Z0 + MARGIN + BAR_CHANGING_TOTAL_LENGTH
-            z_direction = Direction((0, 1))
-
-            for j, bar in enumerate(voice):
-                x = X0 + MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH
-                z_increment = z_direction[1]
-                z0 = z - z_increment * BAR_CHANGING_LENGTH
-
-                world[x, y + 1, z0] = Stone
-                for k, note in enumerate(bar):
-                    z = z0 + k * z_increment * NOTE_LENGTH
-                    generate_redstones()
-                    generate_noteblocks()
-                try:
-                    voice[j + 1]
-                except IndexError:
-                    pass
-                else:
-                    generate_bar_changing_system()
-                    z_direction = -z_direction
+                pass
+            else:
+                generate_bar_changing_system()
+                z_direction = -z_direction
 
 
-# ---------------------------------------- MAIN ----------------------------------------
+# ======================================== MAIN ========================================
 
 
-def main(path_in: str, path_out: str, *location: str):
-    with open(path_in, "r") as f:
-        generate(Composition(**json.load(f)), path_out, tuple(map(int, location)))
+@dataclass
+class Arguments:
+    path_in: str
+    path_out: str
+    location: Location
+    orientation: Orientation
+    block: str
+    clear: bool
+
+
+def get_args():
+    parser = ArgumentParser(
+        description="Noteblock music generator",
+    )
+    parser.add_argument("path_in", help="path to music json file.")
+    parser.add_argument("path_out", help="path to Minecraft world.")
+    parser.add_argument(
+        "-l",
+        "--location",
+        nargs="*",
+        default=["~", "~", "~"],
+        help="coordinates to generate location; default is ~ ~ ~ (player's location)",
+    )
+    parser.add_argument(
+        "-o",
+        "--orientation",
+        nargs="*",
+        default=["+", "+", "+"],
+        help=(
+            "in which direction (with respect to x y z) to generate; "
+            "default is + + +"
+        ),
+    )
+    parser.add_argument(
+        "-b",
+        "--block",
+        default="stone",
+        help="what to use as opaque blocks (for redstone); default is stone",
+    )
+    parser.add_argument(
+        "--clear",
+        action="store_true",
+        help=(
+            "clear the space before generating; "
+            "required to generate in a non-empty world but will take more time"
+        ),
+    )
+    return parser.parse_args(args=None if sys.argv[1:] else ["--help"])
+
+
+class Coordinate(int):
+    relative: bool
+
+    def __new__(cls, value: int, relative=False):
+        self = super().__new__(cls, value)
+        self.relative = relative
+        return self
+
+
+Location = tuple[Coordinate, Coordinate, Coordinate]
+Orientation = tuple[bool, bool, bool]
+
+
+def parse_args():
+    args = get_args()
+
+    if len(args.where) != 3:
+        raise UserError("3 coordinates are required.")
+    location: list[Coordinate] = []
+    for arg in args.where:
+        if relative := arg.startswith("~"):
+            arg = arg[1:]
+        try:
+            value = int(arg)
+        except ValueError:
+            raise UserError(f"Expected integer coordinates; found {arg}.")
+        location.append(Coordinate(value, relative=relative))
+
+    if len(args.orientation) != 3:
+        raise UserError("3 orientations are required.")
+    orientation: list[bool] = []
+    for arg in args.orientation:
+        try:
+            if isinstance(arg, str):
+                value = ("+", "-").index(arg) == 0
+            else:
+                value = int(arg) >= 0
+        except ValueError:
+            raise UserError(f"{arg} is not a valid orientation; expected + or -.")
+        orientation.append(value)
+
+    return Arguments(
+        args.path_in,
+        args.path_out,
+        tuple(location),
+        tuple(orientation),
+        args.block,
+        args.clear,
+    )
+
+
+def main():
+    args = parse_args()
+    composition = translate(args.path_in)
+    with World(args.path_out) as world:
+        generate(
+            composition,
+            world,
+            location=args.location,
+            orientatation=args.orientation,
+            block=args.block,
+            clear=args.clear,
+        )
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:])
+    main()
