@@ -195,15 +195,7 @@ The user writes a JSON file that specifies a music composition. The file should 
     ]
 }
 ```
-See "example.json" which writes the Frere Jacques round in C major for 5 voices. And see "World" for the build result.
-
-Limitations:
-
-* One voice cannot play two different notes at the same time. This program is intended for orchestral music where such technique is rarely used, and it will complicate the codebase as well as the json syntax, so I'm not motivated to add it (yet).
-
-* Different voices cannot follow different times, i.e. no polyrhythm. (Notice that the "time" argument is only available at the composition level.) This program is intended for classical music where polyrhythm is rarely used, and it will complicate the generator's logic, so I'm not motivated to add it (yet).
-
-* Time cannot be changed half-way through. There is no excuse for this, I just haven't figured it out.
+See "example.json" which writes the Frere Jacques round in C major for 3 voices. And see "World" for the build result.
 
 ## Generation
 The generated structure of one voice looks like this:
