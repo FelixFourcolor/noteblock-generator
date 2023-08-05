@@ -413,29 +413,52 @@ def generate(
     block: str,
     clear=False,
 ):
-    def clear_space():
-        Air = Block("air")
+    def generate_space():
+        air = Block("air")
+        glass = Block("glass")
+
         notes = composition.time
-        bars = max(map(len, composition)) + INIT_BARS
+        bars = LONGEST_VOICE_LENGTH + INIT_BARS
         voices = len(composition)
+
+        if orientatation.y:
+            y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
+        else:
+            y = Y0 - MARGIN
+
         for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
             for x in range(bars * BAR_WIDTH + 2 * MARGIN):
-                for y in range(voices * VOICE_HEIGHT + MARGIN):
-                    world[
-                        X0 + x_increment * x, Y0 + y_increment * y, Z0 + z_increment * z
-                    ] = Air
+                if orientatation.y:
+                    y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
+                    clear_range = range(0, y - Y0)
+                else:
+                    y = Y0 - MARGIN
+                    clear_range = range(2 * MARGIN, VOICE_HEIGHT * voices)
+
+                world[X0 + x_increment * x, y, Z0 + z_increment * z] = glass
+
+                if clear:
+                    for y in clear_range:
+                        world[
+                            X0 + x_increment * x,
+                            Y0 + y_increment * y,
+                            Z0 + z_increment * z,
+                        ] = air
 
     def generate_init_system():
         for voice in composition:
             for _ in range(INIT_BARS):
                 voice.insert(0, [Rest(voice, delay=1)] * voice.time)
 
-        x = X0 + x_increment * (BAR_WIDTH // 2)
-        y = Y0 - MARGIN
+        x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2)
         if orientatation.y:
-            y += VOICE_HEIGHT * len(composition) + MARGIN
+            y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
+        else:
+            y = Y0 - MARGIN
         z = Z0 + z_increment * BAR_CHANGING_LENGTH
-        world[x, y, z] = Block("oak_button", facing=-x_direction)
+        world[x, y - 1, z] = Redstone()
+        world[x, y, z] = neutral_block
+        world[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
 
     def generate_redstones():
         world[x, y, z] = neutral_block
@@ -473,6 +496,7 @@ def generate(
     BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
     VOICE_HEIGHT = 2
     BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around and change bar
+    LONGEST_VOICE_LENGTH = max(map(len, composition))
     # add this number of bars to the beginning of every voice
     # so that with a push of a button, all voices start at the same time
     INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
@@ -503,15 +527,13 @@ def generate(
 
     neutral_block = Block(block)
 
-    if clear:
-        clear_space()
-
+    generate_space()
     generate_init_system()
 
     for i, voice in enumerate(composition):
         y = Y0 + y_increment * i * VOICE_HEIGHT
         if not orientatation.y:
-            y -= VOICE_HEIGHT + MARGIN
+            y -= VOICE_HEIGHT + 3 * MARGIN
         z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
 
         for j, bar in enumerate(voice):
