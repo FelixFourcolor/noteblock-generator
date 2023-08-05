@@ -6,7 +6,6 @@ import logging
 import math
 import sys
 from argparse import ArgumentParser
-from dataclasses import dataclass
 from enum import Enum
 from typing import NamedTuple
 
@@ -73,10 +72,6 @@ class UserError(Exception):
     """To be raised if there is an error when translating the json file,
     e.g. invalid instrument name or note out of the instrument's range.
     """
-
-
-# The following classes -- Note, Voice, Composition -- are
-# almost 1-1 translation of the json file in python's format.
 
 
 class Note:
@@ -344,13 +339,13 @@ class Direction(tuple[int, int], Enum):
     west = (-1, 0)
 
     def __neg__(self):
-        if self == Direction.north:
-            return Direction.south
-        if self == Direction.south:
-            return Direction.north
-        if self == Direction.east:
-            return Direction.west
-        return Direction.east
+        match self:
+            case (x, 0):
+                return Direction((-x, 0))
+            case (0, x):
+                return Direction((0, -x))
+            case _:
+                raise NotImplementedError
 
     def __str__(self):
         return self.name
@@ -423,48 +418,50 @@ def generate(
         notes = composition.time
         bars = max(map(len, composition)) + INIT_BARS
         voices = len(composition)
-        for z in range(notes * NOTE_LENGTH + BAR_CHANGING_TOTAL_LENGTH + 2 * MARGIN):
+        for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
             for x in range(bars * BAR_WIDTH + 2 * MARGIN):
-                for y in range(voices * VOICE_HEIGHT + 2 * MARGIN):
-                    world[X0 + x, Y0 + y, Z0 + z] = Air
+                for y in range(voices * VOICE_HEIGHT + MARGIN):
+                    world[
+                        X0 + x_increment * x, Y0 + y_increment * y, Z0 + z_increment * z
+                    ] = Air
 
     def generate_init_system():
         for voice in composition:
             for _ in range(INIT_BARS):
                 voice.insert(0, [Rest(voice, delay=1)] * voice.time)
 
-        x = X0 + x_increment * BAR_WIDTH // 2
-        y = Y0
+        x = X0 + x_increment * (BAR_WIDTH // 2)
+        y = Y0 - MARGIN
         if orientatation.y:
-            y += 2 * len(composition)
+            y += VOICE_HEIGHT * len(composition) + MARGIN
         z = Z0 + z_increment * BAR_CHANGING_LENGTH
         world[x, y, z] = Block("oak_button", facing=-x_direction)
 
     def generate_redstones():
-        world[x, y - 1, z] = neutral_block
-        world[x, y, z] = Repeater(note.delay, z_direction)
-        world[x, y, z + z_increment] = neutral_block
-        world[x, y + 1, z + z_increment] = Redstone()
-        world[x, y + 1, z + z_increment * 2] = neutral_block
+        world[x, y, z] = neutral_block
+        world[x, y + 1, z] = Repeater(note.delay, z_direction)
+        world[x, y + 1, z + z_increment] = neutral_block
+        world[x, y + 2, z + z_increment] = Redstone()
+        world[x, y + 2, z + z_increment * 2] = neutral_block
 
     def generate_noteblocks():
         # place noteblock positions in this order, depending on dynamic
         positions = [1, -1, 2, -2]
         for i in range(note.dynamic):
-            world[x + positions[i], y + 1, z + z_increment] = NoteBlock(note)
+            world[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
 
     def generate_bar_changing_system():
-        world[x, y - 1, z + z_increment * 2] = neutral_block
-        world[x, y, z + z_increment * 2] = Redstone((z_direction, -z_direction))
-        world[x, y - 1, z + z_increment * 3] = neutral_block
-        world[x, y, z + z_increment * 3] = Redstone((x_direction, -z_direction))
+        world[x, y, z + z_increment * 2] = neutral_block
+        world[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
+        world[x, y, z + z_increment * 3] = neutral_block
+        world[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
         for i in range(1, BAR_WIDTH):
-            world[x + x_increment * i, y - 1, z + z_increment * 3] = neutral_block
-            world[x + x_increment * i, y, z + z_increment * 3] = Redstone(
+            world[x + x_increment * i, y, z + z_increment * 3] = neutral_block
+            world[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
                 (x_direction, -x_direction)
             )
-        world[x + x_increment * BAR_WIDTH, y - 1, z + z_increment * 3] = neutral_block
-        world[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = Redstone(
+        world[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = neutral_block
+        world[x + x_increment * BAR_WIDTH, y + 1, z + z_increment * 3] = Redstone(
             (-z_direction, -x_direction)
         )
 
@@ -473,10 +470,9 @@ def generate(
 
     MARGIN = 1
     NOTE_LENGTH = 2
-    BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks, 2 each side + 1 stone in the middle
+    BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
     VOICE_HEIGHT = 2
     BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around and change bar
-    BAR_CHANGING_TOTAL_LENGTH = BAR_CHANGING_LENGTH + 1  # 1 for z-offset every change
     # add this number of bars to the beginning of every voice
     # so that with a push of a button, all voices start at the same time
     INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
@@ -499,7 +495,6 @@ def generate(
     x_increment = x_direction[0]
     y_increment = 1
     if not orientatation.y:
-        Y0 -= MARGIN
         y_increment = -y_increment
     z_direction = Direction((0, 1))
     if not orientatation.z:
@@ -514,23 +509,23 @@ def generate(
     generate_init_system()
 
     for i, voice in enumerate(composition):
-        y = Y0 + y_increment * (MARGIN + i * VOICE_HEIGHT)
-        z_direction = Direction((0, 1))
-        if not orientatation.z:
-            z_direction = -z_direction
-        z_increment = z_direction[1]
-        z = Z0 + z_increment * (MARGIN + BAR_CHANGING_TOTAL_LENGTH)
+        y = Y0 + y_increment * i * VOICE_HEIGHT
+        if not orientatation.y:
+            y -= VOICE_HEIGHT + MARGIN
+        z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
 
         for j, bar in enumerate(voice):
             x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH)
             z_increment = z_direction[1]
             z0 = z - z_increment * BAR_CHANGING_LENGTH
+            world[x, y + 2, z0] = neutral_block
 
-            world[x, y + 1, z0] = neutral_block
             for k, note in enumerate(bar):
                 z = z0 + k * z_increment * NOTE_LENGTH
                 generate_redstones()
                 generate_noteblocks()
+
+            # if there is a next bar, change bar
             try:
                 voice[j + 1]
             except IndexError:
@@ -539,12 +534,17 @@ def generate(
                 generate_bar_changing_system()
                 z_direction = -z_direction
 
+        # if number of bar is even
+        if len(voice) % 2 == 0:
+            # z_direction has been flipped, reset it to original
+            z_direction = -z_direction
+            z_increment = z_direction[1]
+
 
 # ======================================== MAIN ========================================
 
 
-@dataclass
-class Arguments:
+class Arguments(NamedTuple):
     path_in: str
     path_out: str
     location: Location
