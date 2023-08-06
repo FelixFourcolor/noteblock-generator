@@ -1,20 +1,28 @@
-# Minecraft noteblock generator
+# Noteblock generator
 
-Generate a music composition in Minecraft noteblocks.
+Generate a music composition in Minecraft noteblocks
 
 ## Usage
 ```
-python generate.py [path to music JSON file] [path to Minecraft world] [build coordinates]
+generate.py [-h] [-l [LOCATION ...]] [-o [ORIENTATION ...]] [-b BLOCK] [--clear] path_in path_out
+
+positional arguments:
+  path_in               path to music json file
+  path_out              path to Minecraft world
+
+options:
+  -h, --help            show this help message and exit
+  -l [LOCATION ...], --location [LOCATION ...]
+                        generate location (in x y z); default is ~ ~ ~ (player's location)
+  -o [ORIENTATION ...], --orientation [ORIENTATION ...]
+                        in which directions (in x y z) to generate; default is + + +
+  -b BLOCK, --block BLOCK
+                        what to use as opaque blocks for redstone components; default is stone
+  --clear               clear the space before generating;
+                        required to generate in a non-empty world but will take more time
 ```
 
-Example: 
-```
-python generate.py my-composition.json My-World 0 0 0
-```
-
-If build coordinates are not provided, it will be the player's location.
-
-See the JSON section for how to write the JSON file.
+See the JSON section for how to write a music JSON file.
 
 See the Generation section for what the generated structure will look like.
 
@@ -32,27 +40,28 @@ The user writes a JSON file that specifies a music composition. The file should 
 
     // Optional arguments
     
-    "time": [how many steps in a bar],
-    // If the time signature is 3/4, and we want to be able to play 16th notes,
-    // the number of steps in a bar is 12.
+    "time": [how many redstone units in a bar],
+    // A redstone unit is the shortest unit of time in a composition.
+    // This value controls both the fastest playable note and the composition's time signature.
+    // For example, if the time signature is 3/4, and we want to play 16th notes,
+    // the required number of units in a bar is 12.
     // Default value is 16, that is, 4/4 time and the ability to play 16th notes.
-    // See the Generation section for how this value affects the build.
 
-    "delay": [how many redstone ticks between each step],
-    // Must be from 1 to 4, default value is 1.
-    // For reference, if time is 16 and delay is 1, it is equivalent to quarter note = 150 bpm.
+    "delay": [how many redstone ticks for each redstone unit],
+    // One redstone tick = 0.1s. This value effectively controls the tempo.
+    // For example, if time is 16 and delay is 1 (defaults), it's the tempo quarter note=150 bpm.
+    // Must be from 1 to 4. Default value is 1.
     
-    "beat": [how many steps in a beat],
+    "beat": [how many redstone units in a beat],
     // Does not affect the build, but is useful for writing notes (explained later).
     // Default value is 1.
 
     "instrument": [noteblock instrument to play the notes],
-    // Default value is "harp".
     // See Minecraft's documentation for all available instruments.
+    // Default value is "harp".
 
     "dynamic": [how many noteblocks to play each note],
     // Must be from 0 to 4, where 0 is silent and 4 is loudest.
-    // Warning: even with the same dynamic, some instruments are inherently louder than others.
     // Default value is 2.
 
     "transpose": [transpose the entire composition, in semitones],
@@ -74,21 +83,21 @@ The user writes a JSON file that specifies a music composition. The file should 
             "name": [voice name],
             // Does not affect the build, but is useful for error messages, which,
             // if voice name is given, will tell you at which voice 
-            // you've made an error, e.g. invalid note name.
+            // you have made an error, e.g. invalid note name.
 
-            "transpose": [transpose this particular voice, in semitones],
+            "transpose": [transpose this voice, in semitones],
             // This value is compounded with the composition's transposition.
             // Default value is 0.
 
-            "delay": [override the composition delay value],
+            "delay": [override the composition delay for this voice],
 
-            "beat": [override the composition beat value],
+            "beat": [override the composition beat for this voice],
 
-            "instrument": [override the composition instrument value],
+            "instrument": [override the composition instrument for this voice],
 
-            "dynamic": [override the composition dynamic value],
+            "dynamic": [override the composition dynamic for this voice],
 
-            "sustain": [override the composition sustain value],
+            "sustain": [override the composition sustain for this voice],
 
             // Mandatory argument
             "notes":
@@ -100,24 +109,24 @@ The user writes a JSON file that specifies a music composition. The file should 
 
                     // Optional arguments
 
-                    "transpose": [transpose this particular note, in semitones],
-                    // This value is compounded with the voice's transposition. 
+                    "transpose": [transpose this note, in semitones],
+                    // This value is compounded with the voice's transposition.
                     // Default value is 0.
 
-                    "beat": [override the voice beat value],
+                    "beat": [override the voice beat for this note],
 
-                    "delay": [override the voice delay],
+                    "delay": [override the voice delay for this note],
 
-                    "dynamic": [override the voice dynamic],
+                    "dynamic": [override the voice dynamic for this note],
 
-                    "instrument": [override the voice instrument],
+                    "instrument": [override the voice instrument for this note],
 
-                    "sustain": [override the voice sustain value],
+                    "sustain": [override the voice sustain for this note],
 
                     // (sort-of) Mandatory argument
                     // If a note object does not have the "name" value, it's not an actual note,
                     // but a syntactic sugar to apply the other key-value pairs
-                    // to all subsequent notes in its voice.
+                    // to all subsequent notes in this voice.
                     // If a subsequent note defines its own values, some of which
                     // overlap with these values, the note's values take precedence.
                     "name": "[note name][octave] [duration]",
@@ -127,16 +136,13 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // Double sharps, double flats are supported. 
                     // No octave value for rests.
 
-                    // Octaves range from 1 to 7.
-                    // Warning: the lowest note noteblocks can play is F#1 and the highest is F#7, 
-                    // so just because you can write it doesn't mean it will build
-                    // (but you can transpose it to fit the range).
+                    // Valid octaves are 1 to 7.
                     // Octave number can be inferred from the instrument's range.
                     // For example, using the harp whose range is F#3 - F#5, 
                     // "fs" is inferred as "fs 4", "fs^" as "fs 5", and "fs_" as "fs 3".
                     // See Minecraft's documentation for the range of each instrument.
 
-                    // Duration is the number of steps. 
+                    // Duration is the number of redstone units. 
                     // For example, if a voice has 4/4 time and use time 8, 
                     // a quarter note has duration 2.
                     // If duration is omitted, it will be the beat number.
@@ -146,9 +152,9 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // its value is multiplied by 1.5.
                     // If multiple values are given, they will be summed up, 
                     // for example, a note named "cs4 1 2 3" is the same as "cs4 6".
-                    // Noteblocks cannot naturally sustain. If "sustain" is set to false (default), 
-                    // a note with duration n is the same as the note with duration 1 and n-1 rests;
-                    // otherwise, it's n repeated notes of duration 1.
+                    // If sustain is false (default), a note with duration n
+                    // is the same as the note with duration 1 and n-1 rests;
+                    // otherwise, it is n repeated notes of duration 1.
                 },
 
                 {
@@ -168,21 +174,17 @@ The user writes a JSON file that specifies a music composition. The file should 
 
                 // Notes are automatically divided into bars based on composition's time,
                 // no user action is needed. However, the user may find these helpers useful:
-                // 1) A pseudo-note named "|" asks the compiler to check if that position
-                //    is the beginning of a bar and raise an error if it isn't.
-                // 2) A note named "||" is to rest for the entire bar. That is,
-                "||",
-                //    is syntactic sugar for
-                "|", "r [number of steps in a bar]",
-                // 3) Both "|" and "||" can optionally be followed by a number, which asks
-                //    the compiler to check if it's the correct bar number at that position
+                // 1) A pseudo-note named "|" is to assert a barline. The compiler will check if
+                //    a barline is appropriate at that position, and raise and error if it's not.
+                // 2) A note named "||" is to rest for the entire bar. It's a syntactic sugar for
+                "|", "r [number of units in a bar]",
+                // 3) Both "|" and "||" can optionally be followed by a number, which asserts bar number.
+                //    The compiler will check if it's the correct bar number at that position
                 //    and raise an error if it it isn't.
-                //    For example, to rest for the first 4 bar and starts on bar 5:
+                //    For example, to rest for the first 2 bar and start on bar 3:
                 "||1", 
                 "||2", 
-                "||3", 
-                "||4", 
-                "| 5", "c", "d", "e", "c"
+                "| 3", "c", "d", "e", "c"
             ]
         },
         
@@ -200,41 +202,45 @@ See "example.json" which writes the Frere Jacques round in C major for 3 voices.
 ## Generation
 The generated structure of one voice looks like this:
 ```
-x
+x (+/-)
 ↑
 | 
 | [BAR 5] etc.
 |          ↑
-|          -- note <- note <- note [BAR 4]
+|          -- unit <- unit <- unit [BAR 4]
 |                               ↑
-| [BAR 3] note -> note -> note --
+| [BAR 3] unit -> unit -> unit --
 |           ↑
-|           - note <- note <- note [BAR 2]
+|           - unit <- unit <- unit [BAR 2]
 |                               ↑
-| [BAR 1] note -> note -> note --
+| [BAR 1] unit -> unit -> unit --
 |
-O------------------------------------------> z
+O------------------------------------------> z (+/-)
 ```
-Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file, from bottom to top.
-Warning: noteblocks that are further away from the player sound softer; take this into account when choosing voice orders and/or dynamics.
+A "unit" refers to a redstone unit mentioned in the JSON section.
 
-The "O" of the first voice is considered the location of the build. The build coordinates mentioned in the Usage section are the coordinates of this location.
+The x-axis goes + or - depends on the x-orientation mentioned in the Usage section. And similarly with the z-axis.
 
-Each "note" in the above diagram is a group that looks like this:
+Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file. They go from bottom to top (+) or top to bottom (-) depending on the y-orientation.
+
+The "O" of the first voice is the generate location mentioned in the Usage section.
+
+Each redstone unit is a group that looks like this:
 ```
-x
+x (+/-)
 ↑
 |            [noteblock]
 |            [noteblock]
-| [repeater]   [stone] 
+| [repeater]   [block] 
 |            [noteblock]
 |            [noteblock]
 
-|------------------------> z
+|------------------------> z (+/-)
 ```
-The number of noteblocks depends on the note's dynamic level, this diagram shows one with maximum dynamic level 4.
 
-Upon being called, the generator fills the required space starting from the build location with air, then generates the structure.
+A "block" refers to the opaque block mentioned in the Usage section.
+
+The number of noteblocks depends on the note's dynamic value mentioned in the JSON section, this diagram shows one with maximum value 4.
 
 ## License
 

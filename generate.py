@@ -12,7 +12,7 @@ from typing import NamedTuple
 logging.basicConfig(level=logging.WARNING)
 import amulet  # noqa: E402
 
-# ===================================== TRANSLATOR =====================================
+# ====================================== COMPILER ======================================
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUES
 # create first octave
@@ -305,10 +305,10 @@ class Composition(list[Voice]):
         for voice in voices:
             self.append(Voice(self, **voice))
 
-
-def translate(json_path: str) -> Composition:
-    with open(json_path, "r") as f:
-        return Composition(**json.load(f))
+    @classmethod
+    def compile(cls, path_in: str):
+        with open(path_in, "r") as f:
+            return cls(**json.load(f))
 
 
 # ===================================== GENERATOR =====================================
@@ -403,164 +403,162 @@ class World:
             *coordinates, "minecraft:overworld", self.VERSION, block
         )
 
+    def generate(
+        self,
+        composition: Composition,
+        *,
+        location: Location,
+        orientatation: Orientation,
+        block: str,
+        clear=False,
+    ):
+        def generate_space():
+            air = Block("air")
+            glass = Block("glass")
 
-def generate(
-    composition: Composition,
-    world: World,
-    *,
-    location: Location,
-    orientatation: Orientation,
-    block: str,
-    clear=False,
-):
-    def generate_space():
-        air = Block("air")
-        glass = Block("glass")
+            notes = composition.time
+            bars = LONGEST_VOICE_LENGTH + INIT_BARS
+            voices = len(composition)
 
-        notes = composition.time
-        bars = LONGEST_VOICE_LENGTH + INIT_BARS
-        voices = len(composition)
-
-        if orientatation.y:
-            y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-        else:
-            y = Y0 - MARGIN
-
-        for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
-            for x in range(bars * BAR_WIDTH + 2 * MARGIN):
-                if orientatation.y:
-                    y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                    clear_range = range(0, y - Y0)
-                else:
-                    y = Y0 - MARGIN
-                    clear_range = range(2 * MARGIN, VOICE_HEIGHT * voices)
-
-                world[X0 + x_increment * x, y, Z0 + z_increment * z] = glass
-
-                if clear:
-                    for y in clear_range:
-                        world[
-                            X0 + x_increment * x,
-                            Y0 + y_increment * y,
-                            Z0 + z_increment * z,
-                        ] = air
-
-    def generate_init_system():
-        for voice in composition:
-            for _ in range(INIT_BARS):
-                voice.insert(0, [Rest(voice, delay=1)] * voice.time)
-
-        x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2)
-        if orientatation.y:
-            y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-        else:
-            y = Y0 - MARGIN
-        z = Z0 + z_increment * BAR_CHANGING_LENGTH
-        world[x, y - 1, z] = Redstone()
-        world[x, y, z] = neutral_block
-        world[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
-
-    def generate_redstones():
-        world[x, y, z] = neutral_block
-        world[x, y + 1, z] = Repeater(note.delay, z_direction)
-        world[x, y + 1, z + z_increment] = neutral_block
-        world[x, y + 2, z + z_increment] = Redstone()
-        world[x, y + 2, z + z_increment * 2] = neutral_block
-
-    def generate_noteblocks():
-        # place noteblock positions in this order, depending on dynamic
-        positions = [1, -1, 2, -2]
-        for i in range(note.dynamic):
-            world[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
-
-    def generate_bar_changing_system():
-        world[x, y, z + z_increment * 2] = neutral_block
-        world[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
-        world[x, y, z + z_increment * 3] = neutral_block
-        world[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
-        for i in range(1, BAR_WIDTH):
-            world[x + x_increment * i, y, z + z_increment * 3] = neutral_block
-            world[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
-                (x_direction, -x_direction)
-            )
-        world[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = neutral_block
-        world[x + x_increment * BAR_WIDTH, y + 1, z + z_increment * 3] = Redstone(
-            (-z_direction, -x_direction)
-        )
-
-    if not composition:
-        return
-
-    MARGIN = 1
-    NOTE_LENGTH = 2
-    BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
-    VOICE_HEIGHT = 2
-    BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around and change bar
-    LONGEST_VOICE_LENGTH = max(map(len, composition))
-    # add this number of bars to the beginning of every voice
-    # so that with a push of a button, all voices start at the same time
-    INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
-
-    try:
-        player_location = tuple(map(math.floor, world.players[0].location))
-    except IndexError:
-        player_location = (0, 0, 0)
-    X0, Y0, Z0 = location
-    if location.x.relative:
-        X0 += player_location[0]
-    if location.y.relative:
-        Y0 += player_location[1]
-    if location.z.relative:
-        Z0 += player_location[2]
-
-    x_direction = Direction((1, 0))
-    if not orientatation.x:
-        x_direction = -x_direction
-    x_increment = x_direction[0]
-    y_increment = 1
-    if not orientatation.y:
-        y_increment = -y_increment
-    z_direction = Direction((0, 1))
-    if not orientatation.z:
-        z_direction = -z_direction
-    z_increment = z_direction[1]
-
-    neutral_block = Block(block)
-
-    generate_space()
-    generate_init_system()
-
-    for i, voice in enumerate(composition):
-        y = Y0 + y_increment * i * VOICE_HEIGHT
-        if not orientatation.y:
-            y -= VOICE_HEIGHT + 3 * MARGIN
-        z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
-
-        for j, bar in enumerate(voice):
-            x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH)
-            z_increment = z_direction[1]
-            z0 = z - z_increment * BAR_CHANGING_LENGTH
-            world[x, y + 2, z0] = neutral_block
-
-            for k, note in enumerate(bar):
-                z = z0 + k * z_increment * NOTE_LENGTH
-                generate_redstones()
-                generate_noteblocks()
-
-            # if there is a next bar, change bar
-            try:
-                voice[j + 1]
-            except IndexError:
-                pass
+            if orientatation.y:
+                y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
             else:
-                generate_bar_changing_system()
-                z_direction = -z_direction
+                y = Y0 - MARGIN
 
-        # if number of bar is even
-        if len(voice) % 2 == 0:
-            # z_direction has been flipped, reset it to original
+            for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
+                for x in range(bars * BAR_WIDTH + 2 * MARGIN):
+                    if orientatation.y:
+                        y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
+                        clear_range = range(0, y - Y0)
+                    else:
+                        y = Y0 - MARGIN
+                        clear_range = range(2 * MARGIN, VOICE_HEIGHT * voices)
+                    self[X0 + x_increment * x, y, Z0 + z_increment * z] = glass
+
+                    if clear:
+                        for y in clear_range:
+                            self[
+                                X0 + x_increment * x,
+                                Y0 + y_increment * y,
+                                Z0 + z_increment * z,
+                            ] = air
+
+        def generate_init_system():
+            for voice in composition:
+                for _ in range(INIT_BARS):
+                    voice.insert(0, [Rest(voice, delay=1)] * voice.time)
+
+            x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2)
+            if orientatation.y:
+                y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
+            else:
+                y = Y0 - MARGIN
+            z = Z0 + z_increment * BAR_CHANGING_LENGTH
+            self[x, y - 1, z] = Redstone()
+            self[x, y, z] = neutral_block
+            self[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
+
+        def generate_redstones():
+            self[x, y, z] = neutral_block
+            self[x, y + 1, z] = Repeater(note.delay, z_direction)
+            self[x, y + 1, z + z_increment] = neutral_block
+            self[x, y + 2, z + z_increment] = Redstone()
+            self[x, y + 2, z + z_increment * 2] = neutral_block
+
+        def generate_noteblocks():
+            # place noteblock positions in this order, depending on dynamic
+            positions = [1, -1, 2, -2]
+            for i in range(note.dynamic):
+                self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
+
+        def generate_bar_changing_system():
+            self[x, y, z + z_increment * 2] = neutral_block
+            self[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
+            self[x, y, z + z_increment * 3] = neutral_block
+            self[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
+            for i in range(1, BAR_WIDTH):
+                self[x + x_increment * i, y, z + z_increment * 3] = neutral_block
+                self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
+                    (x_direction, -x_direction)
+                )
+            self[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = neutral_block
+            self[x + x_increment * BAR_WIDTH, y + 1, z + z_increment * 3] = Redstone(
+                (-z_direction, -x_direction)
+            )
+
+        if not composition:
+            return
+
+        MARGIN = 1
+        NOTE_LENGTH = 2
+        BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
+        VOICE_HEIGHT = 2
+        BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
+        LONGEST_VOICE_LENGTH = max(map(len, composition))
+        # add this number of bars to the beginning of every voice
+        # so that with a push of a button, all voices start at the same time
+        INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
+
+        try:
+            player_location = tuple(map(math.floor, self.players[0].location))
+        except IndexError:
+            player_location = (0, 0, 0)
+        X0, Y0, Z0 = location
+        if location.x.relative:
+            X0 += player_location[0]
+        if location.y.relative:
+            Y0 += player_location[1]
+        if location.z.relative:
+            Z0 += player_location[2]
+
+        x_direction = Direction((1, 0))
+        if not orientatation.x:
+            x_direction = -x_direction
+        x_increment = x_direction[0]
+        y_increment = 1
+        if not orientatation.y:
+            y_increment = -y_increment
+        z_direction = Direction((0, 1))
+        if not orientatation.z:
             z_direction = -z_direction
-            z_increment = z_direction[1]
+        z_increment = z_direction[1]
+
+        neutral_block = Block(block)
+
+        generate_space()
+        generate_init_system()
+
+        for i, voice in enumerate(composition):
+            y = Y0 + y_increment * i * VOICE_HEIGHT
+            if not orientatation.y:
+                y -= VOICE_HEIGHT + 3 * MARGIN
+            z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
+
+            for j, bar in enumerate(voice):
+                x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH)
+                z_increment = z_direction[1]
+                z0 = z - z_increment * BAR_CHANGING_LENGTH
+                self[x, y + 2, z0] = neutral_block
+
+                for k, note in enumerate(bar):
+                    z = z0 + k * z_increment * NOTE_LENGTH
+                    generate_redstones()
+                    generate_noteblocks()
+
+                # if there is a next bar, change bar
+                try:
+                    voice[j + 1]
+                except IndexError:
+                    pass
+                else:
+                    generate_bar_changing_system()
+                    z_direction = -z_direction
+
+            # if number of bar is even
+            if len(voice) % 2 == 0:
+                # z_direction has been flipped, reset it to original
+                z_direction = -z_direction
+                z_increment = z_direction[1]
 
 
 # ======================================== MAIN ========================================
@@ -577,26 +575,23 @@ class Arguments(NamedTuple):
 
 def get_args():
     parser = ArgumentParser(
-        description="Noteblock music generator",
+        description="Generate a music composition in Minecraft noteblocks",
     )
-    parser.add_argument("path_in", help="path to music json file.")
-    parser.add_argument("path_out", help="path to Minecraft world.")
+    parser.add_argument("path_in", help="path to music json file")
+    parser.add_argument("path_out", help="path to Minecraft world")
     parser.add_argument(
         "-l",
         "--location",
         nargs="*",
         default=["~", "~", "~"],
-        help="coordinates to generate location; default is ~ ~ ~ (player's location)",
+        help="generate location (in x y z); default is ~ ~ ~ (player's location)",
     )
     parser.add_argument(
         "-o",
         "--orientation",
         nargs="*",
         default=["+", "+", "+"],
-        help=(
-            "in which directions (with respect to x y z) to generate; "
-            "default is + + +"
-        ),
+        help=("in which directions (in x y z) to generate; " "default is + + +"),
     )
     parser.add_argument(
         "-b",
@@ -677,15 +672,14 @@ def parse_args():
 def main():
     try:
         args = parse_args()
-        composition = translate(args.path_in)
+        composition = Composition.compile(args.path_in)
     except UserError as e:
         print(e, file=sys.stderr)
         sys.exit(1)
 
     with World(args.path_out) as world:
-        generate(
+        world.generate(
             composition,
-            world,
             location=args.location,
             orientatation=args.orientation,
             block=args.block,
