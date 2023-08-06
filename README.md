@@ -1,10 +1,16 @@
 # Noteblock generator
 
-Generate a music composition in Minecraft noteblocks
+Generate music compositions in Minecraft noteblocks.
+
+## Requirement
+python 3.10+
+
+## Installation:
+```pip install noteblock-generator```
 
 ## Usage
 ```
-generate.py [-h] [-l [LOCATION ...]] [-o [ORIENTATION ...]] [-b BLOCK] [--clear] path_in path_out
+noteblock-generator [-h] [-l [LOCATION ...]] [-o [ORIENTATION ...]] [-b BLOCK] [--clear] path_in path_out
 
 positional arguments:
   path_in               path to music json file
@@ -13,27 +19,23 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   -l [LOCATION ...], --location [LOCATION ...]
-                        generate location (in x y z); default is ~ ~ ~ (player's location)
+                        build location (in x y z); default is ~ ~ ~
   -o [ORIENTATION ...], --orientation [ORIENTATION ...]
-                        in which directions (in x y z) to generate; default is + + +
+                        build orientation (in x y z); default is + + +
   -b BLOCK, --block BLOCK
-                        what to use as opaque blocks for redstone components; default is stone
+                        opaque block for redstone components; default is stone
   --clear               clear the space before generating;
-                        required to generate in a non-empty world but will take more time
+                        required in order to generate in a non-empty world, but will take more time
 ```
-
 See the JSON section for how to write a music JSON file.
 
 See the Generation section for what the generated structure will look like.
 
-## Dependencies
-* python 3.10+
-
-* [Amulet-Core](https://github.com/Amulet-Team/Amulet-Core)
-
 ## JSON
 
-The user writes a JSON file that specifies a music composition. The file should be in this format:
+The user writes a JSON file that specifies a music composition. It is first compiled into python objects and checked for all errors, then generated into Minecraft noteblocks. 
+
+The file should be in this format:
 ```json5
 {
     // Composition
@@ -43,13 +45,13 @@ The user writes a JSON file that specifies a music composition. The file should 
     "time": [how many redstone units in a bar],
     // A redstone unit is the shortest unit of time in a composition.
     // This value controls both the fastest playable note and the composition's time signature.
-    // For example, if the time signature is 3/4, and we want to play 16th notes,
+    // For example, if the time signature is 3/4, and the composition contains 16th notes,
     // the required number of units in a bar is 12.
     // Default value is 16, that is, 4/4 time and the ability to play 16th notes.
 
     "delay": [how many redstone ticks for each redstone unit],
-    // One redstone tick = 0.1s. This value effectively controls the tempo.
-    // For example, if time is 16 and delay is 1 (defaults), it's the tempo quarter note=150 bpm.
+    // One redstone tick is 0.1s. This value effectively controls the tempo.
+    // For example, if time is 16 and delay is 1 (defaults), it's the tempo quarter note = 150 bpm.
     // Must be from 1 to 4. Default value is 1.
     
     "beat": [how many redstone units in a beat],
@@ -68,7 +70,7 @@ The user writes a JSON file that specifies a music composition. The file should 
     // Default value is 0.
 
     "sustain": [whether to sustain the notes],
-    // Noteblocks cannot naturally sustain. 
+    // Minecraft noteblocks cannot naturally sustain. 
     // If set to true, the notes will fake sustain with tremolo.
     // Default value is false.
 
@@ -81,9 +83,7 @@ The user writes a JSON file that specifies a music composition. The file should 
             // Optional arguments
 
             "name": [voice name],
-            // Does not affect the build, but is useful for error messages, which,
-            // if voice name is given, will tell you at which voice 
-            // you have made an error, e.g. invalid note name.
+            // Does not affect the build, but may be useful for your own reference.
 
             "transpose": [transpose this voice, in semitones],
             // This value is compounded with the composition's transposition.
@@ -103,6 +103,7 @@ The user writes a JSON file that specifies a music composition. The file should 
             "notes":
             [
                 // There are two ways to write notes.
+
                 // First is as an object, like this:
                 {
                     // Note 1
@@ -126,7 +127,7 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // (sort-of) Mandatory argument
                     // If a note object does not have the "name" value, it's not an actual note,
                     // but a syntactic sugar to apply the other key-value pairs
-                    // to all subsequent notes in this voice.
+                    // to all subsequent notes in its voice.
                     // If a subsequent note defines its own values, some of which
                     // overlap with these values, the note's values take precedence.
                     "name": "[note name][octave] [duration]",
@@ -143,7 +144,7 @@ The user writes a JSON file that specifies a music composition. The file should 
                     // See Minecraft's documentation for the range of each instrument.
 
                     // Duration is the number of redstone units. 
-                    // For example, if a voice has 4/4 time and use time 8, 
+                    // For example, if a voice has 4/4 time and uses time 8, 
                     // a quarter note has duration 2.
                     // If duration is omitted, it will be the beat number.
                     // If a duration number is followed by "b" (stands for "beats"),
@@ -172,16 +173,16 @@ The user writes a JSON file that specifies a music composition. The file should 
                     "name": "[note name][octave] [duration]"
                 },
 
-                // Notes are automatically divided into bars based on composition's time,
-                // no user action is needed. However, the user may find these helpers useful:
-                // 1) A pseudo-note named "|" is to assert a barline. The compiler will check if
+                // Notes are automatically divided into bars based on the composition's time,
+                // no user action is needed. However, the user may find these helpers useful.
+                // 1) A pseudo-note "|" is to assert a barline. The compiler will check if
                 //    a barline is appropriate at that position, and raise and error if it's not.
-                // 2) A note named "||" is to rest for the entire bar. It's a syntactic sugar for
-                "|", "r [number of units in a bar]",
+                // 2) A note "||" is to rest for the entire bar. It is a syntactic sugar for
+                "|", "r [the number of redstone units in a bar]",
                 // 3) Both "|" and "||" can optionally be followed by a number, which asserts bar number.
                 //    The compiler will check if it's the correct bar number at that position
                 //    and raise an error if it it isn't.
-                //    For example, to rest for the first 2 bar and start on bar 3:
+                //    For example, to rest for the first 2 bars and start on bar 3:
                 "||1", 
                 "||2", 
                 "| 3", "c", "d", "e", "c"
@@ -197,9 +198,27 @@ The user writes a JSON file that specifies a music composition. The file should 
     ]
 }
 ```
-See "example.json" which writes the Frere Jacques round in C major for 3 voices. And see "World" for the build result.
+For an example, see "example.json" which writes the Frere Jacques round in C major for 3 voices, and see "World" for the build result.
+
+For more serious usage, see my projects (this list will be updated):
+* [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
 
 ## Generation
+Each redstone unit is a group that looks like this:
+```
+x (+/-)
+↑
+|            [noteblock]
+|            [noteblock]
+| [repeater]   [block] 
+|            [noteblock]
+|            [noteblock]
+
+|------------------------> z (+/-)
+```
+
+The number of noteblocks depends on the note's dynamic value, this diagram shows one with maximum value 4.
+
 The generated structure of one voice looks like this:
 ```
 x (+/-)
@@ -217,30 +236,11 @@ x (+/-)
 |
 O------------------------------------------> z (+/-)
 ```
-A "unit" refers to a redstone unit mentioned in the JSON section.
+The x-axis goes + or - depending on the x-orientation. And similarly with the z-axis.
 
-The x-axis goes + or - depends on the x-orientation mentioned in the Usage section. And similarly with the z-axis.
+Each voice is a vertical layer on top of another. They are built in the order that they are written in the JSON file. They go from bottom to top (+) or top to bottom (-) depending on the y-orientation.
 
-Each voice is a vertical layer on top of another. They are built in the order that they are written in the json file. They go from bottom to top (+) or top to bottom (-) depending on the y-orientation.
-
-The "O" of the first voice is the generate location mentioned in the Usage section.
-
-Each redstone unit is a group that looks like this:
-```
-x (+/-)
-↑
-|            [noteblock]
-|            [noteblock]
-| [repeater]   [block] 
-|            [noteblock]
-|            [noteblock]
-
-|------------------------> z (+/-)
-```
-
-A "block" refers to the opaque block mentioned in the Usage section.
-
-The number of noteblocks depends on the note's dynamic value mentioned in the JSON section, this diagram shows one with maximum value 4.
+The "O" of the first voice is the build location. Upon being called, the generator starts at the build location, (fills the space with air if --clear), and generates the structure according to the build orientation.
 
 ## License
 
