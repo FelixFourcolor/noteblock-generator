@@ -200,7 +200,7 @@ The file should be in this format:
 ```
 For an example, see "example.json" which writes the Frere Jacques round in C major for 3 voices, and see "World" for the build result.
 
-For more serious usage, see my projects (this list will be updated):
+For more serious usage, see my projects:
 * [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
 
 ## Generation

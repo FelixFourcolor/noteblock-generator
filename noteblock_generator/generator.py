@@ -120,19 +120,14 @@ class World:
             bars = LONGEST_VOICE_LENGTH + INIT_BARS
             voices = len(composition)
 
-            if orientation.y:
-                y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-            else:
-                y = Y0 - MARGIN
-
             for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
                 for x in range(bars * BAR_WIDTH + 2 * MARGIN):
                     if orientation.y:
                         y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                        clear_range = range(0, y - Y0)
+                        clear_range = range(MARGIN, voices * VOICE_HEIGHT + MARGIN)
                     else:
                         y = Y0 - MARGIN
-                        clear_range = range(2 * MARGIN, VOICE_HEIGHT * voices)
+                        clear_range = range(2 * MARGIN, voices * VOICE_HEIGHT + MARGIN)
                     self[X0 + x_increment * x, y, Z0 + z_increment * z] = glass
 
                     if clear:
