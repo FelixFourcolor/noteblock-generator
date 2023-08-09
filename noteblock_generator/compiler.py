@@ -229,8 +229,13 @@ class Voice(list[list[Note]]):
         note = Note(self, pitch=pitch, **kwargs)
         if sustain is None:
             sustain = self.sustain
-        if sustain:
-            return [note] * duration
+        if sustain and duration >= 2:
+            sustain_dynamic = {"dynamic": max(min(1, note.dynamic), note.dynamic // 2)}
+            return (
+                [note]
+                + [Note(self, pitch=pitch, **kwargs | sustain_dynamic)] * (duration - 2)
+                + self._Rest(1, **kwargs)
+            )
         return [note] + self._Rest(duration - 1, **kwargs)
 
     def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
