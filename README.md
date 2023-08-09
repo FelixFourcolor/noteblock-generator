@@ -27,6 +27,8 @@ options:
   --clear               clear the space before generating;
                         required in order to generate in a non-empty world, but will take more time
 ```
+See Minecraft documentation for location syntax, orientation system, and what are opaque blocks.
+
 See the JSON section for how to write a music JSON file.
 
 See the Generation section for what the generated structure will look like.
