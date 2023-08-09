@@ -2,35 +2,28 @@ from __future__ import annotations
 
 import json
 
-# MAPPING OF PITCH NAMES TO NUMERICAL VALUES
-# create first octave
-_first = ["c1", "cs1", "d1", "ds1", "e1", "f1", "fs1", "g1", "gs1", "a1", "as1", "b1"]
-_octaves = [_first]
-# dynamically extend to octave 7
-for _ in range(6):
-    _octaves.append([p[:-1] + str(int(p[-1]) + 1) for p in _octaves[-1]])
-# flatten and convert to dict
-PITCHES = {
-    name: value
-    for value, name in enumerate([pitch for octave in _octaves for pitch in octave])
-}
+# MAPPING OF PITCH NAMES TO NUMERICAL VALUE
+_notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
+# create the first octave
+_octaves = {1: {note: value for value, note in enumerate(_notes)}}
 # extend accidentals
-for name, value in dict(PITCHES).items():
-    if name[-2] == "s":
-        # double sharps
-        if value + 1 < 84:
-            PITCHES[name[:-1] + "s" + name[-1]] = value + 1
-            PITCHES[name[:-2] + "x" + name[-1]] = value + 1
-    else:
-        # sharps
-        if value + 1 < 84:
-            PITCHES[name[:-1] + "s" + name[-1]] = value + 1
-        # flats
-        if value - 1 >= 0:
-            PITCHES[name[:-1] + "b" + name[-1]] = value - 1
-        # double flats
-        if value - 2 >= 0:
-            PITCHES[name[:-1] + "bb" + name[-1]] = value - 2
+for name, value in dict(_octaves[1]).items():
+    # sharps and double sharps
+    _octaves[1][name + "s"] = value + 1
+    # flats and double flats
+    if not name.endswith("s"):
+        _octaves[1][name + "b"] = value - 1
+        _octaves[1][name + "bb"] = value - 2
+# extend to octave 7
+for i in range(1, 7):
+    _octaves[i + 1] = {note: value + 12 for note, value in _octaves[i].items()}
+# flatten octaves to pitches
+PITCHES = {
+    note + str(octave_number): value
+    for octave_number, octave in _octaves.items()
+    for note, value in octave.items()
+}
+
 
 # MAPPING OF INSTRUMENTS TO NUMERICAL RANGES
 INSTRUMENTS = {
@@ -188,17 +181,24 @@ class Voice(list[list[Note]]):
         return f"Voice {self._index + 1}"
 
     def _parse_pitch(self, value: str):
+        def _parse_note_and_octave(value: str) -> tuple[str, int]:
+            try:
+                octave = int(value[-1])
+                return value[:-1], octave
+            except ValueError:
+                if value.endswith("^"):
+                    note, octave = _parse_note_and_octave(value[:-1])
+                    return note, octave + 1
+                if value.endswith("_"):
+                    note, octave = _parse_note_and_octave(value[:-1])
+                    return note, octave - 1
+                return value, self._octave
+
         if not value or value == "r":
             return "r"
-        try:
-            int(value[-1])
-            return value
-        except ValueError:
-            if value.endswith("^"):
-                return value[:-1] + str(self._octave + 1)
-            elif value.endswith("_"):
-                return value[:-1] + str(self._octave - 1)
-            return value + str(self._octave)
+
+        note, octave = _parse_note_and_octave(value)
+        return note + str(octave)
 
     def _parse_duration(self, beat: int = None, *values: str):
         if beat is None:
