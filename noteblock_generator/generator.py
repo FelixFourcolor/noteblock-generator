@@ -162,7 +162,7 @@ class World:
 
         def generate_noteblocks():
             # place noteblock positions in this order, depending on dynamic
-            positions = [1, -1, 2, -2]
+            positions = [-1, 1, -2, 2]
             for i in range(note.dynamic):
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
 
