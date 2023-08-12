@@ -124,7 +124,7 @@ class World:
                 for x in range(bars * BAR_WIDTH + 2 * MARGIN):
                     if orientation.y:
                         y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                        clear_range = range(MARGIN, voices * VOICE_HEIGHT + MARGIN)
+                        clear_range = range(voices * VOICE_HEIGHT + MARGIN)
                     else:
                         y = Y0 - MARGIN
                         clear_range = range(2 * MARGIN, voices * VOICE_HEIGHT + MARGIN)
@@ -143,13 +143,16 @@ class World:
                 for _ in range(INIT_BARS):
                     voice.insert(0, [Rest(voice, delay=1)] * voice.time)
 
-            x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2)
+            x = X0 + x_increment * BAR_WIDTH // 2
             if orientation.y:
                 y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
             else:
                 y = Y0 - MARGIN
-            z = Z0 + z_increment * BAR_CHANGING_LENGTH
-            self[x, y - 1, z] = Redstone()
+            z = Z0 + z_increment * MARGIN
+            self[x + x_increment, y - 3, z] = neutral_block
+            self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
+            self[x, y - 2, z] = neutral_block
+            self[x, y - 1, z] = Redstone((x_direction, -x_direction))
             self[x, y, z] = neutral_block
             self[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
 
