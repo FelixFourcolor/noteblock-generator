@@ -181,6 +181,13 @@ class Voice(list[list[Note]]):
             return self._name
         return f"Voice {self._index + 1}"
 
+    def _parse_note(self, value: str, beat: int = None):
+        tokens = value.lower().split()
+        pitch = self._parse_pitch(tokens[0])
+        if (duration := self._parse_duration(beat, *tokens[1:])) < 1:
+            raise UserError("Note duration must be at least 1.")
+        return pitch, duration
+
     def _parse_pitch(self, value: str):
         def _parse_note_and_octave(value: str) -> tuple[str, int]:
             try:
@@ -201,7 +208,7 @@ class Voice(list[list[Note]]):
         note, octave = _parse_note_and_octave(value)
         return note + str(octave)
 
-    def _parse_duration(self, beat: int = None, *values: str):
+    def _parse_duration(self, beat: int = None, *values: str) -> int:
         if beat is None:
             beat = self.beat
 
@@ -223,12 +230,34 @@ class Voice(list[list[Note]]):
             raise UserError(f"{value} is not a valid duration.")
 
     def _Note(
-        self, pitch: str, duration: int, *, sustain: bool = None, **kwargs
+        self,
+        pitch: str,
+        duration: int,
+        *,
+        sustain: bool = None,
+        trill: str = None,
+        **kwargs,
     ) -> list[Note]:
         if pitch == "r":
             return self._Rest(duration, **kwargs)
+
         partial_note = partial(Note, self, pitch=pitch)
         note = partial_note(**kwargs)
+
+        if trill:
+            beat = kwargs["beat"] if "beat" in kwargs else None
+            trill_pitch, trill_duration = self._parse_note(trill, beat)
+            alternating_notes = (note, Note(self, pitch=trill_pitch, **kwargs))
+
+            out = [alternating_notes[i % 2] for i in range(trill_duration - 1)]
+            out += self._Note(
+                pitch=(pitch, trill_pitch)[(trill_duration - 1) % 2],
+                duration=duration - trill_duration + 1,
+                sustain=sustain,
+                **kwargs,
+            )
+            return out
+
         if sustain is None:
             sustain = self.sustain
         if sustain and duration >= 2:
@@ -250,20 +279,18 @@ class Voice(list[list[Note]]):
         if name.startswith("|"):
             name = name[1:]
             if self[-1]:
-                raise UserError("expected the beginning of a bar.")
+                raise UserError("Wrong barline location.")
             # "||" to assert the beginning of a bar AND rest for the entire bar
             if name.startswith("|"):
                 name = name[1:]
                 self[-1] += self._Rest(self.time, **kwargs)
             # followed by a number to assert bar number
             if name.strip() and int(name) != len(self):
-                raise UserError(f"expected bar {len(self)}, found {int(name)}.")
+                raise UserError(f"expected bar number {len(self)}, found {int(name)}.")
             return
 
         # actual note
-        tokens = name.lower().split()
-        pitch = self._parse_pitch(tokens[0])
-        duration = self._parse_duration(beat, *tokens[1:])
+        pitch, duration = self._parse_note(name, beat)
         # organize into bars
         for note in self._Note(pitch, duration, **kwargs):
             if len(self[-1]) < self.time:
