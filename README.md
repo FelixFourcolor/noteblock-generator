@@ -204,6 +204,7 @@ For an example, see "example.json" which writes the Frere Jacques round in C maj
 
 For more serious usage, see my projects:
 * [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
+* [Sind Blitze sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
 
 ## Generation
 Each redstone unit is a group that looks like this:
