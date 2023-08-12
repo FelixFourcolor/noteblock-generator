@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import partial
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -226,15 +227,17 @@ class Voice(list[list[Note]]):
     ) -> list[Note]:
         if pitch == "r":
             return self._Rest(duration, **kwargs)
-        note = Note(self, pitch=pitch, **kwargs)
+        partial_note = partial(Note, self, pitch=pitch)
+        note = partial_note(**kwargs)
         if sustain is None:
             sustain = self.sustain
         if sustain and duration >= 2:
-            sustain_dynamic = {"dynamic": max(min(1, note.dynamic), note.dynamic // 2)}
+            tail_dynamic = note.dynamic // 2
+            sus_dynamic = max(min(1, note.dynamic), tail_dynamic)
             return (
                 [note]
-                + [Note(self, pitch=pitch, **kwargs | sustain_dynamic)] * (duration - 2)
-                + self._Rest(1, **kwargs)
+                + [partial_note(**kwargs | {"dynamic": sus_dynamic})] * (duration - 2)
+                + [partial_note(**kwargs | {"dynamic": tail_dynamic})]
             )
         return [note] + self._Rest(duration - 1, **kwargs)
 
