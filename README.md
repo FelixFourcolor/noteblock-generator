@@ -10,7 +10,7 @@ python 3.10+
 
 ## Usage
 ```
-noteblock-generator [-h] [-l [LOCATION ...]] [-o [ORIENTATION ...]] [-b BLOCK] [--clear] path_in path_out
+noteblock-generator [-h] [--location [LOCATION ...]] [--orientation [ORIENTATION ...]] [--theme THEME] [--clear] path_in path_out
 
 positional arguments:
   path_in               path to music json file
@@ -18,11 +18,11 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  -l [LOCATION ...], --location [LOCATION ...]
+  --location [LOCATION ...]
                         build location (in x y z); default is ~ ~ ~
-  -o [ORIENTATION ...], --orientation [ORIENTATION ...]
+  --orientation [ORIENTATION ...]
                         build orientation (in x y z); default is + + +
-  -b BLOCK, --block BLOCK
+  --theme THEME
                         opaque block for redstone components; default is stone
   --clear               clear the space before generating;
                         required in order to generate in a non-empty world, but will take more time
@@ -158,6 +158,22 @@ The file should be in this format:
                     // If sustain is false (default), a note with duration n
                     // is the same as the note with duration 1 and n-1 rests;
                     // otherwise, it is n repeated notes of duration 1.
+
+                    // Another optional argument
+                    "trill": "[trill note name][trill octave] [trill duration]"
+                    // The rules for trill name is the same as main note's name. See above.
+                    // The trill starts from the main note, 
+                    // then ossilates between two notes for "trill duration" units, 
+                    // then rests for the remaining of the main note's duration.
+                    // If sustain is enabled, rather than rest the trill will be followed by a tremlo.
+                    // Named "trill" but is far more useful than only performing trills,
+                    // because of the freedom of choosing trill duration:
+                    // 1: indistinguishable from a regular note
+                    // 2: appoggiatura
+                    // 3: mordent
+                    // 4+: short trill
+                    // trill duration = main note duration: full trill
+    
                 },
 
                 {
