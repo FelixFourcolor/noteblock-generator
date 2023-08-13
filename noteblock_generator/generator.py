@@ -195,7 +195,7 @@ class World:
         LONGEST_VOICE_LENGTH = max(map(len, composition))
         # add this number of bars to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
-        INIT_BARS = math.ceil(len(composition) / composition.time)
+        INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
 
         try:
             player_location = tuple(map(math.floor, self.players[0].location))
