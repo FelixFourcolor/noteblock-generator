@@ -33,24 +33,21 @@ def get_args():
     parser.add_argument("path_in", help="path to music json file")
     parser.add_argument("path_out", help="path to Minecraft world")
     parser.add_argument(
-        "-l",
         "--location",
         nargs="*",
         default=["~", "~", "~"],
         help="build location (in x y z); default is ~ ~ ~",
     )
     parser.add_argument(
-        "-o",
         "--orientation",
         nargs="*",
         default=["+", "+", "+"],
         help=("build orientation (in x y z); default is + + +"),
     )
     parser.add_argument(
-        "-b",
-        "--block",
+        "--theme",
         default="stone",
-        help="opaque block for redstone components; default is stone",
+        help="opaque blocks for redstone components; default is stone",
     )
     parser.add_argument(
         "--clear",
@@ -96,7 +93,7 @@ def parse_args():
         "composition": Composition.compile(args.path_in),
         "location": Location(*location),
         "orientation": Orientation(*orientation),
-        "block": args.block,
+        "theme": args.theme,
         "clear": args.clear,
     }
 

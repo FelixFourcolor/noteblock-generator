@@ -109,7 +109,7 @@ class World:
         composition: Composition,
         location: Location,
         orientation: Orientation,
-        block: str,
+        theme: str,
         clear=False,
     ):
         def generate_space():
@@ -149,19 +149,19 @@ class World:
             else:
                 y = Y0 - MARGIN
             z = Z0 + z_increment * MARGIN
-            self[x + x_increment, y - 3, z] = neutral_block
+            self[x + x_increment, y - 3, z] = block
             self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
-            self[x, y - 2, z] = neutral_block
+            self[x, y - 2, z] = block
             self[x, y - 1, z] = Redstone((x_direction, -x_direction))
-            self[x, y, z] = neutral_block
+            self[x, y, z] = block
             self[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
 
         def generate_redstones():
-            self[x, y, z] = neutral_block
+            self[x, y, z] = block
             self[x, y + 1, z] = Repeater(note.delay, z_direction)
-            self[x, y + 1, z + z_increment] = neutral_block
+            self[x, y + 1, z + z_increment] = block
             self[x, y + 2, z + z_increment] = Redstone()
-            self[x, y + 2, z + z_increment * 2] = neutral_block
+            self[x, y + 2, z + z_increment * 2] = block
 
         def generate_noteblocks():
             # place noteblock positions in this order, depending on dynamic
@@ -170,16 +170,16 @@ class World:
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
 
         def generate_bar_changing_system():
-            self[x, y, z + z_increment * 2] = neutral_block
+            self[x, y, z + z_increment * 2] = block
             self[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
-            self[x, y, z + z_increment * 3] = neutral_block
+            self[x, y, z + z_increment * 3] = block
             self[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
             for i in range(1, BAR_WIDTH):
-                self[x + x_increment * i, y, z + z_increment * 3] = neutral_block
+                self[x + x_increment * i, y, z + z_increment * 3] = block
                 self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
                     (x_direction, -x_direction)
                 )
-            self[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = neutral_block
+            self[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = block
             self[x + x_increment * BAR_WIDTH, y + 1, z + z_increment * 3] = Redstone(
                 (-z_direction, -x_direction)
             )
@@ -221,7 +221,7 @@ class World:
             z_direction = -z_direction
         z_increment = z_direction[1]
 
-        neutral_block = Block(block)
+        block = Block(theme)
 
         generate_space()
         generate_init_system()
@@ -236,7 +236,7 @@ class World:
                 x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH)
                 z_increment = z_direction[1]
                 z0 = z - z_increment * BAR_CHANGING_LENGTH
-                self[x, y + 2, z0] = neutral_block
+                self[x, y + 2, z0] = block
 
                 for k, note in enumerate(bar):
                     z = z0 + k * z_increment * NOTE_LENGTH
