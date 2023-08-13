@@ -181,10 +181,9 @@ class Voice(list[list[Note]]):
         return f"Voice {self._index + 1}"
 
     def _parse_note(self, value: str, beat: int = None):
-        tokens = value.lower().split()
-        pitch = self._parse_pitch(tokens[0])
-        if (duration := self._parse_duration(beat, *tokens[1:])) < 1:
-            raise UserError("Note duration must be at least 1.")
+        _tokens = value.lower().split()
+        pitch = self._parse_pitch(_tokens[0])
+        duration = self._parse_duration(*_tokens[1:], beat=beat)
         return pitch, duration
 
     def _parse_pitch(self, value: str):
@@ -207,7 +206,7 @@ class Voice(list[list[Note]]):
         note, octave = _parse_note_and_octave(value)
         return note + str(octave)
 
-    def _parse_duration(self, beat: int = None, *values: str) -> int:
+    def _parse_duration(self, *values: str, beat: int = None) -> int:
         if beat is None:
             beat = self.beat
 
@@ -215,12 +214,16 @@ class Voice(list[list[Note]]):
             return beat
 
         if len(values) > 1:
-            head = self._parse_duration(beat, values[0])
-            tails = self._parse_duration(beat, *values[1:])
+            head = self._parse_duration(value, beat=beat)
+            tails = self._parse_duration(*values[1:], beat=beat)
             return head + tails
+
+        if value.startswith("-"):
+            return -self._parse_duration(value[1:], beat=beat)
+
         try:
             if value[-1] == ".":
-                return int(self._parse_duration(beat, value[:-1]) * 1.5)
+                return int(self._parse_duration(value[:-1], beat=beat) * 1.5)
             if value[-1] == "b":
                 return beat * int(value[:-1])
             else:
@@ -249,16 +252,21 @@ class Voice(list[list[Note]]):
             sustain = duration
         elif sustain is False:
             sustain = 1
-        else:
-            if not isinstance(sustain, int):
-                sustain = self._parse_duration(beat, *sustain.split())
-            if sustain < 0:
-                raise UserError("Sustain duration must be at least 1.")
-            if sustain > duration:
-                raise UserError("Sustain duration cannot be longer than main note's.")
+        elif not isinstance(sustain, int):
+            sustain = self._parse_duration(*sustain.split(), beat=beat)
+        if sustain < 0:
+            sustain += duration
+        if sustain < 0:
+            raise UserError("Sustain duration must be at least 1.")
+        if sustain > duration:
+            raise UserError("Sustain duration cannot be longer than main note's.")
 
         if trill:
             trill_pitch, trill_duration = self._parse_note(trill, beat)
+            if trill_duration < 0:
+                trill_duration += duration
+            if trill_duration < 0:
+                raise UserError("Trill duration must be at least 1.")
             if trill_duration > duration:
                 raise UserError("Trill duration cannot be longer than main note's.")
             alternating_notes = (note, Note(self, pitch=trill_pitch, **kwargs))
@@ -299,6 +307,8 @@ class Voice(list[list[Note]]):
 
         # actual note
         pitch, duration = self._parse_note(name, beat)
+        if duration < 1:
+            raise UserError("Note duration must be at least 1.")
         # organize into bars
         for note in self._Note(pitch, duration, **kwargs):
             if len(self[-1]) < self.time:
