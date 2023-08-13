@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from functools import partial
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -132,7 +131,7 @@ class Voice(list[list[Note]]):
         instrument: str = None,
         dynamic: int = None,
         transpose=0,
-        sustain: bool = None,
+        sustain: bool | int | str = None,
     ):
         if delay is None:
             delay = _composition.delay
@@ -234,41 +233,52 @@ class Voice(list[list[Note]]):
         pitch: str,
         duration: int,
         *,
-        sustain: bool = None,
+        sustain: bool | int | str = None,
         trill: str = None,
         **kwargs,
     ) -> list[Note]:
         if pitch == "r":
             return self._Rest(duration, **kwargs)
 
-        partial_note = partial(Note, self, pitch=pitch)
-        note = partial_note(**kwargs)
+        note = Note(self, pitch=pitch, **kwargs)
+        beat = kwargs["beat"] if "beat" in kwargs else None
+
+        if sustain is None:
+            sustain = self.sustain
+        if sustain is True:
+            sustain = duration
+        elif sustain is False:
+            sustain = 1
+        else:
+            if not isinstance(sustain, int):
+                sustain = self._parse_duration(beat, *sustain.split())
+            if sustain < 0:
+                sustain += duration
+            if sustain == 0:
+                raise UserError("Sustain cannot be 0")
+            if sustain > duration:
+                raise UserError("Sustain duration cannot be longer than main note's.")
 
         if trill:
-            beat = kwargs["beat"] if "beat" in kwargs else None
             trill_pitch, trill_duration = self._parse_note(trill, beat)
+            if trill_duration > duration:
+                raise UserError("Trill duration cannot be longer than main note's.")
             alternating_notes = (note, Note(self, pitch=trill_pitch, **kwargs))
-
             out = [alternating_notes[i % 2] for i in range(trill_duration - 1)]
             out += self._Note(
                 pitch=(pitch, trill_pitch)[(trill_duration - 1) % 2],
                 duration=duration - trill_duration + 1,
-                sustain=sustain,
+                sustain=max(0, sustain - trill_duration) + 1,
                 **kwargs,
             )
             return out
 
-        if sustain is None:
-            sustain = self.sustain
-        if sustain and duration >= 2:
-            tail_dynamic = note.dynamic // 2
-            sus_dynamic = max(min(1, note.dynamic), tail_dynamic)
-            return (
-                [note]
-                + [partial_note(**kwargs | {"dynamic": sus_dynamic})] * (duration - 2)
-                + [partial_note(**kwargs | {"dynamic": tail_dynamic})]
-            )
-        return [note] + self._Rest(duration - 1, **kwargs)
+        sustain_dynamic = {"dynamic": max(min(1, note.dynamic), note.dynamic // 2)}
+        return (
+            [note]
+            + [Note(self, pitch=pitch, **kwargs | sustain_dynamic)] * (sustain - 1)
+            + self._Rest(duration - sustain, **kwargs)
+        )
 
     def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
         return [Rest(self, delay=delay)] * duration
