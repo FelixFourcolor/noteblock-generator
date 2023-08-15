@@ -256,8 +256,8 @@ class Voice(list[list[Note]]):
             sustain = self._parse_duration(*sustain.split(), beat=beat)
         if sustain < 0:
             sustain += duration
-        if sustain < 0:
-            raise UserError("Sustain duration must be at least 1.")
+        if sustain < 1:
+            sustain = 1
         if sustain > duration:
             raise UserError("Sustain duration cannot be longer than main note's.")
 
