@@ -214,8 +214,11 @@ class World:
             x_direction = -x_direction
         x_increment = x_direction[0]
         y_increment = 1
-        if not orientation.y:
+        if orientation.y:
+            voices = composition
+        else:
             y_increment = -y_increment
+            voices = reversed(composition)
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
@@ -226,7 +229,7 @@ class World:
         generate_space()
         generate_init_system()
 
-        for i, voice in enumerate(composition):
+        for i, voice in enumerate(voices):
             y = Y0 + y_increment * i * VOICE_HEIGHT
             if not orientation.y:
                 y -= VOICE_HEIGHT + 3 * MARGIN
