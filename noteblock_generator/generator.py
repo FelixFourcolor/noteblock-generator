@@ -123,18 +123,26 @@ class World:
             for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
                 for x in range(bars * BAR_WIDTH + 2 * MARGIN):
                     if orientation.y:
-                        y = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                        clear_range = range(voices * VOICE_HEIGHT + MARGIN)
+                        y_glass = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
+                        clear_range = [*range(Y0 + MARGIN, y_glass), y_glass + MARGIN]
                     else:
-                        y = Y0 - MARGIN
-                        clear_range = range(2 * MARGIN, voices * VOICE_HEIGHT + MARGIN)
-                    self[X0 + x_increment * x, y, Z0 + z_increment * z] = glass
+                        y_glass = Y0 - MARGIN
+                        clear_range = [
+                            Y0,
+                            *range(
+                                Y0 - 2 * MARGIN,
+                                Y0 - 2 * MARGIN - (voices * VOICE_HEIGHT + MARGIN),
+                                -1,
+                            ),
+                        ]
+
+                    self[X0 + x_increment * x, y_glass, Z0 + z_increment * z] = glass
 
                     if clear:
                         for y in clear_range:
                             self[
                                 X0 + x_increment * x,
-                                Y0 + y_increment * y,
+                                y,
                                 Z0 + z_increment * z,
                             ] = air
 
