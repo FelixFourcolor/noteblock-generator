@@ -2,7 +2,7 @@ import sys
 from argparse import ArgumentParser
 from typing import NamedTuple
 
-from noteblock_generator.compiler import Composition, UserError
+from noteblock_generator.compiler import Composition, UserError, logger
 
 
 class Coordinate(int):
@@ -99,6 +99,7 @@ def parse_args():
 
 
 def main():
+    logger.info("compiling")
     try:
         path_out, kwargs = parse_args()
     except UserError as e:
@@ -107,8 +108,10 @@ def main():
 
     from noteblock_generator.generator import World
 
+    logger.info("generating")
     with World(path_out) as world:
         world.generate(**kwargs)
+    logger.info("finished")
 
 
 if __name__ == "__main__":

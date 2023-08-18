@@ -116,7 +116,7 @@ class World:
             air = Block("air")
             glass = Block("glass")
 
-            notes = composition.time
+            notes = composition.bar_length
             bars = LONGEST_VOICE_LENGTH + INIT_BARS
             voices = len(composition)
 
@@ -141,7 +141,7 @@ class World:
         def generate_init_system():
             for voice in composition:
                 for _ in range(INIT_BARS):
-                    voice.insert(0, [Rest(voice, delay=1)] * voice.time)
+                    voice.insert(0, [Rest(voice, delay=1)] * voice.bar)
 
             x = X0 + x_increment * BAR_WIDTH // 2
             if orientation.y:
@@ -195,7 +195,7 @@ class World:
         LONGEST_VOICE_LENGTH = max(map(len, composition))
         # add this number of bars to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
-        INIT_BARS = math.ceil((len(composition) - 1) / composition.time)
+        INIT_BARS = math.ceil((len(composition) - 1) / composition.bar_length)
 
         try:
             player_location = tuple(map(math.floor, self.players[0].location))

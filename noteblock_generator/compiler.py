@@ -1,6 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
+import math
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig(format="%(levelname)s - %(message)s")
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -101,7 +107,7 @@ class Note:
             raise UserError(f"{self} is out of range for {instrument}.")
         self.note = instrument_range.index(pitch_value)
 
-    def __str__(self):
+    def __repr__(self):
         return self._name
 
 
@@ -151,6 +157,7 @@ class Voice(list[list[Note]]):
         self._index = len(_composition)
         self._name = name
         self.time = _composition.time
+        self.bar = _composition.bar_length
         self.delay = delay
         self.beat = beat
         self.instrument = instrument
@@ -170,7 +177,7 @@ class Voice(list[list[Note]]):
                         self._add_note(**(self._note_config | kwargs))
                     except UserError as e:
                         raise UserError(
-                            f"{self} at {(len(self), len(self[-1]) + 1)}: {e}",
+                            f"{self} at {(self._bar_number, self._note_number)}: {e}"
                         )
                 else:
                     self._note_config |= kwargs
@@ -179,6 +186,14 @@ class Voice(list[list[Note]]):
         if self._name:
             return self._name
         return f"Voice {self._index + 1}"
+
+    @property
+    def _bar_number(self):
+        return math.ceil(len(self) / (self.time / self.bar))
+
+    @property
+    def _note_number(self):
+        return 1 + len(self[-1]) + (0 if len(self) % 2 else self.bar)
 
     def _parse_note(self, value: str, beat: int = None):
         _tokens = value.lower().split()
@@ -290,19 +305,22 @@ class Voice(list[list[Note]]):
         return [Rest(self, delay=delay)] * duration
 
     def _add_note(self, *, name: str, beat: int = None, **kwargs):
+        if len(self[-1]) == self.bar:
+            self.append([])
+
         # Bar helpers
         # "|" to assert the beginning of a bar
         if name.startswith("|"):
             name = name[1:]
-            if self[-1]:
+            if self._note_number != 1:
                 raise UserError("Wrong barline location.")
             # "||" to assert the beginning of a bar AND rest for the entire bar
             if name.startswith("|"):
                 name = name[1:]
-                self[-1] += self._Rest(self.time, **kwargs)
+                self._add_note(name=f"r {self.time}", **kwargs)
             # followed by a number to assert bar number
-            if name.strip() and int(name) != len(self):
-                raise UserError(f"expected bar number {len(self)}, found {int(name)}.")
+            if name.strip() and int(name) != (self._bar_number):
+                raise UserError(f"expected bar {self._bar_number}, found {int(name)}.")
             return
 
         # actual note
@@ -311,7 +329,7 @@ class Voice(list[list[Note]]):
             raise UserError("Note duration must be at least 1.")
         # organize into bars
         for note in self._Note(pitch, duration, **kwargs):
-            if len(self[-1]) < self.time:
+            if len(self[-1]) < self.bar:
                 self[-1].append(note)
             else:
                 self.append([note])
@@ -342,6 +360,13 @@ class Composition(list[Voice]):
         self.dynamic = dynamic
         self.transpose = transpose
         self.sustain = sustain
+        self.time = time
+        for n in range(16, 4, -1):
+            if time % n == 0:
+                self.bar_length = n
+                break
+        else:
+            logger.warn(f"time {time} is unusually large.")
 
         for voice in voices:
             self.append(Voice(self, **voice))
