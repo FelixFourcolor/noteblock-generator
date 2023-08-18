@@ -251,6 +251,7 @@ class Voice(list[list[Note]]):
         pitch: str,
         duration: int,
         *,
+        beat: int = None,
         sustain: bool | int | str = None,
         trill: str = None,
         **kwargs,
@@ -259,7 +260,6 @@ class Voice(list[list[Note]]):
             return self._Rest(duration, **kwargs)
 
         note = Note(self, pitch=pitch, **kwargs)
-        beat = kwargs["beat"] if "beat" in kwargs else None
 
         if sustain is None:
             sustain = self.sustain
@@ -290,6 +290,7 @@ class Voice(list[list[Note]]):
                 pitch=(pitch, trill_pitch)[(trill_duration - 1) % 2],
                 duration=duration - trill_duration + 1,
                 sustain=max(0, sustain - trill_duration) + 1,
+                beat=beat,
                 **kwargs,
             )
             return out
@@ -328,7 +329,7 @@ class Voice(list[list[Note]]):
         if duration < 1:
             raise UserError("Note duration must be at least 1.")
         # organize into bars
-        for note in self._Note(pitch, duration, **kwargs):
+        for note in self._Note(pitch, duration, beat=beat, **kwargs):
             if len(self[-1]) < self.bar:
                 self[-1].append(note)
             else:
