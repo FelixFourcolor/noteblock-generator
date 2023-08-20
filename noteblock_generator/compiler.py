@@ -295,7 +295,13 @@ class Voice(list[list[Note]]):
             )
             return out
 
-        sustain_dynamic = {"dynamic": max(min(1, note.dynamic), note.dynamic // 2)}
+        instrument = kwargs["instrument"] if "instrument" in kwargs else self.instrument
+        delay = kwargs["delay"] if "delay" in kwargs else self.delay
+        sustain_dynamic = {
+            "dynamic": note.dynamic
+            if instrument == "flute" and delay == 1
+            else max(min(1, note.dynamic), note.dynamic // 2)
+        }
         return (
             [note]
             + [Note(self, pitch=pitch, **kwargs | sustain_dynamic)] * (sustain - 1)
