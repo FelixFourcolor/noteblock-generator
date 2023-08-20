@@ -169,7 +169,7 @@ class Voice(list[list[Note]]):
             self._note_config = {}
             self.append([])
             for note in notes:
-                if len(self[-1]) == self.time:
+                if len(self[-1]) == self.bar:
                     self.append([])
                 kwargs = note if isinstance(note, dict) else {"name": note}
                 if "name" in kwargs:
@@ -193,7 +193,7 @@ class Voice(list[list[Note]]):
 
     @property
     def _note_number(self):
-        return 1 + len(self[-1]) + (0 if len(self) % 2 else self.bar)
+        return 1 + len(self[-1]) + (len(self) - 1) % (self.time // self.bar) * self.bar
 
     def _parse_note(self, value: str, beat: int = None):
         _tokens = value.lower().split()
@@ -312,9 +312,6 @@ class Voice(list[list[Note]]):
         return [Rest(self, delay=delay)] * duration
 
     def _add_note(self, *, name: str, beat: int = None, **kwargs):
-        if len(self[-1]) == self.bar:
-            self.append([])
-
         # Bar helpers
         # "|" to assert the beginning of a bar
         if name.startswith("|"):
