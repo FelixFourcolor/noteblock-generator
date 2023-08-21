@@ -253,6 +253,7 @@ class Voice(list[list[Note]]):
         *,
         beat: int = None,
         sustain: bool | int | str = None,
+        sustainDynamic: int = None,
         trill: str = None,
         **kwargs,
     ) -> list[Note]:
@@ -290,6 +291,7 @@ class Voice(list[list[Note]]):
                 pitch=(pitch, trill_pitch)[(trill_duration - 1) % 2],
                 duration=duration - trill_duration + 1,
                 sustain=max(0, sustain - trill_duration) + 1,
+                sustainDynamic=sustainDynamic,
                 beat=beat,
                 **kwargs,
             )
@@ -297,14 +299,16 @@ class Voice(list[list[Note]]):
 
         instrument = kwargs["instrument"] if "instrument" in kwargs else self.instrument
         delay = kwargs["delay"] if "delay" in kwargs else self.delay
-        sustain_dynamic = {
-            "dynamic": note.dynamic
-            if instrument == "flute" and delay == 1
-            else max(min(1, note.dynamic), note.dynamic // 2)
-        }
+        if sustainDynamic is None:
+            sustainDynamic = (
+                note.dynamic
+                if instrument == "flute" and delay == 1
+                else max(min(1, note.dynamic), note.dynamic // 2)
+            )
         return (
             [note]
-            + [Note(self, pitch=pitch, **kwargs | sustain_dynamic)] * (sustain - 1)
+            + [Note(self, pitch=pitch, **kwargs | {"dynamic": sustainDynamic})]
+            * (sustain - 1)
             + self._Rest(duration - sustain, **kwargs)
         )
 
