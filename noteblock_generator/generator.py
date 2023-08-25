@@ -124,14 +124,14 @@ class World:
                 for x in range(bars * BAR_WIDTH + 2 * MARGIN):
                     if orientation.y:
                         y_glass = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                        clear_range = [*range(Y0 + MARGIN, y_glass), y_glass + MARGIN]
+                        clear_range = [*range(Y0, y_glass), y_glass + MARGIN]
                     else:
                         y_glass = Y0 - MARGIN
                         clear_range = [
                             Y0,
                             *range(
                                 Y0 - 2 * MARGIN,
-                                Y0 - 2 * MARGIN - (voices * VOICE_HEIGHT + MARGIN),
+                                Y0 - 2 * MARGIN - (voices * VOICE_HEIGHT + 2 * MARGIN),
                                 -1,
                             ),
                         ]
