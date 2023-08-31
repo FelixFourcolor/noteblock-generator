@@ -351,7 +351,7 @@ class Composition(list[Voice]):
     def __init__(
         self,
         *,
-        _path: str,
+        _path: Path,
         voices: list[dict | str],
         time=16,
         delay=1,
@@ -361,7 +361,7 @@ class Composition(list[Voice]):
         transpose=0,
         sustain=False,
     ):
-        self._path = Path(_path)
+        self._path = _path
         # values out of range are handled by Voice/Note.__init__
         self.time = time
         self.delay = delay
@@ -398,7 +398,9 @@ class Composition(list[Voice]):
         self.append(Voice(self, **voice))
 
     @classmethod
-    def compile(cls, path: str):
+    def compile(cls, path: str | Path):
+        if (path := Path(path)).is_dir:
+            path /= "composition.json"
         try:
             with open(path, "r") as f:
                 return cls(**json.load(f), _path=path)
