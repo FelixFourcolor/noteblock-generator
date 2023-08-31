@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -344,6 +346,27 @@ class Voice(list[list[Note]]):
                 self.append([note])
 
 
+def find_file(path: str | Path) -> Path:
+    """Recursively find where the json file is."""
+
+    def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
+        if path.is_dir():
+            for subpath in map(Path, os.scandir(path)):
+                _path = path
+                while (parent := path.parent) != path:
+                    if find := _find(subpath, match_name=parent.stem):
+                        return find
+                    path = parent
+                path = _path
+        elif path.is_file():
+            if match_name is None or match_name == path.stem:
+                return path
+
+    if out := _find(Path(path).absolute()):
+        return out
+    raise UserError(f"Path {path} is invalid.")
+
+
 class Composition(list[Voice]):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
@@ -389,7 +412,7 @@ class Composition(list[Voice]):
 
     def _compile_voice(self, value: str | dict):
         if isinstance(value, str):
-            with open(voice_path := self._path.parent / value, "r") as f:
+            with open(voice_path := find_file(self._path.parent / value), "r") as f:
                 voice = json.load(f)
             if "name" not in voice:
                 voice["name"] = voice_path.stem
@@ -398,11 +421,9 @@ class Composition(list[Voice]):
         self.append(Voice(self, **voice))
 
     @classmethod
-    def compile(cls, path: str | Path):
-        if (path := Path(path)).is_dir:
-            path /= "composition.json"
+    def compile(cls, path_in: str):
         try:
-            with open(path, "r") as f:
+            with open(path := find_file(path_in), "r") as f:
                 return cls(**json.load(f), _path=path)
         except Exception as e:
             if isinstance(e, UserError):
