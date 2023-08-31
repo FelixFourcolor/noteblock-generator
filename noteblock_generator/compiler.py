@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -350,7 +351,8 @@ class Composition(list[Voice]):
     def __init__(
         self,
         *,
-        voices: list[dict],
+        _path: str,
+        voices: list[dict | str],
         time=16,
         delay=1,
         beat=1,
@@ -359,11 +361,11 @@ class Composition(list[Voice]):
         transpose=0,
         sustain=False,
     ):
+        self._path = Path(_path)
         # values out of range are handled by Voice/Note.__init__
         self.time = time
         self.delay = delay
         self.beat = beat
-        self.name = name
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = transpose
@@ -374,12 +376,33 @@ class Composition(list[Voice]):
                 self.bar_length = n
                 break
         else:
-            logger.warn(f"time {time} is unusually large.")
-
+            logger.warn(
+                f"time {time} is unusually large. This may result in undesirable build."
+            )
         for voice in voices:
-            self.append(Voice(self, **voice))
+            try:
+                self._compile_voice(voice)
+            except Exception as e:
+                if isinstance(e, UserError):
+                    raise e
+                raise UserError(f'Error compiling voice "{voice}"\n{e}')
+
+    def _compile_voice(self, value: str | dict):
+        if isinstance(value, str):
+            with open(voice_path := self._path.parent / value, "r") as f:
+                voice = json.load(f)
+            if "name" not in voice:
+                voice["name"] = voice_path.stem
+        else:
+            voice = value
+        self.append(Voice(self, **voice))
 
     @classmethod
-    def compile(cls, path_in: str):
-        with open(path_in, "r") as f:
-            return cls(**json.load(f))
+    def compile(cls, path: str):
+        try:
+            with open(path, "r") as f:
+                return cls(**json.load(f), _path=path)
+        except Exception as e:
+            if isinstance(e, UserError):
+                raise e
+            raise UserError(f"Compile error\n{e}")

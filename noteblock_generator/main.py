@@ -99,7 +99,7 @@ def parse_args():
 
 
 def main():
-    logger.info("compiling")
+    logger.info("Compiling...")
     try:
         path_out, kwargs = parse_args()
     except UserError as e:
@@ -108,10 +108,10 @@ def main():
 
     from noteblock_generator.generator import World
 
-    logger.info("generating")
+    logger.info("Generating... This may take a while. Do not enter the world yet.")
     with World(path_out) as world:
         world.generate(**kwargs)
-    logger.info("finished")
+    logger.info("All done!")
 
 
 if __name__ == "__main__":
