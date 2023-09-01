@@ -6,7 +6,7 @@ Generate music compositions in Minecraft noteblocks.
 python 3.10+
 
 ## Installation:
-```pip install noteblock-generator```
+```pip install --upgrade noteblock-generator```
 
 ## Usage
 ```
@@ -220,7 +220,8 @@ For an example, see "example.json" which writes the Frere Jacques round in C maj
 
 For more serious usage, see my projects:
 * [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
-* [Sind Blitze sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
+* [Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
+* [Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
 
 ## Generation
 Each redstone unit is a group that looks like this:
