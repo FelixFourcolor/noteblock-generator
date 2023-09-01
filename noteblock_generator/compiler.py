@@ -354,7 +354,7 @@ def find_file(path: str | Path) -> Path:
             for subpath in map(Path, os.scandir(path)):
                 _path = path
                 while (parent := path.parent) != path:
-                    if find := _find(subpath, match_name=parent.stem):
+                    if find := _find(subpath, match_name=path.stem):
                         return find
                     path = parent
                 path = _path
