@@ -351,13 +351,16 @@ def find_file(path: str | Path) -> Path:
 
     def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
         if path.is_dir():
-            for subpath in map(Path, os.scandir(path)):
-                _path = path
+            _, directories, files = next(os.walk(path))
+            if len(files) == 1:
+                return path / Path(files[0])
+            cwd = path
+            for subpath in map(Path, files + directories):
                 while (parent := path.parent) != path:
                     if find := _find(subpath, match_name=path.stem):
                         return find
                     path = parent
-                path = _path
+                path = cwd
         elif path.is_file():
             if match_name is None or match_name == path.stem:
                 return path
