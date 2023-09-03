@@ -133,7 +133,7 @@ class Voice(list[list[Note]]):
         self,
         _composition: Composition,
         *,
-        notes: list[str | dict],
+        notes: list[str | dict] = [],
         name: str = None,
         delay: int = None,
         beat: int = None,
@@ -278,16 +278,16 @@ class Voice(list[list[Note]]):
         if sustain < 1:
             sustain = 1
         if sustain > duration:
-            raise UserError("Sustain duration cannot be longer than main note's.")
+            sustain = duration
 
         if trill:
             trill_pitch, trill_duration = self._parse_note(trill, beat)
             if trill_duration < 0:
                 trill_duration += duration
             if trill_duration < 0:
-                raise UserError("Trill duration must be at least 1.")
+                trill_duration = 1
             if trill_duration > duration:
-                raise UserError("Trill duration cannot be longer than main note's.")
+                trill_duration = duration
             alternating_notes = (note, Note(self, pitch=trill_pitch, **kwargs))
             out = [alternating_notes[i % 2] for i in range(trill_duration - 1)]
             out += self._Note(
@@ -306,7 +306,7 @@ class Voice(list[list[Note]]):
             sustainDynamic = (
                 note.dynamic
                 if instrument == "flute" and delay == 1
-                else max(min(1, note.dynamic), note.dynamic // 2)
+                else max(min(1, note.dynamic), note.dynamic - 2)
             )
         return (
             [note]
@@ -375,7 +375,7 @@ class Composition(list[Voice]):
         self,
         *,
         _path: Path,
-        voices: list[dict | str],
+        voices: list[dict | str] = [],
         time=16,
         delay=1,
         beat=1,
