@@ -141,6 +141,7 @@ class Voice(list[list[Note]]):
         dynamic: int = None,
         transpose=0,
         sustain: bool | int | str = None,
+        sustainDynamic: int = None,
     ):
         if delay is None:
             delay = _composition.delay
@@ -167,6 +168,7 @@ class Voice(list[list[Note]]):
         self.dynamic = dynamic
         self.transpose = _composition.transpose + transpose
         self.sustain = sustain
+        self.sustainDynamic = sustainDynamic
 
         if notes:
             self._note_config = {}
@@ -279,6 +281,8 @@ class Voice(list[list[Note]]):
             sustain = 1
         if sustain > duration:
             sustain = duration
+        if sustainDynamic is None:
+            sustainDynamic = self.sustainDynamic
 
         if trill:
             trill_pitch, trill_duration = self._parse_note(trill, beat)
