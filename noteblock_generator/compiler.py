@@ -170,22 +170,21 @@ class Voice(list[list[Note]]):
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
 
-        if notes:
-            self._note_config = {}
-            self.append([])
-            for note in notes:
-                if len(self[-1]) == self.bar:
-                    self.append([])
-                kwargs = note if isinstance(note, dict) else {"name": note}
-                if "name" in kwargs:
-                    try:
-                        self._add_note(**(self._note_config | kwargs))
-                    except UserError as e:
-                        raise UserError(
-                            f"{self} at {(self._bar_number, self._note_number)}: {e}"
-                        )
-                else:
-                    self._note_config |= kwargs
+        self._note_config = {}
+        self.append([])
+        for note in notes:
+            if len(self[-1]) == self.bar:
+                self.append([])
+            kwargs = note if isinstance(note, dict) else {"name": note}
+            if "name" in kwargs:
+                try:
+                    self._add_note(**(self._note_config | kwargs))
+                except UserError as e:
+                    raise UserError(
+                        f"{self} at {(self._bar_number, self._note_number)}: {e}"
+                    )
+            else:
+                self._note_config |= kwargs
 
     def __str__(self):
         if self._name:

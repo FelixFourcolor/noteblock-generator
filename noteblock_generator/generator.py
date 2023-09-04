@@ -114,9 +114,13 @@ class World:
     ):
         def equalize_voice_length():
             for voice in voices:
+                rest = Rest(voice)
+                if remaining_measures := voice.bar - len(voice[-1]):
+                    for _ in range(remaining_measures):
+                        voice[-1].append(rest)
                 if L := LONGEST_VOICE_LENGTH - len(voice):
                     for _ in range(L):
-                        voice.append([Rest(voice)] * voice.bar)
+                        voice.append([rest] * voice.bar)
 
         def generate_space():
             air = Block("air")
