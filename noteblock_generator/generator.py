@@ -112,6 +112,12 @@ class World:
         theme: str,
         clear=False,
     ):
+        def equalize_voice_length():
+            for voice in voices:
+                if L := LONGEST_VOICE_LENGTH - len(voice):
+                    for _ in range(L):
+                        voice.append([Rest(voice)] * voice.bar)
+
         def generate_space():
             air = Block("air")
             glass = Block("glass")
@@ -234,6 +240,7 @@ class World:
 
         block = Block(theme)
 
+        equalize_voice_length()
         generate_space()
         generate_init_system()
 
