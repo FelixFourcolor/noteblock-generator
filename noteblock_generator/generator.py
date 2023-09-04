@@ -232,7 +232,7 @@ class World:
             voices = composition
         else:
             y_increment = -y_increment
-            voices = reversed(composition)
+            voices = composition[::-1]
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
