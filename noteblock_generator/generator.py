@@ -161,7 +161,7 @@ class World:
                 for _ in range(INIT_BARS):
                     voice.insert(0, [Rest(voice, delay=1)] * voice.bar)
 
-            x = X0 + x_increment * BAR_WIDTH // 2
+            x = X0 + x_increment * (BAR_WIDTH // 2)
             if orientation.y:
                 y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
             else:
