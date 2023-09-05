@@ -134,14 +134,19 @@ class World:
                 for x in range(bars * BAR_WIDTH + 2 * MARGIN):
                     if orientation.y:
                         y_glass = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
-                        clear_range = [*range(Y0, y_glass), y_glass + MARGIN]
+                        clear_range = [
+                            *range(Y0, y_glass),
+                            y_glass + MARGIN,
+                            y_glass + 2 * MARGIN,
+                        ]
                     else:
-                        y_glass = Y0 - MARGIN
+                        y_glass = Y0 - 2 * MARGIN
                         clear_range = [
                             Y0,
+                            Y0 - MARGIN,
                             *range(
-                                Y0 - 2 * MARGIN,
-                                Y0 - 2 * MARGIN - (voices * VOICE_HEIGHT + 2 * MARGIN),
+                                y_glass - MARGIN,
+                                y_glass - MARGIN - (voices * VOICE_HEIGHT + 2 * MARGIN),
                                 -1,
                             ),
                         ]
@@ -165,7 +170,7 @@ class World:
             if orientation.y:
                 y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
             else:
-                y = Y0 - MARGIN
+                y = Y0 - 2 * MARGIN
             z = Z0 + z_increment * MARGIN
             self[x + x_increment, y - 3, z] = block
             self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
@@ -251,7 +256,7 @@ class World:
         for i, voice in enumerate(voices):
             y = Y0 + y_increment * i * VOICE_HEIGHT
             if not orientation.y:
-                y -= VOICE_HEIGHT + 3 * MARGIN
+                y -= VOICE_HEIGHT + 4 * MARGIN
             z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
 
             for j, bar in enumerate(voice):
