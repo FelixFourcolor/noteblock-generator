@@ -39,6 +39,11 @@ def get_args():
         help="build location (in x y z); default is ~ ~ ~",
     )
     parser.add_argument(
+        "--dimension",
+        default=None,
+        help="build dimension; default is player's dimension",
+    )
+    parser.add_argument(
         "--orientation",
         nargs="*",
         default=["+", "+", "+"],
@@ -47,16 +52,12 @@ def get_args():
     parser.add_argument(
         "--theme",
         default="stone",
-        help="opaque blocks for redstone components; default is stone",
+        help="opaque block for redstone components; default is stone",
     )
     parser.add_argument(
         "--clear",
         action="store_true",
-        help=(
-            "clear the space before generating; "
-            "required in order to generate in a non-empty world, "
-            "but will take more time"
-        ),
+        help=("clear the space before generating"),
     )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -64,9 +65,16 @@ def get_args():
 def parse_args():
     args = get_args()
 
+    # path in
+    composition = Composition.compile(args.path_in)
+
+    # path out
+    path_out = args.path_out
+
+    # location
     if len(args.location) != 3:
         raise UserError("3 coordinates are required.")
-    location: list[Coordinate] = []
+    _location: list[Coordinate] = []
     for arg in args.location:
         if relative := arg.startswith("~"):
             arg = arg[1:]
@@ -77,31 +85,50 @@ def parse_args():
                 value = int(arg)
             except ValueError:
                 raise UserError(f"Expected integer coordinates; found {arg}.")
-        location.append(Coordinate(value, relative=relative))
+        _location.append(Coordinate(value, relative=relative))
+    location = Location(*_location)
 
+    # dimension
+    choices = ["overworld", "the_nether", "the_end"]
+    if (dimension := args.dimension) is not None:
+        if dimension not in choices:
+            raise UserError(
+                f"{dimension} is not a valid dimension; expected one of {choices}."
+            )
+        dimension = "minecraft:" + dimension
+
+    # orientation
     if len(args.orientation) != 3:
         raise UserError("3 orientations are required.")
-    orientation: list[bool] = []
+    _orientation: list[bool] = []
     _options = "+-"
     for arg in args.orientation:
         try:
-            orientation.append(_options.index(arg) == 0)
+            _orientation.append(_options.index(arg) == 0)
         except ValueError:
             raise UserError(f"{arg} is not a valid direction; expected + or -.")
+    orientation = Orientation(*_orientation)
 
-    return args.path_out, {
-        "composition": Composition.compile(args.path_in),
-        "location": Location(*location),
-        "orientation": Orientation(*orientation),
-        "theme": args.theme,
-        "clear": args.clear,
-    }
+    # theme
+    theme = args.theme
+
+    # clear
+    clear = args.clear
+
+    return {
+        "composition": composition,
+        "location": location,
+        "dimension": dimension,
+        "orientation": orientation,
+        "theme": theme,
+        "clear": clear,
+    }, path_out
 
 
 def main():
     logger.info("Compiling...")
     try:
-        path_out, kwargs = parse_args()
+        kwargs, path_out = parse_args()
     except UserError as e:
         print(e, file=sys.stderr)
         sys.exit(1)

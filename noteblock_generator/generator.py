@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import amulet
 
@@ -83,6 +83,8 @@ class World:
     # as for now, this works for java 1.18+
     VERSION = ("java", (1, 20))
 
+    dimension: str
+
     def __init__(self, path: str):
         self._path = str(path)
 
@@ -97,17 +99,14 @@ class World:
         self._level.close()
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
-        # only support placing blocks in the overworld,
-        # because that's all we need for this build
-        self._level.set_version_block(
-            *coordinates, "minecraft:overworld", self.VERSION, block
-        )
+        self._level.set_version_block(*coordinates, self.dimension, self.VERSION, block)
 
     def generate(
         self,
         *,
         composition: Composition,
         location: Location,
+        dimension: Optional[str],
         orientation: Orientation,
         theme: str,
         clear=False,
@@ -231,6 +230,12 @@ class World:
             Y0 += player_location[1]
         if location.z.relative:
             Z0 += player_location[2]
+        if dimension is None:
+            try:
+                dimension = self.players[0].dimension
+            except IndexError:
+                dimension = "minecraft:overworld"
+        self.dimension = dimension
 
         x_direction = Direction((1, 0))
         if not orientation.x:
@@ -241,6 +246,7 @@ class World:
             voices = composition
         else:
             y_increment = -y_increment
+            Y0 += 1
             voices = composition[::-1]
         z_direction = Direction((0, 1))
         if not orientation.z:
