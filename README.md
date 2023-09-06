@@ -5,6 +5,7 @@ My projects using this program:
 * [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
 * [Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
 * [Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
+* [Confutatis](https://github.com/FelixFourcolor/Confutatis)
 
 ## Requirements
 * Minecraft java 1.18+
