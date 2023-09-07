@@ -406,7 +406,7 @@ class Composition(list[Voice]):
                 break
         else:
             logger.warn(
-                f"time {time} is unusually large. This may result in undesirable build."
+                f"Time {time} is unusually large. This may result in undesirable build."
             )
         for voice in voices:
             try:
@@ -414,7 +414,7 @@ class Composition(list[Voice]):
             except Exception as e:
                 if isinstance(e, UserError):
                     raise e
-                raise UserError(f'Error compiling voice "{voice}"\n{e}')
+                raise type(e)(f'Error compiling voice "{voice}"\n{e}')
 
     def _compile_voice(self, value: str | dict):
         if isinstance(value, str):
@@ -434,4 +434,4 @@ class Composition(list[Voice]):
         except Exception as e:
             if isinstance(e, UserError):
                 raise e
-            raise UserError(f"Compile error\n{e}")
+            raise type(e)(f"Compile error\n{e}")

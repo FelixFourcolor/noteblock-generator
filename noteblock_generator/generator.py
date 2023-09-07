@@ -81,9 +81,9 @@ class World:
 
     # to be updated in the future
     # as for now, this works for java 1.18+
-    VERSION = ("java", (1, 20))
+    _VERSION = ("java", (1, 20))
 
-    dimension: str
+    _dimension: str
 
     def __init__(self, path: str):
         self._path = str(path)
@@ -99,7 +99,9 @@ class World:
         self._level.close()
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
-        self._level.set_version_block(*coordinates, self.dimension, self.VERSION, block)
+        self._level.set_version_block(
+            *coordinates, self.dimension, self._VERSION, block
+        )
 
     def generate(
         self,
@@ -290,3 +292,8 @@ class World:
                 # z_direction has been flipped, reset it to original
                 z_direction = -z_direction
                 z_increment = z_direction[1]
+
+
+def generate(path_out, **kwargs):
+    with World(path_out) as world:
+        world.generate(**kwargs)

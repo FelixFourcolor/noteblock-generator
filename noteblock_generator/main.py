@@ -122,22 +122,22 @@ def parse_args():
         "orientation": orientation,
         "theme": theme,
         "clear": clear,
-    }, path_out
+        "path_out": path_out,
+    }
 
 
 def main():
     logger.info("Compiling...")
     try:
-        kwargs, path_out = parse_args()
+        kwargs = parse_args()
     except UserError as e:
-        print(e, file=sys.stderr)
+        logger.error(e)
         sys.exit(1)
 
-    from noteblock_generator.generator import World
+    from noteblock_generator.generator import generate
 
     logger.info("Generating... This may take a while. Do not enter the world yet.")
-    with World(path_out) as world:
-        world.generate(**kwargs)
+    generate(**kwargs)
     logger.info("All done!")
 
 
