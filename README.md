@@ -2,10 +2,10 @@
 Generate music in Minecraft noteblocks.
 
 My projects using this program:
-* [He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
-* [Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
-* [Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
-* [Confutatis](https://github.com/FelixFourcolor/Confutatis)
+* [Handel's He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
+* [Bach's Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
+* [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
+* [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
 
 ## Requirements
 * Minecraft java 1.18+
@@ -63,7 +63,7 @@ In which direction, from the aforementioned location, the structure will be gene
 
 `--orientation + + +` (default) means the structure will be generated towards the positive x, positive y, positive z directions.
 
-All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -``+ + +`, `+ + -`, `+ - +`, `+ - -`.
+All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -`, `+ + +`, `+ + -`, `+ - +`, `+ - -`.
 
 Note: Make sure there is enough space in your specified direction in order to generate. The program cannot generate below bedrock, or above the height limit, etc. For example, if you are at y=-64, `--location ~ ~ ~ --orientation + - +` will not work.
 
