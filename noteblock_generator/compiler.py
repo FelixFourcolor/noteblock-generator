@@ -161,7 +161,7 @@ class Voice(list[list[Note]]):
         self._index = len(_composition)
         self._name = name
         self.time = _composition.time
-        self.bar = _composition.bar_length
+        self.division = _composition.division
         self.delay = delay
         self.beat = beat
         self.instrument = instrument
@@ -173,7 +173,7 @@ class Voice(list[list[Note]]):
         self._note_config = {}
         self.append([])
         for note in notes:
-            if len(self[-1]) == self.bar:
+            if len(self[-1]) == self.division:
                 self.append([])
             kwargs = note if isinstance(note, dict) else {"name": note}
             if "name" in kwargs:
@@ -193,11 +193,15 @@ class Voice(list[list[Note]]):
 
     @property
     def _bar_number(self):
-        return math.ceil(len(self) / (self.time / self.bar))
+        return math.ceil(len(self) / (self.time / self.division))
 
     @property
     def _note_number(self):
-        return 1 + len(self[-1]) + (len(self) - 1) % (self.time // self.bar) * self.bar
+        return (
+            1
+            + len(self[-1])
+            + (len(self) - 1) % (self.time // self.division) * self.division
+        )
 
     def _parse_note(self, value: str, beat: int = None):
         _tokens = value.lower().split()
@@ -341,9 +345,9 @@ class Voice(list[list[Note]]):
         pitch, duration = self._parse_note(name, beat)
         if duration < 1:
             raise UserError("Note duration must be at least 1.")
-        # organize into bars
+        # organize into divisions
         for note in self._Note(pitch, duration, beat=beat, **kwargs):
-            if len(self[-1]) < self.bar:
+            if len(self[-1]) < self.division:
                 self[-1].append(note)
             else:
                 self.append([note])
@@ -383,6 +387,7 @@ class Composition(list[Voice]):
         _path: Path,
         voices: list[dict | str] = [],
         time=16,
+        division: int = None,
         delay=1,
         beat=1,
         instrument="harp",
@@ -400,14 +405,23 @@ class Composition(list[Voice]):
         self.transpose = transpose
         self.sustain = sustain
         self.time = time
-        for n in range(16, 4, -1):
-            if time % n == 0:
-                self.bar_length = n
-                break
+
+        if division is None:
+            for n in range(16, 4, -1):
+                if time % n == 0:
+                    self.division = n
+                    break
+            else:
+                self.division = time
+                logger.warn(
+                    f"Time {time} is unusually large."
+                    "Consider breaking it into divisions."
+                )
         else:
-            logger.warn(
-                f"Time {time} is unusually large. This may result in undesirable build."
-            )
+            if time % division:
+                raise UserError(f"Division ({division}) must divide time ({time}).")
+            self.division = division
+
         for voice in voices:
             try:
                 self._compile_voice(voice)

@@ -116,38 +116,36 @@ class World:
         def equalize_voice_length():
             for voice in voices:
                 rest = Rest(voice)
-                if remaining_measures := voice.bar - len(voice[-1]):
-                    for _ in range(remaining_measures):
-                        voice[-1].append(rest)
-                if L := LONGEST_VOICE_LENGTH - len(voice):
-                    for _ in range(L):
-                        voice.append([rest] * voice.bar)
+                for _ in range(voice.division - len(voice[-1])):
+                    voice[-1].append(rest)
+                for _ in range(LONGEST_VOICE_LENGTH - len(voice)):
+                    voice.append([rest] * voice.division)
 
         def generate_space():
             air = Block("air")
             glass = Block("glass")
 
-            notes = composition.bar_length
-            bars = LONGEST_VOICE_LENGTH + INIT_BARS
+            notes = composition.division
+            bars = LONGEST_VOICE_LENGTH + INIT_DIVISIONS
             voices = len(composition)
 
-            for z in range(notes * NOTE_LENGTH + BAR_CHANGING_LENGTH + 1 + 2 * MARGIN):
-                for x in range(bars * BAR_WIDTH + 2 * MARGIN):
+            for z in range(notes * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 3):
+                for x in range(bars * DIVISION_WIDTH + 2):
                     if orientation.y:
-                        y_glass = Y0 + voices * VOICE_HEIGHT + 2 * MARGIN
+                        y_glass = Y0 + VOICE_HEIGHT * (voices + 1)
                         clear_range = [
                             *range(Y0, y_glass),
-                            y_glass + MARGIN,
-                            y_glass + 2 * MARGIN,
+                            y_glass + 1,
+                            y_glass + 2,
                         ]
                     else:
-                        y_glass = Y0 - 2 * MARGIN
+                        y_glass = Y0 - VOICE_HEIGHT
                         clear_range = [
                             Y0,
-                            Y0 - MARGIN,
+                            Y0 - 1,
                             *range(
-                                y_glass - MARGIN,
-                                y_glass - MARGIN - (voices * VOICE_HEIGHT + 2 * MARGIN),
+                                y_glass - 1,
+                                y_glass - 1 - (VOICE_HEIGHT * (voices + 1)),
                                 -1,
                             ),
                         ]
@@ -164,15 +162,15 @@ class World:
 
         def generate_init_system():
             for voice in composition:
-                for _ in range(INIT_BARS):
-                    voice.insert(0, [Rest(voice, delay=1)] * voice.bar)
+                for _ in range(INIT_DIVISIONS):
+                    voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
-            x = X0 + x_increment * (BAR_WIDTH // 2)
+            x = X0 + x_increment * (DIVISION_WIDTH // 2)
             if orientation.y:
                 y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
             else:
-                y = Y0 - 2 * MARGIN
-            z = Z0 + z_increment * MARGIN
+                y = Y0 - 2
+            z = Z0 + z_increment
             self[x + x_increment, y - 3, z] = block
             self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
             self[x, y - 2, z] = block
@@ -193,33 +191,32 @@ class World:
             for i in range(note.dynamic):
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
 
-        def generate_bar_changing_system():
+        def generate_division_changing_system():
             self[x, y, z + z_increment * 2] = block
             self[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
             self[x, y, z + z_increment * 3] = block
             self[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
-            for i in range(1, BAR_WIDTH):
+            for i in range(1, DIVISION_WIDTH):
                 self[x + x_increment * i, y, z + z_increment * 3] = block
                 self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
                     (x_direction, -x_direction)
                 )
-            self[x + x_increment * BAR_WIDTH, y, z + z_increment * 3] = block
-            self[x + x_increment * BAR_WIDTH, y + 1, z + z_increment * 3] = Redstone(
-                (-z_direction, -x_direction)
-            )
+            self[x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3] = block
+            self[
+                x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
+            ] = Redstone((-z_direction, -x_direction))
 
         if not composition:
             return
 
-        MARGIN = 1
         NOTE_LENGTH = 2
-        BAR_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
+        DIVISION_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
         VOICE_HEIGHT = 2
-        BAR_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
+        DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
         LONGEST_VOICE_LENGTH = max(map(len, composition))
-        # add this number of bars to the beginning of every voice
+        # add this number of divisions to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
-        INIT_BARS = math.ceil((len(composition) - 1) / composition.bar_length)
+        INIT_DIVISIONS = math.ceil((len(composition) - 1) / composition.division)
 
         try:
             player_location = tuple(map(math.floor, self.players[0].location))
@@ -264,30 +261,30 @@ class World:
         for i, voice in enumerate(voices):
             y = Y0 + y_increment * i * VOICE_HEIGHT
             if not orientation.y:
-                y -= VOICE_HEIGHT + 4 * MARGIN
-            z = Z0 + z_increment * (MARGIN + BAR_CHANGING_LENGTH + 1)
+                y -= VOICE_HEIGHT + 4
+            z = Z0 + z_increment * (1 + DIVISION_CHANGING_LENGTH + 1)
 
-            for j, bar in enumerate(voice):
-                x = X0 + x_increment * (MARGIN + BAR_WIDTH // 2 + j * BAR_WIDTH)
+            for j, division in enumerate(voice):
+                x = X0 + x_increment * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
                 z_increment = z_direction[1]
-                z0 = z - z_increment * BAR_CHANGING_LENGTH
+                z0 = z - z_increment * DIVISION_CHANGING_LENGTH
                 self[x, y + 2, z0] = block
 
-                for k, note in enumerate(bar):
+                for k, note in enumerate(division):
                     z = z0 + k * z_increment * NOTE_LENGTH
                     generate_redstones()
                     generate_noteblocks()
 
-                # if there is a next bar, change bar
+                # if there is a next division, change division and flip direction
                 try:
                     voice[j + 1]
                 except IndexError:
                     pass
                 else:
-                    generate_bar_changing_system()
+                    generate_division_changing_system()
                     z_direction = -z_direction
 
-            # if number of bar is even
+            # if number of division is even
             if len(voice) % 2 == 0:
                 # z_direction has been flipped, reset it to original
                 z_direction = -z_direction
