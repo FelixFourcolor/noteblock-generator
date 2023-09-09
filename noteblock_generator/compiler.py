@@ -141,7 +141,7 @@ class Voice(list[list[Note]]):
         dynamic: int = None,
         transpose=0,
         sustain: bool | int | str = None,
-        sustainDynamic: int = None,
+        sustainDynamic: int | str = None,
     ):
         if delay is None:
             delay = _composition.delay
@@ -153,6 +153,8 @@ class Voice(list[list[Note]]):
             dynamic = _composition.dynamic
         if sustain is None:
             sustain = _composition.sustain
+        if sustainDynamic is None:
+            sustainDynamic = _composition.sustainDynamic
         try:
             self._octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         except KeyError:
@@ -261,7 +263,7 @@ class Voice(list[list[Note]]):
         *,
         beat: int = None,
         sustain: bool | int | str = None,
-        sustainDynamic: int = None,
+        sustainDynamic: int | str = None,
         trill: str = None,
         **kwargs,
     ) -> list[Note]:
@@ -310,10 +312,10 @@ class Voice(list[list[Note]]):
         instrument = kwargs["instrument"] if "instrument" in kwargs else self.instrument
         delay = kwargs["delay"] if "delay" in kwargs else self.delay
         if sustainDynamic is None:
-            sustainDynamic = (
-                note.dynamic
-                if instrument == "flute" and delay == 1
-                else max(min(1, note.dynamic), note.dynamic - 2)
+            sustainDynamic = "+0" if instrument == "flute" and delay == 1 else "-2"
+        if isinstance(sustainDynamic, str):
+            sustainDynamic = max(
+                min(1, note.dynamic), note.dynamic + int(sustainDynamic)
             )
         return (
             [note]
@@ -394,6 +396,7 @@ class Composition(list[Voice]):
         dynamic=2,
         transpose=0,
         sustain=False,
+        sustainDynamic: int | str = None,
     ):
         self._path = _path
         # values out of range are handled by Voice/Note.__init__
@@ -404,6 +407,7 @@ class Composition(list[Voice]):
         self.dynamic = dynamic
         self.transpose = transpose
         self.sustain = sustain
+        self.sustainDynamic = sustainDynamic
         self.time = time
 
         if division is None:
