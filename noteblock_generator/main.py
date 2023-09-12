@@ -2,7 +2,7 @@ import sys
 from argparse import ArgumentParser
 from typing import NamedTuple
 
-from noteblock_generator.compiler import Composition, UserError, logger
+from .compiler import Composition, UserError, logger
 
 
 class Coordinate(int):
@@ -134,7 +134,7 @@ def main():
         logger.error(e)
         sys.exit(1)
 
-    from noteblock_generator.generator import generate
+    from .generator import generate
 
     logger.info("Generating... This may take a while. Do not enter the world yet.")
     generate(**kwargs)

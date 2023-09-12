@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 
 import amulet
 
-from noteblock_generator.compiler import DYNAMIC_RANGE, Composition, Note, Rest
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest
 
 if TYPE_CHECKING:
     from main import Location, Orientation
@@ -187,7 +187,7 @@ class World:
 
         def generate_noteblocks():
             # place noteblock positions in this order, depending on dynamic
-            positions = [-1, 1, -2, 2]
+            positions = [-x_increment, x_increment, -2 * x_increment, 2 * x_increment]
             for i in range(note.dynamic):
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
 
