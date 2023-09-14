@@ -79,4 +79,4 @@ Rule of thumb: Use `--clear` just to be safe, unless you know what you're doing.
 
 ## License
 
-Do whatever you want.
+This program is given to the public domain. No rights reserved.
