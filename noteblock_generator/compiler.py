@@ -64,6 +64,30 @@ class UserError(Exception):
     """
 
 
+def find_file(path: str | Path) -> Path:
+    """Recursively find where the json file is."""
+
+    def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
+        if not path.exists():
+            raise UserError(f"{path} does not exist.")
+        if path.is_dir():
+            cwd, directories, files = next(os.walk(path))
+            if len(files) == 1:
+                return path / Path(files[0])
+            for subpath in map(Path, files + directories):
+                while (parent := path.parent) != path:
+                    if find := _find(cwd / subpath, match_name=path.stem):
+                        return find
+                    path = parent
+                path = Path(cwd)
+        elif match_name is None or match_name == path.stem:
+            return path
+
+    if out := _find(Path(path).absolute()):
+        return out
+    raise UserError(f"Path {path} is invalid.")
+
+
 class Note:
     def __init__(
         self,
@@ -133,7 +157,7 @@ class Voice(list[list[Note]]):
         self,
         _composition: Composition,
         *,
-        notes: list[str | dict] = [],
+        notes: str | list[str | dict] = [],
         name: str = None,
         delay: int = None,
         beat: int = None,
@@ -174,6 +198,11 @@ class Voice(list[list[Note]]):
 
         self._note_config = {}
         self.append([])
+
+        if isinstance(notes, str):
+            with open(find_file(_composition._path.parent / notes), "r") as f:
+                notes = json.load(f)
+
         for note in notes:
             if len(self[-1]) == self.division:
                 self.append([])
@@ -353,30 +382,6 @@ class Voice(list[list[Note]]):
                 self[-1].append(note)
             else:
                 self.append([note])
-
-
-def find_file(path: str | Path) -> Path:
-    """Recursively find where the json file is."""
-
-    def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
-        if path.is_dir():
-            _, directories, files = next(os.walk(path))
-            if len(files) == 1:
-                return path / Path(files[0])
-            cwd = path
-            for subpath in map(Path, files + directories):
-                while (parent := path.parent) != path:
-                    if find := _find(subpath, match_name=path.stem):
-                        return find
-                    path = parent
-                path = cwd
-        elif path.is_file():
-            if match_name is None or match_name == path.stem:
-                return path
-
-    if out := _find(Path(path).absolute()):
-        return out
-    raise UserError(f"Path {path} is invalid.")
 
 
 class Composition(list[Voice]):
