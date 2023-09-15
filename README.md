@@ -6,6 +6,7 @@ My projects using this program:
 * [Bach's Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
 * [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
 * [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
+* [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
 
 ## Requirements
 * Minecraft java 1.18+
