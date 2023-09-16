@@ -1,9 +1,10 @@
 [tool.poetry]
 name = "noteblock-generator"
-version = "0.1.6.2"
+version = "0.1.6.3"
 description = "Generate music compositions in Minecraft noteblocks."
 authors = ["Felix Fourcolor <felix.fourcolor@gmail.com>"]
 readme = "README.md"
+license = "CC0-1.0"
 packages = [{include = "noteblock_generator"}]
 repository = "https://github.com/FelixFourcolor/noteblock-generator"
 keywords = ["minecraft", "note block", "music"]

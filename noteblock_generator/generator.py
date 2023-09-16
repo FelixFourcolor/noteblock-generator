@@ -9,7 +9,7 @@ import amulet
 from .compiler import DYNAMIC_RANGE, Composition, Note, Rest
 
 if TYPE_CHECKING:
-    from main import Location, Orientation
+    from .main import Location, Orientation
 
 # ===================================== GENERATOR =====================================
 
