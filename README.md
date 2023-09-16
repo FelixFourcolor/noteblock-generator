@@ -1,7 +1,9 @@
 # Noteblock generator
 Generate music in Minecraft noteblocks.
 
-My projects using this program:
+This program is only intended for my own use, and shared only for others to replicate my builds.
+
+See my projects:
 * [Handel's He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
 * [Bach's Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
 * [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
@@ -39,7 +41,7 @@ options:
 ### Path in
 Path to a music file, or a folder containing multiple music files.
 
-At this point in time this program is only intended for my own use, so there is no documentation for writing music files. Follow the `build from source` instructions in my projects in order to replicate my builds.
+This program is only intended for my own use, so there is no documentation for writing music files. Follow the `build from source` instructions in my projects in order to replicate my builds.
 
 ### Path out
 Path to a Minecraft world save folder.
@@ -77,7 +79,3 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 `--clear` will clear the space before generating. This guarantees nothing may be in the way that interferes with the redstones or note blocks. But this option makes the program much slower.
 
 Rule of thumb: Use `--clear` just to be safe, unless you know what you're doing.
-
-## License
-
-This program is given to the public domain. No rights reserved.
