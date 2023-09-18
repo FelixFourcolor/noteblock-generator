@@ -190,6 +190,10 @@ class World:
             positions = [-x_increment, x_increment, -2 * x_increment, 2 * x_increment]
             for i in range(note.dynamic):
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
+            # fill the rest with air
+            air = Block("air")
+            for j in range(note.dynamic, DYNAMIC_RANGE.stop - 1):
+                self[x + positions[j], y + 2, z + z_increment] = air
 
         def generate_division_changing_system():
             self[x, y, z + z_increment * 2] = block
