@@ -19,23 +19,19 @@ See my projects:
 
 ## Usage
 ```
-noteblock-generator [-h] [--location [LOCATION ...]] [--orientation [ORIENTATION ...]] [--theme THEME] [--clear] path_in path_out
+noteblock-generator [-h] [--location [LOCATION ...]] [--orientation [ORIENTATION ...]] [--theme THEME] [--blend] path_in path_out
 
 positional arguments:
-  path_in               path to music source file(s)
-  path_out              path to Minecraft world
+  path_in                         path to music source file(s)
+  path_out                        path to Minecraft world
 
 options:
-  -h, --help            show this help message and exit
-  --location [LOCATION ...]
-                        build location (in x y z); default is ~ ~ ~
-  --dimension DIMENSION
-                        build dimension; default is player's dimension
-  --orientation [ORIENTATION ...]
-                        build orientation (in x y z); default is + + +
-  --theme THEME
-                        opaque block for redstone components; default is stone
-  --blend               blend the structure in with its environment
+  -h, --help                      show this help message and exit
+  --location [LOCATION ...]       build location (in x y z); default is ~ ~ ~
+  --dimension DIMENSION           build dimension; default is player's dimension
+  --orientation [ORIENTATION ...] build orientation (in x y z); default is + + +
+  --theme THEME                   opaque block for redstone components; default is stone
+  --blend                         blend the structure in with its environment
 ```
 
 ### Path in
