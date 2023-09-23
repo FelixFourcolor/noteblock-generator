@@ -11,8 +11,6 @@ from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, logger
 if TYPE_CHECKING:
     from .main import Location, Orientation
 
-# ===================================== GENERATOR =====================================
-
 
 class Block(amulet.api.block.Block):
     """A thin wrapper of amulet block, with a more convenient constructor"""
@@ -136,15 +134,6 @@ class World:
                         Z0 + z_increment * z,
                     ] = air
 
-            def generate_boundary_space():
-                if x in (0, X_MAX) or z in (0, Z_MAX):
-                    for y in list(optional_clear_range) + [y_glass - 1]:
-                        self[
-                            X0 + x_increment * x,
-                            y,
-                            Z0 + z_increment * z,
-                        ] = air
-
             def clear_space():
                 for y in optional_clear_range:
                     self[
@@ -153,13 +142,16 @@ class World:
                         Z0 + z_increment * z,
                     ] = air
 
-            def remove_liquid():
+            def remove_dangerous_blocks():
                 for y in optional_clear_range:
-                    if self[
-                        X0 + x_increment * x,
-                        y,
-                        Z0 + z_increment * z,
-                    ].namespaced_name in ("minecraft:water", "minecraft:lava"):
+                    if (
+                        self[
+                            X0 + x_increment * x,
+                            y,
+                            Z0 + z_increment * z,
+                        ].base_name
+                        in DANGER_LIST
+                    ):
                         self[
                             X0 + x_increment * x,
                             y,
@@ -168,15 +160,23 @@ class World:
 
             glass = Block("glass")
 
-            notes = composition.division
-            bars = LONGEST_VOICE_LENGTH + INIT_DIVISIONS
-            voices = len(composition)
+            DANGER_LIST = (
+                "anvil",
+                "concrete_powder",
+                "dragon_egg",
+                "gravel",
+                "lava",
+                "red_sand",
+                "sand",
+                "tnt",
+                "water",
+            )
 
-            Z_MAX = notes * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
-            X_MAX = bars * DIVISION_WIDTH + 1
+            Z_MAX = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
+            X_MAX = (LONGEST_VOICE_LENGTH + INIT_DIVISIONS) * DIVISION_WIDTH + 1
 
             if orientation.y:
-                y_glass = Y0 + VOICE_HEIGHT * (voices + 1)
+                y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
                 mandatory_clear_range = [y_glass - 1, y_glass + 1, y_glass + 2, Y0]
                 optional_clear_range = range(Y0 + 1, y_glass - 1)
             else:
@@ -185,21 +185,20 @@ class World:
                     Y0,
                     Y0 - 1,
                     y_glass - 1,
-                    y_glass - VOICE_HEIGHT * (voices + 1),
+                    y_glass - VOICE_HEIGHT * (len(composition) + 1),
                 ]
                 optional_clear_range = range(
-                    y_glass - VOICE_HEIGHT * (voices + 1) + 1,
+                    y_glass - VOICE_HEIGHT * (len(composition) + 1) + 1,
                     y_glass - 1,
                 )
 
             for z in range(Z_MAX + 1):
                 for x in range(X_MAX + 1):
                     generate_walking_glass()
-                    if clear:
+                    if clear or x in (0, X_MAX) or z in (0, Z_MAX):
                         clear_space()
                     else:
-                        generate_boundary_space()
-                        remove_liquid()
+                        remove_dangerous_blocks()
 
         def generate_init_system():
             for voice in composition:
