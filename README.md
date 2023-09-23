@@ -12,7 +12,7 @@ See my projects:
 
 ## Requirements
 * Minecraft java 1.19+
-* python >= 3.10, < 3.12
+* python >= 3.10
 
 ## Installation:
 ```pip install --upgrade noteblock-generator```

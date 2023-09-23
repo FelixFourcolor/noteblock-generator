@@ -13,7 +13,7 @@ keywords = ["minecraft", "note block", "music"]
 noteblock-generator = "noteblock_generator.main:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10, <3.12"
+python = ">=3.10"
 amulet-core = "^1.9.18"
 
 [tool.poetry.group.dev.dependencies]
