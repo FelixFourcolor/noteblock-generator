@@ -79,9 +79,8 @@ class World:
     with convenient methods to load, set blocks, and save.
     """
 
-    # to be updated in the future
-    # as for now, this works for java 1.18+
-    _VERSION = ("java", (1, 20))
+    # require 1.19+ for Directional Audio
+    _VERSION = ("java", (1, 19))
 
     _dimension: str
 

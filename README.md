@@ -11,7 +11,7 @@ See my projects:
 * [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
 
 ## Requirements
-* Minecraft java 1.18+
+* Minecraft java 1.19+
 * python >= 3.10, < 3.12
 
 ## Installation:
