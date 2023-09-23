@@ -23,8 +23,28 @@ class Block(amulet.api.block.Block):
 class NoteBlock(Block):
     """A covenience class for noteblocks"""
 
+    INSTRUMENTS = {
+        "bass": Block("oak_log"),
+        "didgeridoo": Block("pumpkin"),
+        "guitar": Block("white_wool"),
+        "harp": Block("air"),
+        "bit": Block("emerald_block"),
+        "banjo": Block("hay_block"),
+        "iron_xylophone": Block("iron_block"),
+        "pling": Block("glowstone"),
+        "flute": Block("clay"),
+        "cow_bell": Block("soul_sand"),
+        "bell": Block("gold_block"),
+        "xylophone": Block("bone_block"),
+        "chime": Block("packed_ice"),
+        "basedrum": Block("stone"),
+        "hat": Block("glass"),
+        "snare": Block("sand_stone"),
+    }
+
     def __init__(self, _note: Note):
         super().__init__("note_block", note=_note.note, instrument=_note.instrument)
+        self.base = self.INSTRUMENTS[_note.instrument]
 
 
 class Direction(tuple[int, int], Enum):
@@ -117,7 +137,7 @@ class World:
         clear=False,
     ):
         def equalize_voice_length():
-            for voice in voices:
+            for voice in composition:
                 rest = Rest(voice)
                 for _ in range(voice.division - len(voice[-1])):
                     voice[-1].append(rest)
@@ -228,10 +248,13 @@ class World:
         def generate_noteblocks():
             # place noteblock positions in this order, depending on dynamic
             positions = [-x_increment, x_increment, -2 * x_increment, 2 * x_increment]
-            for i in range(note.dynamic):
-                self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
-                if not clear:
-                    self[x + positions[i], y + 3, z + z_increment] = air
+            if note.dynamic:
+                noteblock = NoteBlock(note)
+                for i in range(note.dynamic):
+                    self[x + positions[i], y + 2, z + z_increment] = noteblock
+                    if not clear:
+                        self[x + positions[i], y + 1, z + z_increment] = noteblock.base
+                        self[x + positions[i], y + 3, z + z_increment] = air
 
             # fill the rest with air
             if not clear:
@@ -289,11 +312,11 @@ class World:
         x_increment = x_direction[0]
         y_increment = 1
         if orientation.y:
-            voices = composition
+            voices = reversed(list(enumerate(composition)))
         else:
             y_increment = -y_increment
             Y0 += 1
-            voices = composition[::-1]
+            voices = enumerate(composition[::-1])
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
@@ -306,7 +329,7 @@ class World:
         generate_space()
         generate_init_system()
 
-        for i, voice in enumerate(voices):
+        for i, voice in voices:
             y = Y0 + y_increment * i * VOICE_HEIGHT
             if not orientation.y:
                 y -= VOICE_HEIGHT + 4
