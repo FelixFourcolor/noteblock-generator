@@ -12,7 +12,7 @@ See my projects:
 
 ## Requirements
 * Minecraft java 1.19+
-* python >= 3.10
+* python 3.10+
 
 ## Installation:
 ```pip install --upgrade noteblock-generator```
@@ -35,7 +35,7 @@ options:
                         build orientation (in x y z); default is + + +
   --theme THEME
                         opaque block for redstone components; default is stone
-  --clear               clear the space before generating
+  --blend               blend the structure in with its environment
 ```
 
 ### Path in
@@ -75,7 +75,7 @@ Choose a block that can conduct redstones to theme the structure. Default is `st
 
 Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
 
-### Clear
-`--clear` will clear the space before generating. This guarantees nothing may be in the way that interferes with the redstones or note blocks. But this option makes the program much slower.
+### Blend
+By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be and leave the rest as-is.
 
-Rule of thumb: Use `--clear` just to be safe, unless you know what you're doing.
+This is an experimental feature. If the redstones and/or noteblocks don't behave as expected, turn it off.

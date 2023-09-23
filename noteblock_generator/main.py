@@ -55,9 +55,9 @@ def get_args():
         help="opaque block for redstone components; default is stone",
     )
     parser.add_argument(
-        "--clear",
+        "--blend",
         action="store_true",
-        help=("clear the space before generating"),
+        help=("blend the structure in with its environment"),
     )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -112,8 +112,8 @@ def parse_args():
     # theme
     theme = args.theme
 
-    # clear
-    clear = args.clear
+    # blend
+    clear = not args.blend
 
     return {
         "composition": composition,

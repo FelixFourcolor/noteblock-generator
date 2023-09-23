@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, logger
 
 if TYPE_CHECKING:
     from .main import Location, Orientation
@@ -79,8 +79,8 @@ class World:
     with convenient methods to load, set blocks, and save.
     """
 
-    # require 1.19+ for Directional Audio
-    _VERSION = ("java", (1, 19))
+    _VERSION = ("java", (1, 20))
+    # TODO: make this a command-line argument
 
     _dimension: str
 
@@ -93,9 +93,15 @@ class World:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
+        logger.info("Almost there...")
         if exc_type is None and self._level.changed:
             self._level.save()
         self._level.close()
+
+    def __getitem__(self, coordinates: tuple[int, int, int]):
+        return self._level.get_version_block(
+            *coordinates, self.dimension, self._VERSION
+        )[0]
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
         self._level.set_version_block(
@@ -121,43 +127,79 @@ class World:
                     voice.append([rest] * voice.division)
 
         def generate_space():
-            air = Block("air")
+            def generate_walking_glass():
+                self[X0 + x_increment * x, y_glass, Z0 + z_increment * z] = glass
+                for y in mandatory_clear_range:
+                    self[
+                        X0 + x_increment * x,
+                        y,
+                        Z0 + z_increment * z,
+                    ] = air
+
+            def generate_boundary_space():
+                if x in (0, X_MAX) or z in (0, Z_MAX):
+                    for y in list(optional_clear_range) + [y_glass - 1]:
+                        self[
+                            X0 + x_increment * x,
+                            y,
+                            Z0 + z_increment * z,
+                        ] = air
+
+            def clear_space():
+                for y in optional_clear_range:
+                    self[
+                        X0 + x_increment * x,
+                        y,
+                        Z0 + z_increment * z,
+                    ] = air
+
+            def remove_liquid():
+                for y in optional_clear_range:
+                    if self[
+                        X0 + x_increment * x,
+                        y,
+                        Z0 + z_increment * z,
+                    ].namespaced_name in ("minecraft:water", "minecraft:lava"):
+                        self[
+                            X0 + x_increment * x,
+                            y,
+                            Z0 + z_increment * z,
+                        ] = air
+
             glass = Block("glass")
 
             notes = composition.division
             bars = LONGEST_VOICE_LENGTH + INIT_DIVISIONS
             voices = len(composition)
 
-            for z in range(notes * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 3):
-                for x in range(bars * DIVISION_WIDTH + 2):
-                    if orientation.y:
-                        y_glass = Y0 + VOICE_HEIGHT * (voices + 1)
-                        clear_range = [
-                            *range(Y0, y_glass),
-                            y_glass + 1,
-                            y_glass + 2,
-                        ]
-                    else:
-                        y_glass = Y0 - VOICE_HEIGHT
-                        clear_range = [
-                            Y0,
-                            Y0 - 1,
-                            *range(
-                                y_glass - 1,
-                                y_glass - 1 - (VOICE_HEIGHT * (voices + 1)),
-                                -1,
-                            ),
-                        ]
+            Z_MAX = notes * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
+            X_MAX = bars * DIVISION_WIDTH + 1
 
-                    self[X0 + x_increment * x, y_glass, Z0 + z_increment * z] = glass
+            if orientation.y:
+                y_glass = Y0 + VOICE_HEIGHT * (voices + 1)
+                mandatory_clear_range = [y_glass - 1, y_glass + 1, y_glass + 2, Y0]
+                optional_clear_range = range(Y0 + 1, y_glass - 1)
+            else:
+                y_glass = Y0 - VOICE_HEIGHT
+                mandatory_clear_range = [
+                    Y0,
+                    Y0 - 1,
+                    y_glass - 1,
+                    y_glass - VOICE_HEIGHT * (voices + 1),
+                ]
+                optional_clear_range = range(
+                    y_glass - VOICE_HEIGHT * (voices + 1) + 1,
+                    y_glass - 1,
+                )
 
+            for z in range(Z_MAX + 1):
+                for x in range(X_MAX + 1):
+                    generate_walking_glass()
                     if clear:
-                        for y in clear_range:
-                            self[
-                                X0 + x_increment * x,
-                                y,
-                                Z0 + z_increment * z,
-                            ] = air
+                        clear_space()
+                    else:
+                        generate_boundary_space()
+                        remove_liquid()
 
         def generate_init_system():
             for voice in composition:
@@ -189,10 +231,13 @@ class World:
             positions = [-x_increment, x_increment, -2 * x_increment, 2 * x_increment]
             for i in range(note.dynamic):
                 self[x + positions[i], y + 2, z + z_increment] = NoteBlock(note)
+                if not clear:
+                    self[x + positions[i], y + 3, z + z_increment] = air
+
             # fill the rest with air
-            air = Block("air")
-            for j in range(note.dynamic, DYNAMIC_RANGE.stop - 1):
-                self[x + positions[j], y + 2, z + z_increment] = air
+            if not clear:
+                for j in range(note.dynamic, DYNAMIC_RANGE.stop - 1):
+                    self[x + positions[j], y + 2, z + z_increment] = air
 
         def generate_division_changing_system():
             self[x, y, z + z_increment * 2] = block
@@ -255,6 +300,7 @@ class World:
             z_direction = -z_direction
         z_increment = z_direction[1]
 
+        air = Block("air")
         block = Block(theme)
 
         equalize_voice_length()
