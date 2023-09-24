@@ -182,36 +182,42 @@ class World:
 
             DANGER_LIST = (
                 "anvil",
+                "comparator",
                 "concrete_powder",
                 "dragon_egg",
                 "gravel",
                 "lava",
+                "note_block",
+                "observer",
+                "piston",
+                "sticky_piston",
                 "red_sand",
+                "redstone_block",
+                "redstone_torch",
+                "redstone_wire",
+                "repeater",
                 "sand",
                 "tnt",
+                "tnt_minecart",
                 "water",
+            )
+
+            if orientation.y:
+                y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
+            else:
+                y_glass = Y0 - VOICE_HEIGHT
+            mandatory_clear_range = [
+                y_glass + 2,
+                y_glass + 1,
+                y_glass - 1,
+            ]
+            optional_clear_range = range(
+                y_glass - VOICE_HEIGHT * (len(composition) + 1),
+                y_glass - 1,
             )
 
             Z_MAX = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
             X_MAX = (LONGEST_VOICE_LENGTH + INIT_DIVISIONS) * DIVISION_WIDTH + 1
-
-            if orientation.y:
-                y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-                mandatory_clear_range = [y_glass - 1, y_glass + 1, y_glass + 2, Y0]
-                optional_clear_range = range(Y0 + 1, y_glass - 1)
-            else:
-                y_glass = Y0 - VOICE_HEIGHT
-                mandatory_clear_range = [
-                    Y0,
-                    Y0 - 1,
-                    y_glass - 1,
-                    y_glass - VOICE_HEIGHT * (len(composition) + 1),
-                ]
-                optional_clear_range = range(
-                    y_glass - VOICE_HEIGHT * (len(composition) + 1) + 1,
-                    y_glass - 1,
-                )
-
             for z in range(Z_MAX + 1):
                 for x in range(X_MAX + 1):
                     generate_walking_glass()
@@ -255,11 +261,6 @@ class World:
                     if not clear:
                         self[x + positions[i], y + 1, z + z_increment] = noteblock.base
                         self[x + positions[i], y + 3, z + z_increment] = air
-
-            # fill the rest with air
-            if not clear:
-                for j in range(note.dynamic, DYNAMIC_RANGE.stop - 1):
-                    self[x + positions[j], y + 2, z + z_increment] = air
 
         def generate_division_changing_system():
             self[x, y, z + z_increment * 2] = block
