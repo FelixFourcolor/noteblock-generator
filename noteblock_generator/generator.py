@@ -23,28 +23,8 @@ class Block(amulet.api.block.Block):
 class NoteBlock(Block):
     """A covenience class for noteblocks"""
 
-    INSTRUMENTS = {
-        "bass": Block("oak_log"),
-        "didgeridoo": Block("pumpkin"),
-        "guitar": Block("white_wool"),
-        "harp": Block("air"),
-        "bit": Block("emerald_block"),
-        "banjo": Block("hay_block"),
-        "iron_xylophone": Block("iron_block"),
-        "pling": Block("glowstone"),
-        "flute": Block("clay"),
-        "cow_bell": Block("soul_sand"),
-        "bell": Block("gold_block"),
-        "xylophone": Block("bone_block"),
-        "chime": Block("packed_ice"),
-        "basedrum": Block("stone"),
-        "hat": Block("glass"),
-        "snare": Block("sand_stone"),
-    }
-
     def __init__(self, _note: Note):
         super().__init__("note_block", note=_note.note, instrument=_note.instrument)
-        self.base = self.INSTRUMENTS[_note.instrument]
 
 
 class Direction(tuple[int, int], Enum):
@@ -251,7 +231,7 @@ class World:
                 for i in range(note.dynamic):
                     self[x + positions[i], y + 2, z + z_increment] = noteblock
                     if not clear:
-                        self[x + positions[i], y + 1, z + z_increment] = noteblock.base
+                        self[x + positions[i], y + 1, z + z_increment] = air
                         self[x + positions[i], y + 3, z + z_increment] = air
 
         def generate_division_changing_system():
@@ -308,8 +288,7 @@ class World:
             y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
         else:
             y_increment = -y_increment
-            Y0 += 1  # count from player's head rather than feet
-            y_glass = Y0 - VOICE_HEIGHT
+            y_glass = Y0 - 1
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
@@ -323,7 +302,7 @@ class World:
         generate_init_system()
 
         for i, voice in enumerate(composition[::-1]):
-            y = y_glass - VOICE_HEIGHT * (i + 2)
+            y = y_glass - VOICE_HEIGHT * (i + 1) - 2
             z = Z0 + z_increment * (DIVISION_CHANGING_LENGTH + 2)
 
             for j, division in enumerate(voice):
