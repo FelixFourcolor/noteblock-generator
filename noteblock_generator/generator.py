@@ -205,18 +205,9 @@ class World:
                 "water",
             )
 
-            if orientation.y:
-                y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-            else:
-                y_glass = Y0 - VOICE_HEIGHT
-            mandatory_clear_range = [
-                y_glass + 2,
-                y_glass + 1,
-                y_glass - 1,
-            ]
+            mandatory_clear_range = [y_glass + 2, y_glass + 1]
             optional_clear_range = range(
-                y_glass - VOICE_HEIGHT * (len(composition) + 1),
-                y_glass - 1,
+                y_glass - VOICE_HEIGHT * (len(composition) + 1), y_glass
             )
 
             Z_MAX = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
@@ -242,6 +233,7 @@ class World:
             z = Z0 + z_increment
             self[x + x_increment, y - 3, z] = block
             self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
+            self[x + x_increment, y - 1, z] = air
             self[x, y - 2, z] = block
             self[x, y - 1, z] = Redstone((x_direction, -x_direction))
             self[x, y, z] = block
