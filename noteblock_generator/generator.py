@@ -80,12 +80,12 @@ class Repeater(Block):
 class Redstone(Block):
     """A convenience class for redstone wires"""
 
-    def __init__(
-        self,
-        connections=list(Direction),  # connected to all sides by default
-    ):
+    def __init__(self, *connections: Direction):
         # only support connecting sideways,
         # because that's all we need for this build
+        if not connections:
+            # connected to all sides by default
+            connections = tuple(Direction)
         super().__init__(
             "redstone_wire",
             **{direction.name: "side" for direction in connections},
@@ -226,16 +226,13 @@ class World:
                     voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
             x = X0 + x_increment * (DIVISION_WIDTH // 2)
-            if orientation.y:
-                y = Y0 + VOICE_HEIGHT * (len(composition) + 1)
-            else:
-                y = Y0 - 2
+            y = y_glass
             z = Z0 + z_increment
             self[x + x_increment, y - 3, z] = block
-            self[x + x_increment, y - 2, z] = Redstone((z_direction, -x_direction))
+            self[x + x_increment, y - 2, z] = Redstone(z_direction, -x_direction)
             self[x + x_increment, y - 1, z] = air
             self[x, y - 2, z] = block
-            self[x, y - 1, z] = Redstone((x_direction, -x_direction))
+            self[x, y - 1, z] = Redstone(x_direction, -x_direction)
             self[x, y, z] = block
             self[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
 
@@ -259,18 +256,18 @@ class World:
 
         def generate_division_changing_system():
             self[x, y, z + z_increment * 2] = block
-            self[x, y + 1, z + z_increment * 2] = Redstone((z_direction, -z_direction))
+            self[x, y + 1, z + z_increment * 2] = Redstone(z_direction, -z_direction)
             self[x, y, z + z_increment * 3] = block
-            self[x, y + 1, z + z_increment * 3] = Redstone((x_direction, -z_direction))
+            self[x, y + 1, z + z_increment * 3] = Redstone(x_direction, -z_direction)
             for i in range(1, DIVISION_WIDTH):
                 self[x + x_increment * i, y, z + z_increment * 3] = block
                 self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
-                    (x_direction, -x_direction)
+                    x_direction, -x_direction
                 )
             self[x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3] = block
             self[
                 x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
-            ] = Redstone((-z_direction, -x_direction))
+            ] = Redstone(-z_direction, -x_direction)
 
         if not composition:
             return
@@ -308,11 +305,11 @@ class World:
         x_increment = x_direction[0]
         y_increment = 1
         if orientation.y:
-            voices = reversed(list(enumerate(composition)))
+            y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
         else:
             y_increment = -y_increment
-            Y0 += 1
-            voices = enumerate(composition[::-1])
+            Y0 += 1  # count from player's head rather than feet
+            y_glass = Y0 - VOICE_HEIGHT
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
@@ -325,11 +322,9 @@ class World:
         generate_space()
         generate_init_system()
 
-        for i, voice in voices:
-            y = Y0 + y_increment * i * VOICE_HEIGHT
-            if not orientation.y:
-                y -= VOICE_HEIGHT + 4
-            z = Z0 + z_increment * (1 + DIVISION_CHANGING_LENGTH + 1)
+        for i, voice in enumerate(composition[::-1]):
+            y = y_glass - VOICE_HEIGHT * (i + 2)
+            z = Z0 + z_increment * (DIVISION_CHANGING_LENGTH + 2)
 
             for j, division in enumerate(voice):
                 x = X0 + x_increment * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
