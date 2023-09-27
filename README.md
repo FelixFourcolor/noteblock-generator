@@ -9,6 +9,7 @@ See my projects:
 * [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
 * [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
 * [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
+* [Mozart's Canzonetta sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
 
 ## Requirements
 * Minecraft java 1.19+
@@ -17,12 +18,14 @@ See my projects:
 ## Installation:
 ```pip install --upgrade noteblock-generator```
 
+Git version is for development (i.e. myself) only. I cannot guarantee that it is compatible with all of my projects.
+
 ## Usage
 ```
 noteblock-generator [-h] [--location [LOCATION ...]] [--orientation [ORIENTATION ...]] [--theme THEME] [--blend] path_in path_out
 
 positional arguments:
-  path_in                         path to music source file(s)
+  path_in                         path to music source file/folder
   path_out                        path to Minecraft world
 
 options:
@@ -31,7 +34,7 @@ options:
   --dimension DIMENSION           build dimension; default is player's dimension
   --orientation [ORIENTATION ...] build orientation (in x y z); default is + + +
   --theme THEME                   opaque block for redstone components; default is stone
-  --blend                         blend the structure in with its environment
+  --blend                         blend the structure in with its environment (EXPERIMENTAL)
 ```
 
 ### Path in
@@ -67,11 +70,11 @@ All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -`,
 Note: Make sure there is enough space in your specified direction in order to generate. The program cannot generate below bedrock, or above the height limit, etc. For example, if you are at y=-64, `--location ~ ~ ~ --orientation + - +` will not work.
 
 ### Theme
-Choose a block that can conduct redstones to theme the structure. Default is `stone`.
+Choose a block that can conduct redstones for the basis of the structure. Default is `stone`.
 
 Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be and leave the rest as-is.
 
-This is an experimental feature. If the redstones and/or noteblocks don't behave as expected, turn it off.
+This is an experimental feature. If the redstones and/or noteblocks don't behave as expected (especially if there is a water source nearby), turn it off.

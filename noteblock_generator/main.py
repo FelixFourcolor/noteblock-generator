@@ -30,7 +30,7 @@ def get_args():
     parser = ArgumentParser(
         description="Generate music compositions in Minecraft noteblocks.",
     )
-    parser.add_argument("path_in", help="path to music json file")
+    parser.add_argument("path_in", help="path to music source file/folder")
     parser.add_argument("path_out", help="path to Minecraft world")
     parser.add_argument(
         "--location",
@@ -57,7 +57,7 @@ def get_args():
     parser.add_argument(
         "--blend",
         action="store_true",
-        help=("blend the structure in with its environment"),
+        help=("blend the structure in with its environment (EXPERIMENTAL)"),
     )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
