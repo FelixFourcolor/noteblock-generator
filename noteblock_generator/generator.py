@@ -162,6 +162,7 @@ class World:
 
             DANGER_LIST = (
                 "anvil",
+                "bubble_column",
                 "comparator",
                 "concrete_powder",
                 "dragon_egg",
