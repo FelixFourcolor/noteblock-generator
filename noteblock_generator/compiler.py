@@ -157,7 +157,7 @@ class Voice(list[list[Note]]):
         self,
         _composition: Composition,
         *,
-        notes: str | list[str | dict] = [],
+        notes: list[str | dict] = [],
         name: str = None,
         delay: int = None,
         beat: int = None,
@@ -198,10 +198,6 @@ class Voice(list[list[Note]]):
 
         self._note_config = {}
         self.append([])
-
-        if isinstance(notes, str):
-            with open(find_file(_composition._path.parent / notes), "r") as f:
-                notes = json.load(f)
 
         for note in notes:
             if len(self[-1]) == self.division:
