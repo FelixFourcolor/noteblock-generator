@@ -69,7 +69,7 @@ def find_file(path: str | Path) -> Path:
 
     def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
-            raise UserError(f"{path} does not exist.")
+            return _create_if_not_exist(path)
         if path.is_dir():
             cwd, directories, files = next(os.walk(path))
             if len(files) == 1:
@@ -83,9 +83,16 @@ def find_file(path: str | Path) -> Path:
         elif match_name is None or match_name == path.stem:
             return path
 
-    if out := _find(Path(path).absolute()):
+    def _create_if_not_exist(path: Path) -> Path:
+        logger.warn(f"Path {path} is invalid / does not exist.")
+        os.makedirs(path.parent, exist_ok=True)
+        with open(path, "w") as f:
+            f.write("{ }")
+        return path
+
+    if out := _find(path := Path(path).absolute()):
         return out
-    raise UserError(f"Path {path} is invalid.")
+    return _create_if_not_exist(path)
 
 
 class Note:
