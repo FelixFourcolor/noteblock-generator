@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "noteblock-generator"
-version = "0.1.7.5"
+version = "0.1.7.6"
 description = "Generate music compositions in Minecraft noteblocks."
 authors = ["Felix Fourcolor <felix.fourcolor@gmail.com>"]
 readme = "README.md"
@@ -14,10 +14,10 @@ noteblock-generator = "noteblock_generator.main:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <4.0"
-amulet-core = "^1.9.19"
+amulet-core = "^1.9.20"
 
 [tool.poetry.group.dev.dependencies]
-pyright = "^1.1.328"
+pyright = "^1.1.329"
 
 [build-system]
 requires = ["poetry-core"]
