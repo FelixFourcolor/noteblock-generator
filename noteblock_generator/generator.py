@@ -12,7 +12,10 @@ if TYPE_CHECKING:
     from .main import Location, Orientation
 
 
-class Block(amulet.api.block.Block):
+_Block = amulet.api.Block
+
+
+class Block(_Block):
     """A thin wrapper of amulet block, with a more convenient constructor"""
 
     def __init__(self, name: str, **properties):
@@ -101,7 +104,7 @@ class World:
             *coordinates, self.dimension, self._VERSION
         )[0]
 
-    def __setitem__(self, coordinates: tuple[int, int, int], block: Block):
+    def __setitem__(self, coordinates: tuple[int, int, int], block: _Block):
         self._level.set_version_block(
             *coordinates, self.dimension, self._VERSION, block
         )
@@ -144,21 +147,23 @@ class World:
 
             def remove_dangerous_blocks():
                 for y in optional_clear_range:
-                    if (
-                        self[
-                            X0 + x_increment * x,
-                            y,
-                            Z0 + z_increment * z,
-                        ].base_name
-                        in DANGER_LIST
-                    ):
-                        self[
-                            X0 + x_increment * x,
-                            y,
-                            Z0 + z_increment * z,
-                        ] = air
+                    coordinates = (
+                        X0 + x_increment * x,
+                        y,
+                        Z0 + z_increment * z,
+                    )
+                    suspect = self[coordinates]
+                    if not isinstance(suspect, _Block):
+                        continue
+                    if suspect.base_name in DANGER_LIST:
+                        self[coordinates] = air
+                    else:
+                        for w in waters:
+                            suspect -= w
+                        self[coordinates] = suspect
 
             glass = Block("glass")
+            waters = [Block("water")] + [Block("water", level=i) for i in range(16)]
 
             DANGER_LIST = (
                 "anvil",
