@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import os
 from pathlib import Path
 from typing import Optional
@@ -174,6 +173,10 @@ class Voice(list[list[Note]]):
         sustain: bool | int | str = None,
         sustainDynamic: int | str = None,
     ):
+        self._bar_number: int = 1
+        self._beat_number: int = 1
+        self._name = name
+
         if delay is None:
             delay = _composition.delay
         if beat is None:
@@ -192,7 +195,6 @@ class Voice(list[list[Note]]):
             raise UserError(f"{self}: {instrument} is not a valid instrument.")
         self._composition = _composition
         self._index = len(_composition)
-        self._name = name
         self.time = _composition.time
         self.division = _composition.division
         self.delay = delay
@@ -215,7 +217,7 @@ class Voice(list[list[Note]]):
                     self._add_note(**(self._note_config | kwargs))
                 except UserError as e:
                     raise UserError(
-                        f"{self} at {(self._bar_number, self._note_number)}: {e}"
+                        f"{self} at {(self._bar_number, self._beat_number)}: {e}"
                     )
             else:
                 self._note_config |= kwargs
@@ -224,18 +226,6 @@ class Voice(list[list[Note]]):
         if self._name:
             return self._name
         return f"Voice {self._index + 1}"
-
-    @property
-    def _bar_number(self):
-        return math.ceil(len(self) / (self.time / self.division))
-
-    @property
-    def _note_number(self):
-        return (
-            1
-            + len(self[-1])
-            + (len(self) - 1) % (self.time // self.division) * self.division
-        )
 
     def _parse_note(self, value: str, beat: int = None):
         _tokens = value.lower().split()
@@ -364,15 +354,34 @@ class Voice(list[list[Note]]):
         # "|" to assert the beginning of a bar
         if name.startswith("|"):
             name = name[1:]
-            if self._note_number != 1:
-                raise UserError("Wrong barline location.")
-            # "||" to assert the beginning of a bar AND rest for the entire bar
+            # "||" to assert the beginning of a bar AND rest the entire bar
+            rest = False
             if name.startswith("|"):
                 name = name[1:]
+                rest = True
+            # if end with a bang, force assertion
+            force = False
+            if name.endswith("!"):
+                name = name[:-1]
+                force = True
+            # bar number
+            try:
+                asserted_bar_number = int(name)
+            except ValueError:
+                raise UserError(f"bar number must be an int, found {name}.")
+            # force or assert
+            if force:
+                self._beat_number = 1
+                self._bar_number = asserted_bar_number
+            elif self._beat_number != 1:
+                raise UserError("wrong barline location.")
+            elif self._bar_number != asserted_bar_number:
+                raise UserError(
+                    f"expected bar {self._bar_number}, found {asserted_bar_number}."
+                )
+            # rest
+            if rest:
                 self._add_note(name=f"r {self.time}", **kwargs)
-            # followed by a number to assert bar number
-            if name.strip() and int(name) != (self._bar_number):
-                raise UserError(f"expected bar {self._bar_number}, found {int(name)}.")
             return
 
         # actual note
@@ -385,6 +394,10 @@ class Voice(list[list[Note]]):
                 self[-1].append(note)
             else:
                 self.append([note])
+        # update bar and beat number
+        div, mod = divmod(self._beat_number + duration, self.time)
+        self._beat_number = mod
+        self._bar_number += div
 
 
 class Composition(list[Voice]):
@@ -430,8 +443,6 @@ class Composition(list[Voice]):
                     "Consider breaking it into divisions."
                 )
         else:
-            if time % division:
-                raise UserError(f"Division ({division}) must divide time ({time}).")
             self.division = division
 
         for voice in voices:

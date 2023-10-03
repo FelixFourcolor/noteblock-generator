@@ -18,7 +18,7 @@ See my projects:
 ## Installation:
 ```pip install --upgrade noteblock-generator```
 
-Git version is for development (i.e. myself) only. I cannot guarantee that it is compatible with all of my projects.
+Do not use git version, it is for development (i.e. myself) only. I cannot guarantee that it is compatible with all of my projects.
 
 ## Usage
 ```
