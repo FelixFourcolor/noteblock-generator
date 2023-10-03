@@ -165,6 +165,7 @@ class Voice(list[list[Note]]):
         *,
         notes: list[str | dict] = [],
         name: str = None,
+        time: int = None,
         delay: int = None,
         beat: int = None,
         instrument: str = None,
@@ -177,6 +178,8 @@ class Voice(list[list[Note]]):
         self._beat_number: int = 1
         self._name = name
 
+        if time is None:
+            time = _composition.time
         if delay is None:
             delay = _composition.delay
         if beat is None:
@@ -195,7 +198,7 @@ class Voice(list[list[Note]]):
             raise UserError(f"{self}: {instrument} is not a valid instrument.")
         self._composition = _composition
         self._index = len(_composition)
-        self.time = _composition.time
+        self.time = time
         self.division = _composition.division
         self.delay = delay
         self.beat = beat
@@ -227,7 +230,7 @@ class Voice(list[list[Note]]):
             return self._name
         return f"Voice {self._index + 1}"
 
-    def _parse_note(self, value: str, beat: int = None):
+    def _parse_note(self, value: str, beat: int):
         _tokens = value.lower().split()
         pitch = self._parse_pitch(_tokens[0])
         duration = self._parse_duration(*_tokens[1:], beat=beat)
@@ -253,10 +256,7 @@ class Voice(list[list[Note]]):
         note, octave = _parse_note_and_octave(value)
         return note + str(octave)
 
-    def _parse_duration(self, *values: str, beat: int = None) -> int:
-        if beat is None:
-            beat = self.beat
-
+    def _parse_duration(self, *values: str, beat: int) -> int:
         if not values or not (value := values[0]):
             return beat
 
@@ -283,7 +283,7 @@ class Voice(list[list[Note]]):
         pitch: str,
         duration: int,
         *,
-        beat: int = None,
+        beat: int,
         sustain: bool | int | str = None,
         sustainDynamic: int | str = None,
         trill: str = None,
@@ -349,7 +349,12 @@ class Voice(list[list[Note]]):
     def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
         return [Rest(self, delay=delay)] * duration
 
-    def _add_note(self, *, name: str, beat: int = None, **kwargs):
+    def _add_note(self, *, name: str, time: int = None, beat: int = None, **kwargs):
+        if time is None:
+            time = self.time
+        if beat is None:
+            beat = self.beat
+
         # Bar helpers
         # "|" to assert the beginning of a bar
         if name.startswith("|"):
@@ -429,7 +434,6 @@ class Composition(list[Voice]):
         self.transpose = transpose
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
-        self.time = time
 
         if division is None:
             for n in range(16, 4, -1):
