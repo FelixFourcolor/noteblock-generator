@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -63,12 +63,13 @@ class UserError(Exception):
     """
 
 
-def find_file(path: str | Path) -> Path:
-    """Recursively find where the json file is."""
+T = TypeVar("T")
 
+
+def load_file(path: str | Path, *, expected_type: Type[T]) -> T:
     def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
-            return _create_if_not_exist(path)
+            return
         if path.is_dir():
             cwd, directories, files = next(os.walk(path))
             if len(files) == 1:
@@ -82,16 +83,18 @@ def find_file(path: str | Path) -> Path:
         elif match_name is None or match_name == path.stem:
             return path
 
-    def _create_if_not_exist(path: Path) -> Path:
-        logger.warn(f"Path {path} is invalid / does not exist.")
-        os.makedirs(path.parent, exist_ok=True)
-        with open(path, "w") as f:
-            f.write("{ }")
-        return path
+    if p := _find(path := Path(path)):
+        with open(p, "r") as f:
+            return json.load(f)
 
-    if out := _find(path := Path(path).absolute()):
-        return out
-    return _create_if_not_exist(path)
+    logger.warn(f"{path} is does not exist.")
+    os.makedirs(path.parent, exist_ok=True)
+    with open(path, "w") as f:
+        if expected_type is dict:
+            f.write("{\n\n}")
+        elif expected_type is list:
+            f.write("[\n\n]")
+    return expected_type()
 
 
 class Note:
@@ -163,7 +166,7 @@ class Voice(list[list[Note]]):
         self,
         _composition: Composition,
         *,
-        notes: list[str | dict] = [],
+        notes: str | list[str | dict] = [],
         name: str = None,
         time: int = None,
         delay: int = None,
@@ -211,7 +214,7 @@ class Voice(list[list[Note]]):
         self._note_config = {}
         self.append([])
 
-        for note in notes:
+        for note in self._load_notes(notes):
             if len(self[-1]) == self.division:
                 self.append([])
             kwargs = note if isinstance(note, dict) else {"name": note}
@@ -229,6 +232,20 @@ class Voice(list[list[Note]]):
         if self._name:
             return self._name
         return f"Voice {self._index + 1}"
+
+    def _load_notes(
+        self, notes_or_path_to_notes: str | list[str | dict]
+    ) -> list[str | dict]:
+        if isinstance(notes_or_path_to_notes, list):
+            return notes_or_path_to_notes
+
+        path_to_notes = self._composition._path / Path(notes_or_path_to_notes)
+        notes_or_another_voice = load_file(
+            path_to_notes, expected_type=list[str | dict]
+        )
+        if isinstance(notes_or_another_voice, list):
+            return notes_or_another_voice
+        return self._load_notes(notes_or_another_voice["notes"])
 
     def _parse_note(self, value: str, beat: int):
         _tokens = value.lower().split()
@@ -457,21 +474,21 @@ class Composition(list[Voice]):
                     raise e
                 raise type(e)(f'Error compiling voice "{voice}"\n{e}')
 
-    def _compile_voice(self, value: str | dict):
-        if isinstance(value, str):
-            with open(voice_path := find_file(self._path.parent / value), "r") as f:
-                voice = json.load(f)
+    def _compile_voice(self, voice_or_path_to_voice: str | dict):
+        if isinstance(voice_or_path_to_voice, str):
+            path_to_voice = self._path / Path(voice_or_path_to_voice)
+            voice = load_file(path_to_voice, expected_type=dict)
             if "name" not in voice:
-                voice["name"] = voice_path.stem
+                voice["name"] = Path(voice_or_path_to_voice).stem
         else:
-            voice = value
+            voice = voice_or_path_to_voice
         self.append(Voice(self, **voice))
 
     @classmethod
-    def compile(cls, path_in: str):
+    def compile(cls, path_to_composition: str):
         try:
-            with open(path := find_file(path_in), "r") as f:
-                return cls(**json.load(f), _path=path)
+            composition = load_file(path_to_composition, expected_type=dict)
+            return cls(**composition, _path=Path(path_to_composition))
         except Exception as e:
             if isinstance(e, UserError):
                 raise e
