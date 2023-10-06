@@ -403,7 +403,7 @@ class Voice(list[list[Note]]):
                 )
             # rest
             if rest:
-                self._add_note(name=f"r {self.time}", **kwargs)
+                self._add_note(name=f"r {time}", time=time, **kwargs)
             return
 
         # actual note
@@ -417,7 +417,7 @@ class Voice(list[list[Note]]):
             else:
                 self.append([note])
         # update bar and beat number
-        div, mod = divmod(self._beat_number + duration, self.time)
+        div, mod = divmod(self._beat_number + duration, time)
         self._beat_number = mod
         self._bar_number += div
 
