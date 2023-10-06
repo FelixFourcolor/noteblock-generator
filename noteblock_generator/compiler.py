@@ -87,7 +87,7 @@ def load_file(path: str | Path, *, expected_type: Type[T]) -> T:
         with open(p, "r") as f:
             return json.load(f)
 
-    logger.warn(f"{path} is does not exist.")
+    logger.warn(f"{path} does not exist.")
     os.makedirs(path.parent, exist_ok=True)
     with open(path, "w") as f:
         if expected_type is dict:
