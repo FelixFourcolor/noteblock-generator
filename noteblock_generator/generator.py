@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 
 _Block = amulet.api.Block
+_Level = amulet.api.level.World | amulet.api.level.Structure
 
 
 class Block(_Block):
@@ -84,6 +85,7 @@ class World:
     # TODO: make this a command-line argument
 
     _dimension: str
+    _level: _Level
 
     def __init__(self, path: str):
         self._path = str(path)
