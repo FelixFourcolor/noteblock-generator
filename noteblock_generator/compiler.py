@@ -245,6 +245,8 @@ class Voice(list[list[Note]]):
         )
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
+        if "notes" not in notes_or_another_voice:
+            return self._load_notes([])
         return self._load_notes(notes_or_another_voice["notes"])
 
     def _parse_note(self, value: str, beat: int):
