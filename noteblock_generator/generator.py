@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, logger
-
-if TYPE_CHECKING:
-    from .main import Location, Orientation
-
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice, logger
+from .main import Location, Orientation
 
 _Block = amulet.api.Block
 _Level = amulet.api.level.World | amulet.api.level.Structure
@@ -103,12 +100,12 @@ class World:
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         return self._level.get_version_block(
-            *coordinates, self.dimension, self._VERSION
+            *coordinates, self._dimension, self._VERSION
         )[0]
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: _Block):
         self._level.set_version_block(
-            *coordinates, self.dimension, self._VERSION, block
+            *coordinates, self._dimension, self._VERSION, block
         )
 
     def generate(
@@ -119,176 +116,248 @@ class World:
         dimension: Optional[str],
         orientation: Orientation,
         theme: str,
-        clear=False,
+        clear: bool,
     ):
-        def equalize_voice_length():
-            for voice in composition:
-                rest = Rest(voice)
-                for _ in range(voice.division - len(voice[-1])):
-                    voice[-1].append(rest)
-                for _ in range(LONGEST_VOICE_LENGTH - len(voice)):
-                    voice.append([rest] * voice.division)
+        def generate_init_system_for_single_orchestra():
+            button = Block("oak_button", face="floor", facing=-x_direction)
+            redstone = Redstone(z_direction, -z_direction)
 
-        def generate_space():
-            def generate_walking_glass():
-                self[X0 + x_increment * x, y_glass, Z0 + z_increment * z] = glass
-                for y in mandatory_clear_range:
-                    self[
-                        X0 + x_increment * x,
-                        y,
-                        Z0 + z_increment * z,
-                    ] = air
+            x = X + x_increment * math.ceil(DIVISION_WIDTH / 2)
+            y = y_glass
 
-            def clear_space():
-                for y in optional_clear_range:
-                    self[
-                        X0 + x_increment * x,
-                        y,
-                        Z0 + z_increment * z,
-                    ] = air
+            self[x, y - 3, Z + z_increment] = block
+            self[x, y - 2, Z + z_increment] = redstone
+            self[x, y - 1, Z + z_increment] = air
+            self[x, y - 1, Z + z_increment * 2] = redstone
+            self[x, y - 1, Z + z_increment * 3] = block
 
-            def remove_dangerous_blocks():
-                for y in optional_clear_range:
-                    coordinates = (
-                        X0 + x_increment * x,
-                        y,
-                        Z0 + z_increment * z,
+            self[x, y, Z + z_increment * 2] = block
+            self[x, y + 1, Z + z_increment * 2] = button
+
+        def generate_init_system_for_double_orchestras():
+            def _generate(z: int, z_direction):
+                z_increment = z_direction[1]
+
+                repeater = Repeater(delay=1, direction=-z_direction)
+                self[x, y - 3, z + z_increment] = block
+                self[x, y - 2, z + z_increment] = redstone
+                self[x, y - 1, z + z_increment] = air
+                self[x, y - 2, z + z_increment * 2] = block
+                self[x, y - 1, z + z_increment * 2] = redstone
+                self[x, y - 1, z + z_increment * 3] = block
+                self[x, y, z + z_increment * 3] = redstone
+                self[x, y, z + z_increment * 4] = block
+
+                i = 3
+                for i in range(4, math.ceil(Z_BOUNDARY / 2) + 1):
+                    self[x, y + 1, z + z_increment * i] = (
+                        redstone if i % 16 else repeater
                     )
-                    suspect = self[coordinates]
-                    if not isinstance(suspect, _Block):
-                        continue
-                    if suspect.base_name in DANGER_LIST:
-                        self[coordinates] = air
-                    else:
-                        for w in waters:
-                            suspect -= w
-                        self[coordinates] = suspect
+                self[x, y + 1, z + z_increment * (i + 1)] = button
 
-            glass = Block("glass")
-            waters = [Block("water")] + [Block("water", level=i) for i in range(16)]
+            x = X + x_increment * math.ceil(DIVISION_WIDTH / 2)
+            y = y_glass
 
-            DANGER_LIST = (
-                "anvil",
-                "bubble_column",
-                "calibrated_sculk_sensor",
-                "comparator",
-                "concrete_powder",
-                "dragon_egg",
-                "gravel",
-                "jukebox",
-                "lava",
-                "note_block",
-                "observer",
-                "piston",
-                "pointed_dripstone",
-                "red_sand",
-                "redstone_block",
-                "redstone_torch",
-                "redstone_wire",
-                "repeater",
-                "sand",
-                "sculk_sensor",
-                "sticky_piston",
-                "suspicious_sand",
-                "suspicious_gravel",
-                "tnt",
-                "tnt_minecart",
-                "water",
-            )
+            button = Block("oak_button", face="floor", facing=-x_direction)
+            redstone = Redstone(z_direction, -z_direction)
 
-            mandatory_clear_range = [y_glass + 2, y_glass + 1]
-            optional_clear_range = range(
-                y_glass - VOICE_HEIGHT * (len(composition) + 1), y_glass
-            )
+            # one call for each side of the double orchestra
+            _generate(Z - z_increment * Z_BOUNDARY, z_direction)  # left side
+            _generate(Z + z_increment * 2, -z_direction)  # right side
 
-            Z_MAX = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
-            X_MAX = (LONGEST_VOICE_LENGTH + INIT_DIVISIONS) * DIVISION_WIDTH + 1
-            for z in range(Z_MAX + 1):
-                for x in range(X_MAX + 1):
-                    generate_walking_glass()
-                    if clear or x in (0, X_MAX) or z in (0, Z_MAX):
-                        clear_space()
-                    else:
-                        remove_dangerous_blocks()
+        def generate_orchestra(voices: list[Voice], z_direction: Direction):
+            if not voices:
+                return
 
-        def generate_init_system():
-            for voice in composition:
+            def generate_space():
+                def generate_walking_glass():
+                    self[X + x_increment * x, y_glass, Z + z_increment * z] = glass
+                    for y in mandatory_clear_range:
+                        self[
+                            X + x_increment * x,
+                            y,
+                            Z + z_increment * z,
+                        ] = air
+
+                def clear_space():
+                    for y in optional_clear_range:
+                        self[
+                            X + x_increment * x,
+                            y,
+                            Z + z_increment * z,
+                        ] = air
+
+                def remove_dangerous_blocks():
+                    for y in optional_clear_range:
+                        coordinates = (
+                            X + x_increment * x,
+                            y,
+                            Z + z_increment * z,
+                        )
+                        suspect = self[coordinates]
+                        if not isinstance(suspect, _Block):
+                            continue
+                        if suspect.base_name in DANGER_LIST:
+                            self[coordinates] = air
+                        else:
+                            for w in waters:
+                                suspect -= w
+                            self[coordinates] = suspect
+
+                glass = Block("glass")
+                waters = [Block("water")] + [Block("water", level=i) for i in range(16)]
+
+                DANGER_LIST = (
+                    "anvil",
+                    "bubble_column",
+                    "calibrated_sculk_sensor",
+                    "comparator",
+                    "concrete_powder",
+                    "dragon_egg",
+                    "gravel",
+                    "jukebox",
+                    "lava",
+                    "note_block",
+                    "observer",
+                    "piston",
+                    "pointed_dripstone",
+                    "red_sand",
+                    "redstone_block",
+                    "redstone_torch",
+                    "redstone_wire",
+                    "repeater",
+                    "sand",
+                    "sculk_sensor",
+                    "sticky_piston",
+                    "suspicious_sand",
+                    "suspicious_gravel",
+                    "tnt",
+                    "tnt_minecart",
+                    "water",
+                )
+
+                mandatory_clear_range = [y_glass + 2, y_glass + 1]
+                optional_clear_range = range(Y_BOUNDARY, y_glass)
+
+                for z in range(Z_BOUNDARY + 1):
+                    for x in range(X_BOUNDARY + 1):
+                        generate_walking_glass()
+                        if clear or x in (0, X_BOUNDARY) or z in (0, Z_BOUNDARY):
+                            clear_space()
+                        else:
+                            remove_dangerous_blocks()
+
+            def generate_redstones():
+                self[x, y, z] = block
+                self[x, y + 1, z] = Repeater(note.delay, z_direction)
+                self[x, y + 1, z + z_increment] = block
+                self[x, y + 2, z + z_increment] = Redstone()
+                self[x, y + 2, z + z_increment * 2] = block
+
+            def generate_noteblocks():
+                # place noteblock positions in this order, depending on dynamic
+                positions = [
+                    -x_increment,
+                    x_increment,
+                    -2 * x_increment,
+                    2 * x_increment,
+                ]
+                if note.dynamic:
+                    noteblock = NoteBlock(note)
+                    for i in range(note.dynamic):
+                        self[x + positions[i], y + 2, z + z_increment] = noteblock
+                        if not clear:
+                            self[x + positions[i], y + 1, z + z_increment] = air
+                            self[x + positions[i], y + 3, z + z_increment] = air
+
+            def generate_division_changing_system():
+                self[x, y, z + z_increment * 2] = block
+                self[x, y + 1, z + z_increment * 2] = Redstone(
+                    z_direction, -z_direction
+                )
+                self[x, y, z + z_increment * 3] = block
+                self[x, y + 1, z + z_increment * 3] = Redstone(
+                    x_direction, -z_direction
+                )
+                for i in range(1, DIVISION_WIDTH):
+                    self[x + x_increment * i, y, z + z_increment * 3] = block
+                    self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
+                        x_direction, -x_direction
+                    )
+                self[x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3] = block
+                self[
+                    x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
+                ] = Redstone(-z_direction, -x_direction)
+
+            z_increment = z_direction[1]
+            generate_space()
+
+            for i, voice in enumerate(voices[::-1]):
                 for _ in range(INIT_DIVISIONS):
                     voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
-            x = X0 + x_increment * (DIVISION_WIDTH // 2)
-            y = y_glass
-            z = Z0 + z_increment
-            self[x + x_increment, y - 3, z] = block
-            self[x + x_increment, y - 2, z] = Redstone(z_direction, -x_direction)
-            self[x + x_increment, y - 1, z] = air
-            self[x, y - 2, z] = block
-            self[x, y - 1, z] = Redstone(x_direction, -x_direction)
-            self[x, y, z] = block
-            self[x, y + 1, z] = Block("oak_button", face="floor", facing=-x_direction)
+                y = y_glass - VOICE_HEIGHT * (i + 1) - 2
+                z = Z + z_increment * (DIVISION_CHANGING_LENGTH + 2)
 
-        def generate_redstones():
-            self[x, y, z] = block
-            self[x, y + 1, z] = Repeater(note.delay, z_direction)
-            self[x, y + 1, z + z_increment] = block
-            self[x, y + 2, z + z_increment] = Redstone()
-            self[x, y + 2, z + z_increment * 2] = block
+                for j, division in enumerate(voice):
+                    x = X + x_increment * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
+                    z_increment = z_direction[1]
+                    z0 = z - z_increment * DIVISION_CHANGING_LENGTH
+                    self[x, y + 2, z0] = block
 
-        def generate_noteblocks():
-            # place noteblock positions in this order, depending on dynamic
-            positions = [-x_increment, x_increment, -2 * x_increment, 2 * x_increment]
-            if note.dynamic:
-                noteblock = NoteBlock(note)
-                for i in range(note.dynamic):
-                    self[x + positions[i], y + 2, z + z_increment] = noteblock
-                    if not clear:
-                        self[x + positions[i], y + 1, z + z_increment] = air
-                        self[x + positions[i], y + 3, z + z_increment] = air
+                    for k, note in enumerate(division):
+                        z = z0 + k * z_increment * NOTE_LENGTH
+                        generate_redstones()
+                        generate_noteblocks()
 
-        def generate_division_changing_system():
-            self[x, y, z + z_increment * 2] = block
-            self[x, y + 1, z + z_increment * 2] = Redstone(z_direction, -z_direction)
-            self[x, y, z + z_increment * 3] = block
-            self[x, y + 1, z + z_increment * 3] = Redstone(x_direction, -z_direction)
-            for i in range(1, DIVISION_WIDTH):
-                self[x + x_increment * i, y, z + z_increment * 3] = block
-                self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
-                    x_direction, -x_direction
-                )
-            self[x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3] = block
-            self[
-                x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
-            ] = Redstone(-z_direction, -x_direction)
+                    # if there is a next division, change division and flip direction
+                    try:
+                        voice[j + 1]
+                    except IndexError:
+                        pass
+                    else:
+                        generate_division_changing_system()
+                        z_direction = -z_direction
 
-        if not composition:
-            return
+                # if number of division is even
+                if len(voice) % 2 == 0:
+                    # z_direction has been flipped, reset it to original
+                    z_direction = -z_direction
+                    z_increment = z_direction[1]
+
+        air = Block("air")
+        block = Block(theme)
+
+        LENGTH = composition.length
+        SIZE = composition.size
+        DIVISION = composition.division
 
         NOTE_LENGTH = 2
         DIVISION_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
         VOICE_HEIGHT = 2
         DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
-        LONGEST_VOICE_LENGTH = max(map(len, composition))
         # add this number of divisions to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
-        INIT_DIVISIONS = math.ceil((len(composition) - 1) / composition.division)
+        INIT_DIVISIONS = math.ceil((SIZE - 1) / DIVISION)
 
         try:
             player_location = tuple(map(math.floor, self.players[0].location))
         except IndexError:
             player_location = (0, 0, 0)
-        X0, Y0, Z0 = location
+        X, Y, Z = location
         if location.x.relative:
-            X0 += player_location[0]
+            X += player_location[0]
         if location.y.relative:
-            Y0 += player_location[1]
+            Y += player_location[1]
         if location.z.relative:
-            Z0 += player_location[2]
-        if dimension is None:
+            Z += player_location[2]
+        if dimension is not None:
+            self._dimension = dimension
+        else:
             try:
-                dimension = self.players[0].dimension
+                self._dimension = self.players[0].dimension
             except IndexError:
-                dimension = "minecraft:overworld"
-        self.dimension = dimension
+                self._dimension = "minecraft:overworld"
 
         x_direction = Direction((1, 0))
         if not orientation.x:
@@ -296,51 +365,27 @@ class World:
         x_increment = x_direction[0]
         y_increment = 1
         if orientation.y:
-            y_glass = Y0 + VOICE_HEIGHT * (len(composition) + 1)
+            y_glass = Y + VOICE_HEIGHT * (SIZE + 1)
         else:
             y_increment = -y_increment
-            y_glass = Y0 - 1
+            y_glass = Y - 1
         z_direction = Direction((0, 1))
         if not orientation.z:
             z_direction = -z_direction
         z_increment = z_direction[1]
 
-        air = Block("air")
-        block = Block(theme)
+        Z_BOUNDARY = DIVISION * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
+        X_BOUNDARY = (LENGTH + INIT_DIVISIONS) * DIVISION_WIDTH + 1
+        Y_BOUNDARY = y_glass - VOICE_HEIGHT * (SIZE + 1)
 
-        equalize_voice_length()
-        generate_space()
-        generate_init_system()
-
-        for i, voice in enumerate(composition[::-1]):
-            y = y_glass - VOICE_HEIGHT * (i + 1) - 2
-            z = Z0 + z_increment * (DIVISION_CHANGING_LENGTH + 2)
-
-            for j, division in enumerate(voice):
-                x = X0 + x_increment * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
-                z_increment = z_direction[1]
-                z0 = z - z_increment * DIVISION_CHANGING_LENGTH
-                self[x, y + 2, z0] = block
-
-                for k, note in enumerate(division):
-                    z = z0 + k * z_increment * NOTE_LENGTH
-                    generate_redstones()
-                    generate_noteblocks()
-
-                # if there is a next division, change division and flip direction
-                try:
-                    voice[j + 1]
-                except IndexError:
-                    pass
-                else:
-                    generate_division_changing_system()
-                    z_direction = -z_direction
-
-            # if number of division is even
-            if len(voice) % 2 == 0:
-                # z_direction has been flipped, reset it to original
-                z_direction = -z_direction
-                z_increment = z_direction[1]
+        if len(composition) == 1:
+            generate_orchestra(composition[0], z_direction)
+            generate_init_system_for_single_orchestra()
+        else:
+            generate_orchestra(composition[0], z_direction)
+            Z += z_increment * Z_BOUNDARY
+            generate_orchestra(composition[1], z_direction)
+            generate_init_system_for_double_orchestras()
 
 
 def generate(path_out, **kwargs):

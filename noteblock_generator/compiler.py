@@ -422,7 +422,7 @@ class Voice(list[list[Note]]):
         self._bar_number += div
 
 
-class Composition(list[Voice]):
+class Composition(list[list[Voice]]):
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls)
 
@@ -430,7 +430,7 @@ class Composition(list[Voice]):
         self,
         *,
         _path: Path,
-        voices: list[dict | str] = [],
+        voices: list[dict | str] | list[list[dict | str]] = [[]],
         time=16,
         division: int = None,
         delay=1,
@@ -466,23 +466,66 @@ class Composition(list[Voice]):
         else:
             self.division = division
 
-        for voice in voices:
-            try:
-                self._compile_voice(voice)
-            except Exception as e:
-                if isinstance(e, UserError):
-                    raise e
-                raise type(e)(f'Error compiling voice "{voice}"\n{e}')
-
-    def _compile_voice(self, voice_or_path_to_voice: str | dict):
-        if isinstance(voice_or_path_to_voice, str):
-            path_to_voice = self._path / Path(voice_or_path_to_voice)
-            voice = load_file(path_to_voice, expected_type=dict)
-            if "name" not in voice:
-                voice["name"] = Path(voice_or_path_to_voice).stem
+        if isinstance(voices[0], list):
+            for orchestra in voices:
+                self._add_orchestra(orchestra)
         else:
-            voice = voice_or_path_to_voice
-        self.append(Voice(self, **voice))
+            self._add_orchestra(voices)
+
+        self.size = self._equalize_orchestras_size()
+        self.length = self._equalize_voices_length()
+
+    def _add_orchestra(self, voices):
+        if not isinstance(voices, list):
+            raise UserError(
+                f"Expected a list of voices, found {type(voices).__name__}."
+            )
+        if len(self) >= 2:
+            raise UserError("At most 2 orchestras is allowed.")
+        self.append([])
+        for voice in voices:
+            self._add_voice(voice)
+
+    def _add_voice(self, voice_or_path_to_voice):
+        if not (
+            isinstance(voice_or_path_to_voice, str)
+            or isinstance(voice_or_path_to_voice, dict)
+        ):
+            raise UserError(
+                f"Expected a voice, found {type(voice_or_path_to_voice).__name__}."
+            )
+
+        try:
+            if isinstance(voice_or_path_to_voice, str):
+                path_to_voice = self._path / Path(voice_or_path_to_voice)
+                voice = load_file(path_to_voice, expected_type=dict)
+                if "name" not in voice:
+                    voice["name"] = Path(voice_or_path_to_voice).stem
+            else:
+                voice = voice_or_path_to_voice
+            self[-1].append(Voice(self, **voice))
+        except Exception as e:
+            if isinstance(e, UserError):
+                raise
+            raise type(e)(f'Error compiling voice "{voice_or_path_to_voice}"\n{e}')
+
+    def _equalize_orchestras_size(self):
+        size = max(map(len, self))
+        for orchestra in self:
+            for _ in range(size - len(orchestra)):
+                orchestra.insert(0, Voice(self))
+        return size
+
+    def _equalize_voices_length(self):
+        length = max(map(len, [v for orchestra in self for v in orchestra]))
+        for orchestra in self:
+            for voice in orchestra:
+                rest = Rest(voice)
+                for _ in range(self.division - len(voice[-1])):
+                    voice[-1].append(rest)
+                for _ in range(length - len(voice)):
+                    voice.append([rest] * self.division)
+        return length
 
     @classmethod
     def compile(cls, path_to_composition: str):
@@ -491,5 +534,5 @@ class Composition(list[Voice]):
             return cls(**composition, _path=Path(path_to_composition))
         except Exception as e:
             if isinstance(e, UserError):
-                raise e
+                raise
             raise type(e)(f"Compile error\n{e}")
