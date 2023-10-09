@@ -93,7 +93,7 @@ class World:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        logger.info("Almost there...")
+        logger.info("Finishing up...")
         if exc_type is None and self._level.changed:
             self._level.save()
         self._level.close()
@@ -197,17 +197,14 @@ class World:
                         suspect = self[coordinates]
                         if not isinstance(suspect, _Block):
                             continue
-                        if suspect.base_name in DANGER_LIST:
+                        if suspect.base_name in REMOVE_LIST:
                             self[coordinates] = air
                         else:
-                            for w in waters:
-                                suspect -= w
-                            self[coordinates] = suspect
+                            self[coordinates] = suspect.base_block
 
                 glass = Block("glass")
-                waters = [Block("water")] + [Block("water", level=i) for i in range(16)]
 
-                DANGER_LIST = (
+                REMOVE_LIST = (
                     "anvil",
                     "bubble_column",
                     "calibrated_sculk_sensor",
@@ -228,9 +225,11 @@ class World:
                     "repeater",
                     "sand",
                     "sculk_sensor",
+                    "seagrass",
                     "sticky_piston",
                     "suspicious_sand",
                     "suspicious_gravel",
+                    "tall_seagrass",
                     "tnt",
                     "tnt_minecart",
                     "water",
