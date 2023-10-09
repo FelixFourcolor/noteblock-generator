@@ -135,7 +135,7 @@ class World:
             self[x, y + 1, Z + z_increment * 2] = button
 
         def generate_init_system_for_double_orchestras():
-            def _generate(z: int, z_direction):
+            def generate_bridge(z: int, z_direction: Direction):
                 z_increment = z_direction[1]
 
                 repeater = Repeater(delay=1, direction=-z_direction)
@@ -146,24 +146,27 @@ class World:
                 self[x, y - 1, z + z_increment * 2] = redstone
                 self[x, y - 1, z + z_increment * 3] = block
                 self[x, y, z + z_increment * 3] = redstone
-                self[x, y, z + z_increment * 4] = block
 
-                i = 3
                 for i in range(4, math.ceil(Z_BOUNDARY / 2) + 1):
+                    self[x, y, z + z_increment * i] = block
                     self[x, y + 1, z + z_increment * i] = (
                         redstone if i % 16 else repeater
                     )
-                self[x, y + 1, z + z_increment * (i + 1)] = button
+
+            def generate_button():
+                z = Z + z_increment * (1 - math.ceil(Z_BOUNDARY / 2))
+                button = Block("oak_button", face="floor", facing=-x_direction)
+
+                self[x, y, z] = block
+                self[x, y + 1, z] = button
 
             x = X + x_increment * math.ceil(DIVISION_WIDTH / 2)
             y = y_glass
-
-            button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
 
-            # one call for each side of the double orchestra
-            _generate(Z - z_increment * Z_BOUNDARY, z_direction)  # left side
-            _generate(Z + z_increment * 2, -z_direction)  # right side
+            generate_bridge(Z - z_increment * Z_BOUNDARY, z_direction)
+            generate_bridge(Z + z_increment * 2, -z_direction)
+            generate_button()
 
         def generate_orchestra(voices: list[Voice], z_direction: Direction):
             if not voices:
