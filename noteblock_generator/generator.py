@@ -134,7 +134,7 @@ class World:
             self[x, y, Z + z_increment * 2] = block
             self[x, y + 1, Z + z_increment * 2] = button
 
-        def generate_init_system_for_double_orchestras():
+        def generate_init_system_for_double_orchestras(x0: int):
             def generate_bridge(z: int, z_direction: Direction):
                 z_increment = z_direction[1]
 
@@ -148,7 +148,8 @@ class World:
                 self[x, y, z + z_increment * 3] = redstone
 
                 for i in range(4, math.ceil(Z_BOUNDARY / 2) + 1):
-                    self[x, y, z + z_increment * i] = block
+                    if x0 == 0 or i == 4:
+                        self[x, y, z + z_increment * i] = block
                     self[x, y + 1, z + z_increment * i] = (
                         redstone if i % 16 else repeater
                     )
@@ -156,11 +157,11 @@ class World:
             def generate_button():
                 z = Z + z_increment * (1 - math.ceil(Z_BOUNDARY / 2))
                 button = Block("oak_button", face="floor", facing=-x_direction)
-
-                self[x, y, z] = block
+                if x0 == 0 or composition.division == 1:
+                    self[x, y, z] = block
                 self[x, y + 1, z] = button
 
-            x = X + x_increment * math.ceil(DIVISION_WIDTH / 2)
+            x = X + x0 + x_increment * math.ceil(DIVISION_WIDTH / 2)
             y = y_glass
             redstone = Redstone(z_direction, -z_direction)
 
@@ -272,7 +273,7 @@ class World:
                             self[x + positions[i], y + 1, z + z_increment] = air
                             self[x + positions[i], y + 3, z + z_increment] = air
 
-            def generate_division_changing_system():
+            def generate_division_bridge():
                 self[x, y, z + z_increment * 2] = block
                 self[x, y + 1, z + z_increment * 2] = Redstone(
                     z_direction, -z_direction
@@ -318,7 +319,7 @@ class World:
                     except IndexError:
                         pass
                     else:
-                        generate_division_changing_system()
+                        generate_division_bridge()
                         z_direction = -z_direction
 
                 # if number of division is even
@@ -330,17 +331,13 @@ class World:
         air = Block("air")
         block = Block(theme)
 
-        LENGTH = composition.length
-        SIZE = composition.size
-        DIVISION = composition.division
-
         NOTE_LENGTH = 2
         DIVISION_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
         VOICE_HEIGHT = 2
         DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
         # add this number of divisions to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
-        INIT_DIVISIONS = math.ceil((SIZE - 1) / DIVISION)
+        INIT_DIVISIONS = math.ceil((composition.size - 1) / composition.division)
 
         try:
             player_location = tuple(map(math.floor, self.players[0].location))
@@ -367,7 +364,7 @@ class World:
         x_increment = x_direction[0]
         y_increment = 1
         if orientation.y:
-            y_glass = Y + VOICE_HEIGHT * (SIZE + 1)
+            y_glass = Y + VOICE_HEIGHT * (composition.size + 1)
         else:
             y_increment = -y_increment
             y_glass = Y - 1
@@ -376,9 +373,9 @@ class World:
             z_direction = -z_direction
         z_increment = z_direction[1]
 
-        Z_BOUNDARY = DIVISION * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
-        X_BOUNDARY = (LENGTH + INIT_DIVISIONS) * DIVISION_WIDTH + 1
-        Y_BOUNDARY = y_glass - VOICE_HEIGHT * (SIZE + 1)
+        Z_BOUNDARY = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
+        X_BOUNDARY = (composition.length + INIT_DIVISIONS) * DIVISION_WIDTH + 1
+        Y_BOUNDARY = y_glass - VOICE_HEIGHT * (composition.size + 1)
 
         if len(composition) == 1:
             generate_orchestra(composition[0], z_direction)
@@ -387,7 +384,8 @@ class World:
             generate_orchestra(composition[0], z_direction)
             Z += z_increment * Z_BOUNDARY
             generate_orchestra(composition[1], z_direction)
-            generate_init_system_for_double_orchestras()
+            for i in range(composition.length // 2):
+                generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
 
 
 def generate(path_out, **kwargs):

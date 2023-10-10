@@ -474,8 +474,16 @@ class Composition(list[list[Voice]]):
         else:
             self._add_orchestra(voices)
 
-        self.size = self._equalize_orchestras_size()
-        self.length = self._equalize_voices_length()
+        self._equalize_orchestras_size()
+        self._equalize_voices_length()
+
+    @property
+    def size(self):
+        return len(self[0])
+
+    @property
+    def length(self):
+        return len(self[0][0])
 
     def _add_orchestra(self, voices):
         if not isinstance(voices, list):
@@ -516,7 +524,6 @@ class Composition(list[list[Voice]]):
         for orchestra in self:
             for _ in range(size - len(orchestra)):
                 orchestra.insert(0, Voice(self))
-        return size
 
     def _equalize_voices_length(self):
         length = max(map(len, [v for orchestra in self for v in orchestra]))
@@ -527,7 +534,6 @@ class Composition(list[list[Voice]]):
                     voice[-1].append(rest)
                 for _ in range(length - len(voice)):
                     voice.append([rest] * self.division)
-        return length
 
     @classmethod
     def compile(cls, path_to_composition: str):
