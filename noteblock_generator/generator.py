@@ -118,11 +118,11 @@ class World:
         theme: str,
         clear: bool,
     ):
-        def generate_init_system_for_single_orchestra():
+        def generate_init_system_for_single_orchestra(x0: int):
             button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
 
-            x = X + x_increment * math.ceil(DIVISION_WIDTH / 2)
+            x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
 
             self[x, y - 3, Z + z_increment] = block
@@ -379,7 +379,8 @@ class World:
 
         if len(composition) == 1:
             generate_orchestra(composition[0], z_direction)
-            generate_init_system_for_single_orchestra()
+            for i in range(composition.length // 2):
+                generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
         else:
             generate_orchestra(composition[0], z_direction)
             Z += z_increment * Z_BOUNDARY
