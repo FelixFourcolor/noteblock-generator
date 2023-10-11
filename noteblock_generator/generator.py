@@ -161,7 +161,7 @@ class World:
                     self[x, y, z] = block
                 self[x, y + 1, z] = button
 
-            x = X + x0 + x_increment * math.ceil(DIVISION_WIDTH / 2)
+            x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
             redstone = Redstone(z_direction, -z_direction)
 
