@@ -87,7 +87,7 @@ def load_file(path: str | Path, *, expected_type: Type[T]) -> T:
         with open(p, "r") as f:
             return json.load(f)
 
-    logger.warn(f"{path} does not exist.")
+    logger.warn(f"{path} is invalid, or does not exist.")
     os.makedirs(path.parent, exist_ok=True)
     with open(path, "w") as f:
         if expected_type is dict:
@@ -510,7 +510,7 @@ class Composition(list[list[Voice]]):
                 path_to_voice = self._path / Path(voice_or_path_to_voice)
                 voice = load_file(path_to_voice, expected_type=dict)
                 if "name" not in voice:
-                    voice["name"] = Path(voice_or_path_to_voice).stem
+                    voice["name"] = voice_or_path_to_voice
             else:
                 voice = voice_or_path_to_voice
             self[-1].append(Voice(self, **voice))
