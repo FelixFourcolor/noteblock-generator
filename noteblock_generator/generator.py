@@ -258,20 +258,22 @@ class World:
                 self[x, y + 2, z + z_increment * 2] = block
 
             def generate_noteblocks():
-                # place noteblock positions in this order, depending on dynamic
-                positions = [
+                if not note.dynamic:
+                    return
+
+                placement_order = [
                     -x_increment,
                     x_increment,
-                    -2 * x_increment,
-                    2 * x_increment,
+                    -x_increment * 2,
+                    x_increment * 2,
                 ]
-                if note.dynamic:
-                    noteblock = NoteBlock(note)
-                    for i in range(note.dynamic):
-                        self[x + positions[i], y + 2, z + z_increment] = noteblock
-                        if not clear:
-                            self[x + positions[i], y + 1, z + z_increment] = air
-                            self[x + positions[i], y + 3, z + z_increment] = air
+
+                noteblock = NoteBlock(note)
+                for i in range(note.dynamic):
+                    self[x + placement_order[i], y + 2, z + z_increment] = noteblock
+                    if not clear:
+                        self[x + placement_order[i], y + 1, z + z_increment] = air
+                        self[x + placement_order[i], y + 3, z + z_increment] = air
 
             def generate_division_bridge():
                 self[x, y, z + z_increment * 2] = block
