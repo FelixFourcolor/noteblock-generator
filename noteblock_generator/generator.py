@@ -124,15 +124,58 @@ class World:
 
             x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
+            z = Z
 
-            self[x, y - 3, Z + z_increment] = block
-            self[x, y - 2, Z + z_increment] = redstone
-            self[x, y - 1, Z + z_increment] = air
-            self[x, y - 1, Z + z_increment * 2] = redstone
-            self[x, y - 1, Z + z_increment * 3] = block
+            def first():
+                def generate_button():
+                    """A button in the middle of the structure."""
+                    z_button = z + z_increment * math.ceil(Z_BOUNDARY / 2)
+                    self[x, y, z_button] = block
+                    self[x, y + 1, z_button] = button
 
-            self[x, y, Z + z_increment * 2] = block
-            self[x, y + 1, Z + z_increment * 2] = button
+
+                def generate_redstone_bridge():
+                    """Connect the button to the main system."""
+                    repeater = Repeater(delay=1, direction=-z_direction)
+
+                    self[x, y - 3, z + z_increment] = block
+                    self[x, y - 2, z + z_increment] = redstone
+                    self[x, y - 1, z + z_increment] = air
+                    self[x, y - 2, z + z_increment * 2] = block
+                    self[x, y - 1, z + z_increment * 2] = redstone
+                    self[x, y - 1, z + z_increment * 3] = block
+                    self[x, y, z + z_increment * 3] = redstone
+
+                    for i in range(4, math.ceil(Z_BOUNDARY / 2)):
+                        self[x, y, z + z_increment * i] = block
+                        self[x, y + 1, z + z_increment * i] = (
+                            redstone if i % 16 else repeater
+                        )
+
+                def generate_empty_bridge():
+                    """A redstone bridge that leads to nowhere, just for symmetry."""
+                    for i in range(math.ceil(Z_BOUNDARY / 2) + 1, Z_BOUNDARY - 3):
+                        self[x, y, z + z_increment * i] = block
+                        self[x, y + 1, z + z_increment * i] = redstone
+
+                generate_button()
+                generate_redstone_bridge()
+                generate_empty_bridge()
+
+            def subsequent():
+                self[x, y - 3, z + z_increment] = block
+                self[x, y - 2, z + z_increment] = redstone
+                self[x, y - 1, z + z_increment] = air
+                self[x, y - 1, z + z_increment * 2] = redstone
+                self[x, y - 1, z + z_increment * 3] = block
+
+                self[x, y, z + z_increment * 2] = block
+                self[x, y + 1, z + z_increment * 2] = button
+
+            if x0 == 0:
+                first()
+            else:
+                subsequent()
 
         def generate_init_system_for_double_orchestras(x0: int):
             def generate_bridge(z: int, z_direction: Direction):
