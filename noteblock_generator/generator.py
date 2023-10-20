@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import math
 from enum import Enum
-from typing import Optional
+from typing import Callable, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice, logger
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice
 from .main import Location, Orientation
 
 _Block = amulet.api.Block
 _Level = amulet.api.level.World | amulet.api.level.Structure
+_BlockPlacement = _Block | Callable[[tuple[int, int, int]], Optional[_Block]]
 
 
 class Block(_Block):
@@ -78,24 +79,28 @@ class World:
     with convenient methods to load, set blocks, and save.
     """
 
-    _VERSION = ("java", (1, 20))
     # TODO: make this a command-line argument
+    _VERSION = ("java", (1, 20))
 
-    _dimension: str
+    # only assigned values when __enter__ is called
     _level: _Level
+    _modifications: dict[tuple[int, int, int], _BlockPlacement] | None
+
+    dimension = "minecraft:overworld"  # will be modified by self.generate()
 
     def __init__(self, path: str):
         self._path = str(path)
+        self._modifications = None
 
     def __enter__(self):
+        self._modifications = {}
         self._level = (level := amulet.load_level(self._path))
         self.players = list(map(level.get_player, level.all_player_ids()))
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
-        logger.info("Finishing up...")
-        if exc_type is None and self._level.changed:
-            self._level.save()
+        self._apply_modifications()
+        self._level.save()
         self._level.close()
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
@@ -103,10 +108,24 @@ class World:
             *coordinates, self._dimension, self._VERSION
         )[0]
 
-    def __setitem__(self, coordinates: tuple[int, int, int], block: _Block):
-        self._level.set_version_block(
-            *coordinates, self._dimension, self._VERSION, block
-        )
+    def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
+        if self._modifications is None:
+            raise Exception("Using a context manager is required for this operation.")
+        self._modifications[coordinates] = block
+
+    def _apply_modifications(self):
+        if not self._modifications:
+            return
+
+        for coordinates, placement in self._modifications.items():
+            if callable(placement):
+                if (block := placement(coordinates)) is None:
+                    continue
+            else:
+                block = placement
+            self._level.set_version_block(
+                *coordinates, self._dimension, self._VERSION, block
+            )
 
     def generate(
         self,
@@ -225,29 +244,6 @@ class World:
                             Z + z_increment * z,
                         ] = air
 
-                def clear_space():
-                    for y in optional_clear_range:
-                        self[
-                            X + x_increment * x,
-                            y,
-                            Z + z_increment * z,
-                        ] = air
-
-                def remove_dangerous_blocks():
-                    for y in optional_clear_range:
-                        coordinates = (
-                            X + x_increment * x,
-                            y,
-                            Z + z_increment * z,
-                        )
-                        suspect = self[coordinates]
-                        if not isinstance(suspect, _Block):
-                            continue
-                        if suspect.base_name in REMOVE_LIST:
-                            self[coordinates] = air
-                        else:
-                            self[coordinates] = suspect.base_block
-
                 glass = Block("glass")
 
                 REMOVE_LIST = (
@@ -286,13 +282,27 @@ class World:
                 mandatory_clear_range = [y_glass + 2, y_glass + 1]
                 optional_clear_range = range(Y_BOUNDARY, y_glass)
 
+                def filter_danger(xyz: tuple[int, int, int], /) -> Optional[_Block]:
+                    if not isinstance((suspect := self[xyz]), _Block):
+                        return
+                    if suspect.base_name in REMOVE_LIST:
+                        return air
+                    else:
+                        return suspect.base_block
+
                 for z in range(Z_BOUNDARY + 1):
                     for x in range(X_BOUNDARY + 1):
                         generate_walking_glass()
-                        if clear or x in (0, X_BOUNDARY) or z in (0, Z_BOUNDARY):
-                            clear_space()
-                        else:
-                            remove_dangerous_blocks()
+                        for y in optional_clear_range:
+                            coordinates = (
+                                X + x_increment * x,
+                                y,
+                                Z + z_increment * z,
+                            )
+                            if clear or x in (0, X_BOUNDARY) or z in (0, Z_BOUNDARY):
+                                self[coordinates] = air
+                            else:
+                                self[coordinates] = filter_danger
 
             def generate_redstones():
                 self[x, y, z] = block
