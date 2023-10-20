@@ -133,7 +133,6 @@ class World:
                     self[x, y, z_button] = block
                     self[x, y + 1, z_button] = button
 
-
                 def generate_redstone_bridge():
                     """Connect the button to the main system."""
                     repeater = Repeater(delay=1, direction=-z_direction)

@@ -239,9 +239,11 @@ class Voice(list[list[Note]]):
         if isinstance(notes_or_path_to_notes, list):
             return notes_or_path_to_notes
 
-        path_to_notes = self._composition._path / Path(notes_or_path_to_notes)
+        if self._name is None:
+            self._name = notes_or_path_to_notes
         notes_or_another_voice = load_file(
-            path_to_notes, expected_type=list[str | dict]
+            self._composition._path / Path(notes_or_path_to_notes),
+            expected_type=list[str | dict],
         )
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
