@@ -6,7 +6,7 @@ from typing import Callable, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice, logger
 from .main import Location, Orientation
 
 _Block = amulet.api.Block
@@ -91,15 +91,19 @@ class World:
     def __init__(self, path: str):
         self._path = str(path)
         self._modifications = None
+        self._block_translator_cache = {}
+        self._chunk_cache = {}
 
     def __enter__(self):
         self._modifications = {}
         self._level = (level := amulet.load_level(self._path))
+        self._translator = level.translation_manager.get_version(*self._VERSION).block
         self.players = list(map(level.get_player, level.all_player_ids()))
         return self
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         self._apply_modifications()
+        logger.info("Finishing up...")
         self._level.save()
         self._level.close()
 
@@ -123,9 +127,54 @@ class World:
                     continue
             else:
                 block = placement
-            self._level.set_version_block(
-                *coordinates, self._dimension, self._VERSION, block
-            )
+            self._set_block(*coordinates, block)
+
+    def _set_block(
+        self,
+        x: int,
+        y: int,
+        z: int,
+        block: _Block,
+    ):
+        (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
+        chunk = self._get_chunk(cx, cz)
+        universal_block, universal_block_entity = self._translate_block(block)
+        chunk.set_block(offset_x, y, offset_z, universal_block)
+        if isinstance(universal_block_entity, amulet.api.block_entity.BlockEntity):
+            chunk.block_entities[x, y, z] = universal_block_entity
+        elif (x, y, z) in chunk.block_entities:
+            del chunk.block_entities[x, y, z]
+        chunk.changed = True
+
+    def _get_chunk(self, cx: int, cz: int):
+        try:
+            return self._chunk_cache[cx, cz]
+        except KeyError:
+            pass
+
+        try:
+            chunk = self._level.get_chunk(cx, cz, self.dimension)
+        except amulet.api.errors.ChunkDoesNotExist:
+            chunk = self._level.create_chunk(cx, cz, self.dimension)
+
+        self._chunk_cache[cx, cz] = chunk
+        return chunk
+
+    def _translate_block(self, block: _Block, /):
+        try:
+            return self._block_translator_cache[block]
+        except KeyError:
+            pass
+
+        src_blocks = block.block_tuple
+        universal_block, universal_block_entity, _ = self._translator.to_universal(
+            src_blocks[0]
+        )
+        for src_block in src_blocks[1:]:
+            universal_block += self._translator.to_universal(src_block)[0]
+
+        self._block_translator_cache[block] = universal_block, universal_block_entity
+        return universal_block, universal_block_entity
 
     def generate(
         self,
