@@ -108,9 +108,12 @@ class World:
         self._level.close()
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
-        return self._level.get_version_block(
-            *coordinates, self._dimension, self._VERSION
-        )[0]
+        x, y, z = coordinates
+        (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
+        chunk = self._get_chunk(cx, cz)
+        base_block = chunk.get_block(offset_x, y, offset_z).base_block
+        out, _, _ = self._translator.from_universal(base_block)
+        return out
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
         if self._modifications is None:
@@ -336,8 +339,6 @@ class World:
                         return
                     if suspect.base_name in REMOVE_LIST:
                         return air
-                    else:
-                        return suspect.base_block
 
                 for z in range(Z_BOUNDARY + 1):
                     for x in range(X_BOUNDARY + 1):
