@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from enum import Enum
+from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
 import amulet
@@ -121,16 +122,18 @@ class World:
         self._modifications[coordinates] = block
 
     def _apply_modifications(self):
-        if not self._modifications:
-            return
-
-        for coordinates, placement in self._modifications.items():
+        def _apply(coordinates: tuple[int, int, int], placement: _BlockPlacement):
             if callable(placement):
                 if (block := placement(coordinates)) is None:
-                    continue
+                    return
             else:
                 block = placement
             self._set_block(*coordinates, block)
+
+        if not self._modifications:
+            return
+        with ThreadPool() as pool:
+            pool.starmap(_apply, self._modifications.items())
 
     def _set_block(
         self,
