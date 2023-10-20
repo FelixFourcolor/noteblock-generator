@@ -259,6 +259,8 @@ class World:
                     "dragon_egg",
                     "gravel",
                     "jukebox",
+                    "kelp",
+                    "kelp_plant",
                     "lava",
                     "note_block",
                     "observer",
