@@ -454,12 +454,12 @@ class World:
         if location.z.relative:
             Z += player_location[2]
         if dimension is not None:
-            self._dimension = dimension
+            self.dimension = dimension
         else:
             try:
-                self._dimension = self.players[0].dimension
+                self.dimension = self.players[0].dimension
             except IndexError:
-                self._dimension = "minecraft:overworld"
+                pass
 
         x_direction = Direction((1, 0))
         if not orientation.x:
