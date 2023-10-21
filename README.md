@@ -75,6 +75,6 @@ Choose a block that can conduct redstones for the basis of the structure. Defaul
 Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
 
 ### Blend
-By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be and leave the rest as-is.
+By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove stuff that may interfere with the redstones (e.g. water), and leave the rest as-is.
 
 This is an experimental feature. If the redstones and/or noteblocks don't behave as expected (especially if there is a water source nearby), turn it off.
