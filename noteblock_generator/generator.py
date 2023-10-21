@@ -144,11 +144,9 @@ class World:
     ):
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
         chunk = self._get_chunk(cx, cz)
-        universal_block, universal_block_entity = self._translate_block(block)
+        universal_block = self._translate_block(block)
         chunk.set_block(offset_x, y, offset_z, universal_block)
-        if isinstance(universal_block_entity, amulet.api.block_entity.BlockEntity):
-            chunk.block_entities[x, y, z] = universal_block_entity
-        elif (x, y, z) in chunk.block_entities:
+        if (x, y, z) in chunk.block_entities:
             del chunk.block_entities[x, y, z]
         chunk.changed = True
 
@@ -172,15 +170,9 @@ class World:
         except KeyError:
             pass
 
-        src_blocks = block.block_tuple
-        universal_block, universal_block_entity, _ = self._translator.to_universal(
-            src_blocks[0]
-        )
-        for src_block in src_blocks[1:]:
-            universal_block += self._translator.to_universal(src_block)[0]
-
-        self._block_translator_cache[block] = universal_block, universal_block_entity
-        return universal_block, universal_block_entity
+        universal_block, _, _ = self._translator.to_universal(block)
+        self._block_translator_cache[block] = universal_block
+        return universal_block
 
     def generate(
         self,
