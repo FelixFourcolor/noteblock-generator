@@ -219,10 +219,9 @@ class World:
                         )
 
                 def generate_empty_bridge():
-                    """A redstone bridge that leads to nowhere, just for symmetry."""
+                    """A bridge that leads to nowhere, just for symmetry."""
                     for i in range(math.ceil(Z_BOUNDARY / 2) + 1, Z_BOUNDARY - 3):
                         self[x, y, z + z_increment * i] = block
-                        self[x, y + 1, z + z_increment * i] = redstone
 
                 generate_button()
                 generate_redstone_bridge()
