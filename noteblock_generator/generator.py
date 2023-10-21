@@ -92,7 +92,7 @@ class World:
     def __init__(self, path: str):
         self._path = str(path)
         self._modifications = None
-        self._block_translator_cache = {}
+        self._block_cache = {}
         self._chunk_cache = {}
 
     def __enter__(self):
@@ -144,8 +144,7 @@ class World:
     ):
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
         chunk = self._get_chunk(cx, cz)
-        universal_block = self._translate_block(block)
-        chunk.set_block(offset_x, y, offset_z, universal_block)
+        chunk.set_block(offset_x, y, offset_z, block)
         if (x, y, z) in chunk.block_entities:
             del chunk.block_entities[x, y, z]
         chunk.changed = True
@@ -164,14 +163,14 @@ class World:
         self._chunk_cache[cx, cz] = chunk
         return chunk
 
-    def _translate_block(self, block: _Block, /):
+    def get_block(self, block: _Block, /):
         try:
-            return self._block_translator_cache[block]
+            return self._block_cache[block]
         except KeyError:
             pass
 
         universal_block, _, _ = self._translator.to_universal(block)
-        self._block_translator_cache[block] = universal_block
+        self._block_cache[block] = universal_block
         return universal_block
 
     def generate(
@@ -185,8 +184,10 @@ class World:
         clear: bool,
     ):
         def generate_init_system_for_single_orchestra(x0: int):
-            button = Block("oak_button", face="floor", facing=-x_direction)
-            redstone = Redstone(z_direction, -z_direction)
+            button = self.get_block(
+                Block("oak_button", face="floor", facing=-x_direction)
+            )
+            redstone = self.get_block(Redstone(z_direction, -z_direction))
 
             x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
@@ -201,7 +202,7 @@ class World:
 
                 def generate_redstone_bridge():
                     """Connect the button to the main system."""
-                    repeater = Repeater(delay=1, direction=-z_direction)
+                    repeater = self.get_block(Repeater(delay=1, direction=-z_direction))
 
                     self[x, y - 3, z + z_increment] = block
                     self[x, y - 2, z + z_increment] = redstone
@@ -246,7 +247,7 @@ class World:
             def generate_bridge(z: int, z_direction: Direction):
                 z_increment = z_direction[1]
 
-                repeater = Repeater(delay=1, direction=-z_direction)
+                repeater = self.get_block(Repeater(delay=1, direction=-z_direction))
                 self[x, y - 3, z + z_increment] = block
                 self[x, y - 2, z + z_increment] = redstone
                 self[x, y - 1, z + z_increment] = air
@@ -264,14 +265,16 @@ class World:
 
             def generate_button():
                 z = Z + z_increment * (1 - math.ceil(Z_BOUNDARY / 2))
-                button = Block("oak_button", face="floor", facing=-x_direction)
+                button = self.get_block(
+                    Block("oak_button", face="floor", facing=-x_direction)
+                )
                 if x0 == 0 or composition.division == 1:
                     self[x, y, z] = block
                 self[x, y + 1, z] = button
 
             x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
-            redstone = Redstone(z_direction, -z_direction)
+            redstone = self.get_block(Redstone(z_direction, -z_direction))
 
             generate_bridge(Z - z_increment * Z_BOUNDARY, z_direction)
             generate_bridge(Z + z_increment * 2, -z_direction)
@@ -291,7 +294,7 @@ class World:
                             Z + z_increment * z,
                         ] = air
 
-                glass = Block("glass")
+                glass = self.get_block(Block("glass"))
 
                 REMOVE_LIST = (
                     "anvil",
@@ -351,9 +354,9 @@ class World:
 
             def generate_redstones():
                 self[x, y, z] = block
-                self[x, y + 1, z] = Repeater(note.delay, z_direction)
+                self[x, y + 1, z] = self.get_block(Repeater(note.delay, z_direction))
                 self[x, y + 1, z + z_increment] = block
-                self[x, y + 2, z + z_increment] = Redstone()
+                self[x, y + 2, z + z_increment] = self.get_block(Redstone())
                 self[x, y + 2, z + z_increment * 2] = block
 
             def generate_noteblocks():
@@ -367,7 +370,7 @@ class World:
                     x_increment * 2,
                 ]
 
-                noteblock = NoteBlock(note)
+                noteblock = self.get_block(NoteBlock(note))
                 for i in range(note.dynamic):
                     self[x + placement_order[i], y + 2, z + z_increment] = noteblock
                     if not clear:
@@ -376,22 +379,22 @@ class World:
 
             def generate_division_bridge():
                 self[x, y, z + z_increment * 2] = block
-                self[x, y + 1, z + z_increment * 2] = Redstone(
-                    z_direction, -z_direction
+                self[x, y + 1, z + z_increment * 2] = self.get_block(
+                    Redstone(z_direction, -z_direction)
                 )
                 self[x, y, z + z_increment * 3] = block
-                self[x, y + 1, z + z_increment * 3] = Redstone(
-                    x_direction, -z_direction
+                self[x, y + 1, z + z_increment * 3] = self.get_block(
+                    Redstone(x_direction, -z_direction)
                 )
                 for i in range(1, DIVISION_WIDTH):
                     self[x + x_increment * i, y, z + z_increment * 3] = block
-                    self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
-                        x_direction, -x_direction
-                    )
+                    self[
+                        x + x_increment * i, y + 1, z + z_increment * 3
+                    ] = self.get_block(Redstone(x_direction, -x_direction))
                 self[x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3] = block
                 self[
                     x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
-                ] = Redstone(-z_direction, -x_direction)
+                ] = self.get_block(Redstone(-z_direction, -x_direction))
 
             z_increment = z_direction[1]
             generate_space()
@@ -429,8 +432,8 @@ class World:
                     z_direction = -z_direction
                     z_increment = z_direction[1]
 
-        air = Block("air")
-        block = Block(theme)
+        air = self.get_block(Block("air"))
+        block = self.get_block(Block(theme))
 
         NOTE_LENGTH = 2
         DIVISION_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
