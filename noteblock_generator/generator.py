@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+import os
 from enum import Enum
+from functools import partial
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
@@ -85,13 +87,12 @@ class World:
 
     # only assigned values when __enter__ is called
     _level: _Level
-    _modifications: dict[tuple[int, int, int], _BlockPlacement] | None
+    _generate_tasks: dict[tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]]
 
     dimension = "minecraft:overworld"  # will be modified by self.generate()
 
     def __init__(self, path: str):
         self._path = str(path)
-        self._modifications = None
         self._block_translator_cache = {}
         self._chunk_cache = {}
 
@@ -104,8 +105,7 @@ class World:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         self._apply_modifications()
-        logger.info("Finishing up...")
-        self._level.save()
+        self._level.save(progress_callback=partial(progress_bar, text="INFO - Saving"))
         self._level.close()
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
@@ -117,23 +117,29 @@ class World:
         return out
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
-        if self._modifications is None:
-            raise Exception("Using a context manager is required for this operation.")
-        self._modifications[coordinates] = block
+        x, y, z = coordinates
+        cx, cz = x // 16, z // 16
+        if (cx, cz) not in self._modifications:
+            self._modifications[cx, cz] = {}
+        self._modifications[cx, cz][x, y, z] = block
 
     def _apply_modifications(self):
-        def _apply(coordinates: tuple[int, int, int], placement: _BlockPlacement):
-            if callable(placement):
-                if (block := placement(coordinates)) is None:
-                    return
-            else:
-                block = placement
-            self._set_block(*coordinates, block)
+        def _apply(tasks: dict[tuple[int, int, int], _BlockPlacement]):
+            for coordinates, placement in tasks.items():
+                if callable(placement):
+                    if (block := placement(coordinates)) is not None:
+                        self._set_block(*coordinates, block)
+                else:
+                    self._set_block(*coordinates, placement)
 
         if not self._modifications:
             return
+
+        tasks = self._modifications.values()
+        total = len(tasks)
         with ThreadPool() as pool:
-            pool.starmap(_apply, self._modifications.items())
+            for progress, _ in enumerate(pool.imap_unordered(_apply, tasks)):
+                progress_bar(progress + 1, total, text="INFO - Generating")
 
     def _set_block(
         self,
@@ -328,7 +334,7 @@ class World:
                 mandatory_clear_range = [y_glass + 2, y_glass + 1]
                 optional_clear_range = range(Y_BOUNDARY, y_glass)
 
-                def filter_danger(xyz: tuple[int, int, int], /) -> Optional[_Block]:
+                def remove_danger(xyz: tuple[int, int, int], /) -> Optional[_Block]:
                     if not isinstance((suspect := self[xyz]), _Block):
                         return
                     if suspect.base_name in REMOVE_LIST:
@@ -346,7 +352,7 @@ class World:
                             if clear or x in (0, X_BOUNDARY) or z in (0, Z_BOUNDARY):
                                 self[coordinates] = air
                             else:
-                                self[coordinates] = filter_danger
+                                self[coordinates] = remove_danger
 
             def generate_redstones():
                 self[x, y, z] = block
@@ -477,6 +483,7 @@ class World:
         X_BOUNDARY = (composition.length + INIT_DIVISIONS) * DIVISION_WIDTH + 1
         Y_BOUNDARY = y_glass - VOICE_HEIGHT * (composition.size + 1)
 
+        logger.info("Preparing world")
         if len(composition) == 1:
             generate_orchestra(composition[0], z_direction)
             for i in range(composition.length // 2):
@@ -492,3 +499,18 @@ class World:
 def generate(path_out, **kwargs):
     with World(path_out) as world:
         world.generate(**kwargs)
+
+
+def progress_bar(iteration: float, total: float, *, text: str):
+    percentage = f" {100*(iteration / total):.0f}% "
+
+    terminal_width, _ = os.get_terminal_size()
+    bar_length = terminal_width - (len(text) + len(percentage) + 2)
+
+    fill_length = int(bar_length * iteration // total)
+    finished_portion = "█" * fill_length
+    remaining_portion = "-" * (bar_length - fill_length)
+    print(f"\r{text}{percentage}[{finished_portion}{remaining_portion}]", end="")
+
+    if iteration == total:
+        print()

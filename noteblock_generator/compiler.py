@@ -546,6 +546,7 @@ class Composition(list[list[Voice]]):
 
     @classmethod
     def compile(cls, path_to_composition: str):
+        logger.info("Compiling")
         try:
             composition = load_file(path_to_composition, expected_type=dict)
             return cls(**composition, _path=Path(path_to_composition))

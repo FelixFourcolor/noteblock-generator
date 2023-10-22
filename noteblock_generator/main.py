@@ -127,7 +127,6 @@ def parse_args():
 
 
 def main():
-    logger.info("Compiling...")
     try:
         kwargs = parse_args()
     except UserError as e:
@@ -136,7 +135,6 @@ def main():
 
     from .generator import generate
 
-    logger.info("Generating... This may take a while. Do not enter the world yet.")
     generate(**kwargs)
     logger.info("All done!")
 
