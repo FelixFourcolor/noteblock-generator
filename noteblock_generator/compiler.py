@@ -376,6 +376,13 @@ class Voice(list[list[Note]]):
         if beat is None:
             beat = self.beat
 
+        # allow multiple notes in one string, separated by commas
+        # greatly reduce number of keystrokes when writing
+        if len(names := name.split(",")) > 1:
+            for name in names:
+                self._add_note(name=name, time=time, beat=beat, **kwargs)
+            return
+
         # Bar helpers
         # "|" to assert the beginning of a bar
         if name.startswith("|"):
