@@ -9,7 +9,7 @@ from typing import Callable, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice, logger
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice
 from .main import Location, Orientation
 
 _Block = amulet.api.Block
@@ -332,12 +332,10 @@ class World:
                 )
 
                 mandatory_clear_range = [y_glass + 2, y_glass + 1]
-                optional_clear_range = range(Y_BOUNDARY, y_glass)
+                optional_clear_range = range(y_glass - Y_BOUNDARY, y_glass)
 
                 def remove_danger(xyz: tuple[int, int, int], /) -> Optional[_Block]:
-                    if not isinstance((suspect := self[xyz]), _Block):
-                        return
-                    if suspect.base_name in REMOVE_LIST:
+                    if self[xyz].base_name in REMOVE_LIST:
                         return air
 
                 for z in range(Z_BOUNDARY + 1):
@@ -481,9 +479,8 @@ class World:
 
         Z_BOUNDARY = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
         X_BOUNDARY = (composition.length + INIT_DIVISIONS) * DIVISION_WIDTH + 1
-        Y_BOUNDARY = y_glass - VOICE_HEIGHT * (composition.size + 1)
+        Y_BOUNDARY = VOICE_HEIGHT * (composition.size + 1)
 
-        logger.info("Preparing world")
         if len(composition) == 1:
             generate_orchestra(composition[0], z_direction)
             for i in range(composition.length // 2):
@@ -497,20 +494,24 @@ class World:
 
 
 def generate(path_out, **kwargs):
+    progress_bar(0, 1, text="INFO - Generating")
     with World(path_out) as world:
         world.generate(**kwargs)
 
 
 def progress_bar(iteration: float, total: float, *, text: str):
     percentage = f" {100*(iteration / total):.0f}% "
+    margin = " " * (6 - len(percentage))
 
     terminal_width, _ = os.get_terminal_size()
-    bar_length = terminal_width - (len(text) + len(percentage) + 2)
+    bar_length = max(0, terminal_width - (len(text) + 6) - 3)
 
     fill_length = int(bar_length * iteration // total)
-    finished_portion = "█" * fill_length
+    finished_portion = "#" * fill_length
     remaining_portion = "-" * (bar_length - fill_length)
-    print(f"\r{text}{percentage}[{finished_portion}{remaining_portion}]", end="")
+    progress_bar = f"[{finished_portion}{remaining_portion}]" if bar_length else ""
+
+    print(f"\r{text}{margin}{percentage}{progress_bar}", end="")
 
     if iteration == total:
         print()
