@@ -9,7 +9,7 @@ See my projects:
 * [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
 * [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
 * [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
-* [Mozart's Canzonetta sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
+* [Mozart's Sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
 
 ## Requirements
 * Minecraft java 1.19+
@@ -40,7 +40,7 @@ options:
 ### Path in
 Path to a music file, or a folder containing multiple music files.
 
-This program is only intended for my own use, so there is no documentation for writing music files. Follow the `build from source` instructions in my projects in order to replicate my builds.
+This program is only intended for my own use, so there is no documentation for writing music files. Follow my `Build from source` instructions to replicate my builds.
 
 ### Path out
 Path to a Minecraft world save folder.
@@ -50,7 +50,7 @@ The location where the structure will be generated.
 
 This uses Minecraft's relative coordinates syntax, where `~` stands for the player's location. For example, `--location ~ ~ ~` (default) is the player's current location, `--location ~ ~10 ~` is 10 blocks above the player, etc.
 
-Notes: In Unix operating systems, `~` is a special character that stands for the home directory, make sure to escape it.
+Warning: If you are on a Unix operating system, the character `~` must be escaped (e.g. the above example would be `--location \~ ~10 \~`).
 
 
 ### Dimension
@@ -67,7 +67,7 @@ In which direction, from the aforementioned location, the structure will be gene
 
 All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -`, `+ + +`, `+ + -`, `+ - +`, `+ - -`.
 
-Note: Make sure there is enough space in your specified direction in order to generate. The program cannot generate below bedrock, or above the height limit, etc. For example, if you are at y=-64, `--location ~ ~ ~ --orientation + - +` will not work.
+Note: Make sure there is enough space in your specified direction. The program cannot generate below bedrock, or above the height limit, etc. For example,`--location 0 -64 0 --orientation + - +` will not work.
 
 ### Theme
 Choose a block that can conduct redstones for the basis of the structure. Default is `stone`.
@@ -75,6 +75,6 @@ Choose a block that can conduct redstones for the basis of the structure. Defaul
 Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
 
 ### Blend
-By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove stuff that may interfere with the redstones (e.g. water), and leave the rest as-is.
+By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest as-is. The result is the structure will appear blended in with its environment, which in my opinion looks quite nice.
 
-This is an experimental feature. If the redstones and/or noteblocks don't behave as expected (especially if there is a water source nearby), turn it off.
+This is an experimental feature (the list of things to be removed is continually updated). If the redstones and/or noteblocks don't behave as expected, turn it off.
