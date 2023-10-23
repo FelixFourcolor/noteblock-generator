@@ -512,7 +512,7 @@ def progress_bar(iteration: float, total: float, *, text: str):
     margin = " " * (6 - len(percentage))
 
     terminal_width, _ = os.get_terminal_size()
-    bar_length = max(0, terminal_width - (len(text) + 6) - 3)
+    bar_length = max(0, min(80, terminal_width) - (len(text) + 6) - 3)
 
     fill_length = int(bar_length * iteration // total)
     finished_portion = "#" * fill_length
