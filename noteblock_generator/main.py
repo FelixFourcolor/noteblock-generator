@@ -28,7 +28,7 @@ class Orientation(NamedTuple):
 
 def get_args():
     parser = ArgumentParser(
-        description="Generate music compositions in Minecraft noteblocks.",
+        description="Generate music compositions in Minecraft noteblocks",
     )
     parser.add_argument("path_in", help="path to music source file/folder")
     parser.add_argument("path_out", help="path to Minecraft world")
@@ -73,7 +73,7 @@ def parse_args():
 
     # location
     if len(args.location) != 3:
-        raise UserError("3 coordinates are required.")
+        raise UserError("3 coordinates are required")
     _location: list[Coordinate] = []
     for arg in args.location:
         if relative := arg.startswith("~"):
@@ -84,7 +84,7 @@ def parse_args():
             try:
                 value = int(arg)
             except ValueError:
-                raise UserError(f"Expected integer coordinates; found {arg}.")
+                raise UserError(f"Expected integer coordinates; found {arg}")
         _location.append(Coordinate(value, relative=relative))
     location = Location(*_location)
 
@@ -93,20 +93,20 @@ def parse_args():
     if (dimension := args.dimension) is not None:
         if dimension not in choices:
             raise UserError(
-                f"{dimension} is not a valid dimension; expected one of {choices}."
+                f"{dimension} is not a valid dimension; expected one of {choices}"
             )
         dimension = "minecraft:" + dimension
 
     # orientation
     if len(args.orientation) != 3:
-        raise UserError("3 orientations are required.")
+        raise UserError("3 orientations are required")
     _orientation: list[bool] = []
     _options = "+-"
     for arg in args.orientation:
         try:
             _orientation.append(_options.index(arg) == 0)
         except ValueError:
-            raise UserError(f"{arg} is not a valid direction; expected + or -.")
+            raise UserError(f"{arg} is not a valid direction; expected + or -")
     orientation = Orientation(*_orientation)
 
     # theme
@@ -127,15 +127,14 @@ def parse_args():
 
 
 def main():
+    from .generator import generate
+
     try:
-        kwargs = parse_args()
+        generate(**parse_args())
     except UserError as e:
         logger.error(e)
         sys.exit(1)
 
-    from .generator import generate
-
-    generate(**kwargs)
     logger.info("All done!")
 
 

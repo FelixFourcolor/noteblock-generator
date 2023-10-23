@@ -9,7 +9,7 @@ from typing import Callable, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, Voice
+from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, UserError, Voice
 from .main import Location, Orientation
 
 _Block = amulet.api.Block
@@ -97,8 +97,16 @@ class World:
         self._chunk_cache = {}
 
     def __enter__(self):
+        try:
+            level = amulet.load_level(self._path)
+        except Exception as e:
+            raise UserError(
+                f"Path {self._path} is invalid, or does not exist\n"
+                f"{type(e).__name__}: {e}."
+            )
+
+        self._level = level
         self._modifications = {}
-        self._level = (level := amulet.load_level(self._path))
         self._translator = level.translation_manager.get_version(*self._VERSION).block
         self.players = list(map(level.get_player, level.all_player_ids()))
         return self
@@ -494,8 +502,8 @@ class World:
 
 
 def generate(path_out, **kwargs):
-    progress_bar(0, 1, text="INFO - Generating")
     with World(path_out) as world:
+        progress_bar(0, 1, text="INFO - Generating")
         world.generate(**kwargs)
 
 
