@@ -66,7 +66,7 @@ class UserError(Exception):
 T = TypeVar("T")
 
 
-def load_file(path: str | Path, *, expected_type: Type[T]) -> T:
+def load_file(path: str | Path, *, expected_type: Type[T], strict: bool) -> T:
     def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
@@ -87,7 +87,11 @@ def load_file(path: str | Path, *, expected_type: Type[T]) -> T:
         with open(p, "r") as f:
             return json.load(f)
 
-    logger.warn(f"{path} is invalid, or does not exist.")
+    error_message = f"Path {path} is invalid, or does not exist."
+    if strict:
+        raise UserError(error_message)
+
+    logger.warn(error_message)
     os.makedirs(path.parent, exist_ok=True)
     with open(path, "w") as f:
         if expected_type is dict:
@@ -214,19 +218,24 @@ class Voice(list[list[Note]]):
         self._note_config = {}
         self.append([])
 
-        for note in self._load_notes(notes):
-            if len(self[-1]) == self.division:
-                self.append([])
-            kwargs = note if isinstance(note, dict) else {"name": note}
-            if "name" in kwargs:
-                try:
-                    self._add_note(**(self._note_config | kwargs))
-                except UserError as e:
-                    raise UserError(
-                        f"{self} at {(self._bar_number, self._beat_number)}: {e}"
-                    )
-            else:
-                self._note_config |= kwargs
+        try:
+            for note in self._load_notes(notes):
+                if len(self[-1]) == self.division:
+                    self.append([])
+                kwargs = note if isinstance(note, dict) else {"name": note}
+                if "name" in kwargs:
+                    try:
+                        self._add_note(**(self._note_config | kwargs))
+                    except UserError as e:
+                        raise UserError(
+                            f"{self} at {(self._bar_number, self._beat_number)}: {e}"
+                        )
+                else:
+                    self._note_config |= kwargs
+        except Exception as e:
+            if isinstance(e, UserError):
+                raise
+            raise UserError(f"Error compiling voice {self}: {e}")
 
     def __str__(self):
         if self._name:
@@ -244,6 +253,7 @@ class Voice(list[list[Note]]):
         notes_or_another_voice = load_file(
             self._composition._path / Path(notes_or_path_to_notes),
             expected_type=list[str | dict],
+            strict=False,
         )
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
@@ -441,7 +451,7 @@ class Composition(list[list[Voice]]):
         self,
         *,
         _path: Path,
-        voices: list[dict | str] | list[list[dict | str]] = [[]],
+        voices: list[dict | str] | list[list[dict | str]] = [[{}]],
         time=16,
         division: int = None,
         delay=1,
@@ -464,18 +474,19 @@ class Composition(list[list[Voice]]):
         self.sustainDynamic = sustainDynamic
 
         if division is None:
-            for n in range(16, 4, -1):
-                if time % n == 0:
-                    self.division = n
+            for n in range(16, 11, -1):
+                if time % n == 0 or n % time == 0:
+                    division = n
                     break
             else:
-                self.division = time
-                logger.warn(
-                    f"Time {time} is unusually large."
-                    "Consider breaking it into divisions."
-                )
-        else:
-            self.division = division
+                division = time
+        elif division <= 0:
+            raise UserError("division must be posititve.")
+        if division not in range(12, 17):
+            logger.warn(
+                f"{division=} is not ideal. A value from 12 to 16 is recommended."
+            )
+        self.division = division
 
         if isinstance(voices[0], list):
             for orchestra in voices:
@@ -517,7 +528,7 @@ class Composition(list[list[Voice]]):
         try:
             if isinstance(voice_or_path_to_voice, str):
                 path_to_voice = self._path / Path(voice_or_path_to_voice)
-                voice = load_file(path_to_voice, expected_type=dict)
+                voice = load_file(path_to_voice, expected_type=dict, strict=False)
                 if "name" not in voice:
                     voice["name"] = voice_or_path_to_voice
             else:
@@ -526,7 +537,7 @@ class Composition(list[list[Voice]]):
         except Exception as e:
             if isinstance(e, UserError):
                 raise
-            raise type(e)(f'Error compiling voice "{voice_or_path_to_voice}"\n{e}')
+            raise UserError(f"Error compiling voice {voice_or_path_to_voice}: {e}")
 
     def _equalize_orchestras_size(self):
         size = max(map(len, self))
@@ -547,10 +558,5 @@ class Composition(list[list[Voice]]):
     @classmethod
     def compile(cls, path_to_composition: str):
         logger.info("Compiling")
-        try:
-            composition = load_file(path_to_composition, expected_type=dict)
-            return cls(**composition, _path=Path(path_to_composition))
-        except Exception as e:
-            if isinstance(e, UserError):
-                raise
-            raise type(e)(f"Compile error\n{e}")
+        composition = load_file(path_to_composition, expected_type=dict, strict=True)
+        return cls(**composition, _path=Path(path_to_composition))
