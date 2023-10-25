@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Type, TypeVar
+from typing import Optional, Type, TypeVar, get_origin
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -66,8 +66,8 @@ class UserError(Exception):
 T = TypeVar("T")
 
 
-def load_file(path: str | Path, *, expected_type: Type[T], strict: bool) -> T:
-    def _find(path: Path, *, match_name: str = None) -> Optional[Path]:
+def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
+    def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
         if path.is_dir():
@@ -76,28 +76,34 @@ def load_file(path: str | Path, *, expected_type: Type[T], strict: bool) -> T:
                 return path / Path(files[0])
             for subpath in map(Path, files + directories):
                 while (parent := path.parent) != path:
-                    if find := _find(cwd / subpath, match_name=path.stem):
-                        return find
+                    if found := find(cwd / subpath, match_name=path.stem):
+                        return found
                     path = parent
                 path = Path(cwd)
         elif match_name is None or match_name == path.stem:
             return path
 
-    if p := _find(path := Path(path)):
-        with open(p, "r") as f:
+    def create_empty_file(expected_type: Type[T]):
+        os.makedirs(path.parent, exist_ok=True)
+        with open(path, "w") as f:
+            if origin := get_origin(expected_type):
+                return create_empty_file(expected_type=origin)
+            if expected_type is dict:
+                f.write("{\n\n}")
+            elif expected_type is list:
+                f.write("[\n\n]")
+            else:
+                raise Exception(f"{expected_type=} is not supported")
+
+    if found := find(Path(path)):
+        with open(found, "r") as f:
             return json.load(f)
 
     error_message = f"Path {path} is invalid, or does not exist"
     if strict:
         raise UserError(error_message)
-
     logger.warn(error_message)
-    os.makedirs(path.parent, exist_ok=True)
-    with open(path, "w") as f:
-        if expected_type is dict:
-            f.write("{\n\n}")
-        elif expected_type is list:
-            f.write("[\n\n]")
+    create_empty_file(expected_type)
     return expected_type()
 
 
@@ -555,14 +561,13 @@ class Composition(list[list[Voice]]):
                     voice.append([rest] * self.division)
 
     @classmethod
-    def compile(cls, path_to_composition: str):
+    def compile(cls, path: str):
         logger.info("Compiling")
+        path_to_composition = Path(path)
         try:
-            composition = load_file(
-                path_to_composition, expected_type=dict, strict=True
-            )
+            composition = load_file(path_to_composition, expected_type=dict)
         except Exception as e:
             if (error_type := type(e)) is UserError:
                 raise
-            raise UserError(f"{path_to_composition}\n" f"{error_type.__name__}: {e}")
-        return cls(**composition, _path=Path(path_to_composition))
+            raise UserError(f"{path}\n" f"{error_type.__name__}: {e}")
+        return cls(**composition, _path=path_to_composition)
