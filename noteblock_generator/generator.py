@@ -87,7 +87,7 @@ class World:
 
     # only assigned values when __enter__ is called
     _level: _Level
-    _generate_tasks: dict[tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]]
+    _modifications: dict[tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]]
 
     dimension = "minecraft:overworld"  # will be modified by self.generate()
 
@@ -149,13 +149,7 @@ class World:
             for progress, _ in enumerate(pool.imap_unordered(_apply, tasks)):
                 progress_bar(progress + 1, total, text="INFO - Generating")
 
-    def _set_block(
-        self,
-        x: int,
-        y: int,
-        z: int,
-        block: _Block,
-    ):
+    def _set_block(self, x: int, y: int, z: int, block: _Block):
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
         chunk = self._get_chunk(cx, cz)
         universal_block = self._translate_block(block)
@@ -519,7 +513,7 @@ def progress_bar(iteration: float, total: float, *, text: str):
     remaining_portion = "-" * (bar_length - fill_length)
     progress_bar = f"[{finished_portion}{remaining_portion}]" if bar_length else ""
 
-    print(f"\r{text}{margin}{percentage}{progress_bar}", end="")
-
-    if iteration == total:
-        print()
+    print(
+        f"\r{text}{margin}{percentage}{progress_bar}",
+        end="\n" if iteration == total else "",
+    )
