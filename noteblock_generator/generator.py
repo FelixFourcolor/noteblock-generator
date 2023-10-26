@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import os
 from enum import Enum
-from functools import partial
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
@@ -113,7 +112,7 @@ class World:
 
     def __exit__(self, exc_type, exc_value, exc_tb):
         self._apply_modifications()
-        self._level.save(progress_callback=partial(progress_bar, text="INFO - Saving"))
+        self._save()
         self._level.close()
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
@@ -147,7 +146,23 @@ class World:
         total = len(tasks)
         with ThreadPool() as pool:
             for progress, _ in enumerate(pool.imap_unordered(_apply, tasks)):
-                progress_bar(progress + 1, total, text="INFO - Generating")
+                progress_bar(progress + 1, total * 1.5, text="INFO - Generating")
+
+    def _save(self):
+        changed_chunks = self._modifications.keys()
+        total = len(changed_chunks)
+        wrapper = self._level.level_wrapper
+
+        for progress, (cx, cz) in enumerate(changed_chunks):
+            chunk = self._chunk_cache[cx, cz]
+            wrapper.commit_chunk(chunk, self.dimension)
+            chunk.changed = False
+            progress_bar(
+                total + (progress + 1) / 2, total * 1.5, text="INFO - Generating"
+            )
+
+        self._level.history_manager.mark_saved()
+        wrapper.save()
 
     def _set_block(self, x: int, y: int, z: int, block: _Block):
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
