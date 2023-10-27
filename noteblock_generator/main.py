@@ -2,7 +2,7 @@ import sys
 from argparse import ArgumentParser
 from typing import NamedTuple
 
-from .compiler import Composition, UserError, logger
+from .parser import Composition, UserError, logger
 
 
 class Coordinate(int):
@@ -63,10 +63,11 @@ def get_args():
 
 
 def parse_args():
+    logger.info("Parsing")
     args = get_args()
 
     # path in
-    composition = Composition.compile(args.path_in)
+    composition = Composition.parse(args.path_in)
 
     # path out
     path_out = args.path_out

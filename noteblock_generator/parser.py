@@ -592,8 +592,7 @@ class Composition(list[list[Voice]]):
                         voice[-1].append(Rest(voice))
 
     @classmethod
-    def compile(cls, path: str):
-        logger.info("Compiling")
+    def parse(cls, path: str):
         path_to_composition = Path(path)
         try:
             composition = load_file(path_to_composition, expected_type=dict)

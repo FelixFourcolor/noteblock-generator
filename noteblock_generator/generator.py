@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import amulet
 
-from .compiler import DYNAMIC_RANGE, Composition, Note, Rest, UserError, Voice
+from .parser import DYNAMIC_RANGE, Composition, Note, Rest, UserError, Voice
 from .main import Location, Orientation
 
 _Block = amulet.api.Block
