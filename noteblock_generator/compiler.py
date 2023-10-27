@@ -213,10 +213,10 @@ class Voice(list[list[Note]]):
             self._octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         except KeyError:
             raise UserError(f"{self}: {instrument} is not a valid instrument")
+        self._delay = delay
 
         self.time = time
         self.division = _composition.division
-        self.delay = delay
         self.beat = beat
         self.instrument = instrument
         self.dynamic = dynamic
@@ -245,6 +245,19 @@ class Voice(list[list[Note]]):
         if self._name:
             return self._name
         return f"Voice {self._index + 1}"
+
+    @property
+    def delay_map(self):
+        return self._composition.delay_map
+
+    @property
+    def delay(self):
+        try:
+            if len(self[-1]) == self.division:
+                return self.delay_map[len(self)][0]
+            return self.delay_map[len(self) - 1][len(self[-1])]
+        except (KeyError, IndexError):
+            return self._delay
 
     def _load_notes(
         self, notes_or_path_to_notes: str | list[str | dict]
@@ -440,10 +453,25 @@ class Voice(list[list[Note]]):
             raise UserError("Note duration must be at least 1")
         # organize into divisions
         for note in self._Note(pitch, duration, beat=beat, **kwargs):
+            # add note
             if len(self[-1]) < self.division:
                 self[-1].append(note)
             else:
                 self.append([note])
+            # update delay map
+            # if this position already exists on the delay map, enforce consistency
+            # else, add this mote to the map
+            try:
+                reference_delay = self.delay_map[len(self) - 1][len(self[-1]) - 1]
+                if note.delay != reference_delay:
+                    raise UserError(
+                        f"Expected delay {reference_delay}, found {note.delay}"
+                    )
+            except KeyError:
+                self.delay_map[len(self) - 1] = [note.delay]
+            except IndexError:
+                self.delay_map[len(self) - 1].append(note.delay)
+
         # update bar and beat number
         div, mod = divmod(self._beat_number + duration, time)
         self._beat_number = mod
@@ -470,6 +498,10 @@ class Composition(list[list[Voice]]):
         sustainDynamic: int | str = None,
     ):
         self._path = _path
+
+        # all voices need to follow the same delay map
+        self.delay_map: dict[int, list[int]] = {}
+
         # values out of range are handled by Voice/Note.__init__
         self.time = time
         self.delay = delay
@@ -479,7 +511,6 @@ class Composition(list[list[Voice]]):
         self.transpose = transpose
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
-
         if division is None:
             for n in range(16, 11, -1):
                 if time % n == 0 or n % time == 0:
@@ -500,7 +531,6 @@ class Composition(list[list[Voice]]):
                 self._add_orchestra(orchestra)
         else:
             self._add_orchestra(voices)
-
         self._equalize_orchestras_size()
         self._equalize_voices_length()
 
@@ -554,11 +584,12 @@ class Composition(list[list[Voice]]):
         length = max(map(len, [v for orchestra in self for v in orchestra]))
         for orchestra in self:
             for voice in orchestra:
-                rest = Rest(voice)
-                for _ in range(self.division - len(voice[-1])):
-                    voice[-1].append(rest)
-                for _ in range(length - len(voice)):
-                    voice.append([rest] * self.division)
+                for j in range(self.division - len(voice[-1])):
+                    voice[-1].append(Rest(voice))
+                for i in range(length - len(voice)):
+                    voice.append([Rest(voice)])
+                    for j in range(voice.division - 1):
+                        voice[-1].append(Rest(voice))
 
     @classmethod
     def compile(cls, path: str):
