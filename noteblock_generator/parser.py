@@ -593,6 +593,7 @@ class Composition(list[list[Voice]]):
 
     @classmethod
     def parse(cls, path: str):
+        logger.info("Parsing")
         path_to_composition = Path(path)
         try:
             composition = load_file(path_to_composition, expected_type=dict)

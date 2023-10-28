@@ -63,7 +63,6 @@ def get_args():
 
 
 def parse_args():
-    logger.info("Parsing")
     args = get_args()
 
     # path in
