@@ -185,7 +185,7 @@ class Voice(list[list[Note]]):
         dynamic: int = None,
         transpose=0,
         sustain: bool | int | str = None,
-        sustainDynamic: int | str = None,
+        sustainDynamic: int | str | list[list[int | str]] = None,
     ):
         self._bar_number: int = 1
         self._beat_number: int = 1
@@ -307,14 +307,20 @@ class Voice(list[list[Note]]):
         note, octave = _parse_note_and_octave(value)
         return note + str(octave)
 
-    def _parse_duration(self, *values: str, beat: int) -> int:
-        if not values or not (value := values[0]):
+    def _parse_duration(self, *values: str | int, beat: int) -> int:
+        if not values:
             return beat
 
         if len(values) > 1:
-            head = self._parse_duration(value, beat=beat)
+            head = self._parse_duration(values[0], beat=beat)
             tails = self._parse_duration(*values[1:], beat=beat)
             return head + tails
+
+        if isinstance(value := values[0], int):
+            return value
+
+        if not value:
+            return beat
 
         if value.startswith("-"):
             return -self._parse_duration(value[1:], beat=beat)
@@ -336,7 +342,7 @@ class Voice(list[list[Note]]):
         *,
         beat: int,
         sustain: bool | int | str = None,
-        sustainDynamic: int | str = None,
+        sustainDynamic: int | str | list[list[int | str]] = None,
         trill: str = None,
         **kwargs,
     ) -> list[Note]:
@@ -386,18 +392,27 @@ class Voice(list[list[Note]]):
         delay = kwargs["delay"] if "delay" in kwargs else self.delay
         if sustainDynamic is None:
             sustainDynamic = "+0" if instrument == "flute" and delay == 1 else "-2"
-        if isinstance(sustainDynamic, str):
-            sustainDynamic = max(
-                min(1, note.dynamic), note.dynamic + int(sustainDynamic)
-            )
-        return (
-            [note]
-            + [Note(self, pitch=pitch, **kwargs | {"dynamic": sustainDynamic})]
-            * (sustain - 1)
-            + self._Rest(duration - sustain, **kwargs)
-        )
+        if not isinstance(sustainDynamic, list):
+            sustainDynamic = [[sustain, sustainDynamic]]
+        sustainDynamic[0][0] = self._parse_duration(sustainDynamic[0][0], beat=beat) - 1
+
+        out = [note]
+        for step, dynamic in sustainDynamic:
+            if (step := self._parse_duration(step, beat=beat)) < 0:
+                step += sustain
+            if step < 0:
+                raise UserError(
+                    f"Sustain duration must not be negative; received {step}"
+                )
+            if isinstance(dynamic, str):
+                dynamic = max(min(1, note.dynamic), note.dynamic + int(dynamic))
+            out += [Note(self, pitch=pitch, **kwargs | {"dynamic": dynamic})] * step
+        out += self._Rest(duration - len(out), **kwargs)
+        return out
 
     def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
+        if duration < 0:
+            raise UserError(f"Duration must not be negative; received {duration}")
         return [Rest(self, delay=delay)] * duration
 
     def _add_note(self, *, name: str, time: int = None, beat: int = None, **kwargs):
@@ -495,7 +510,7 @@ class Composition(list[list[Voice]]):
         dynamic=2,
         transpose=0,
         sustain=False,
-        sustainDynamic: int | str = None,
+        sustainDynamic: int | str | list[list[int | str]] = None,
     ):
         self._path = _path
 
