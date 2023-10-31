@@ -606,14 +606,14 @@ class Composition(list[list[Voice]]):
                     for j in range(voice.division - 1):
                         voice[-1].append(Rest(voice))
 
-    @classmethod
-    def parse(cls, path: str):
-        logger.info("Parsing")
-        path_to_composition = Path(path)
-        try:
-            composition = load_file(path_to_composition, expected_type=dict)
-        except Exception as e:
-            if (error_type := type(e)) is UserError:
-                raise
-            raise UserError(f"{path}\n" f"{error_type.__name__}: {e}")
-        return cls(**composition, _path=path_to_composition)
+
+def parse(path: str):
+    logger.info("Parsing")
+    path_to_composition = Path(path)
+    try:
+        composition = load_file(path_to_composition, expected_type=dict)
+    except Exception as e:
+        if (error_type := type(e)) is UserError:
+            raise
+        raise UserError(f"{path}\n" f"{error_type.__name__}: {e}")
+    return Composition(**composition, _path=path_to_composition)
