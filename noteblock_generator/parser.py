@@ -226,20 +226,24 @@ class Voice(list[list[Note]]):
 
         self._note_config = {}
         self.append([])
-
-        for note in notes:
-            if len(self[-1]) == self.division:
-                self.append([])
-            kwargs = note if isinstance(note, dict) else {"name": note}
-            if "name" in kwargs:
-                try:
-                    self._add_note(**(self._note_config | kwargs))
-                except UserError as e:
-                    raise UserError(
-                        f"{self} at {(self._bar_number, self._beat_number)}: {e}"
-                    )
-            else:
-                self._note_config |= kwargs
+        try:
+            for note in notes:
+                if len(self[-1]) == self.division:
+                    self.append([])
+                kwargs = note if isinstance(note, dict) else {"name": note}
+                if "name" in kwargs:
+                    try:
+                        self._add_note(**(self._note_config | kwargs))
+                    except UserError as e:
+                        raise UserError(
+                            f"{self} at {(self._bar_number, self._beat_number)}: {e}"
+                        )
+                else:
+                    self._note_config |= kwargs
+        except Exception as e:
+            if isinstance(e, UserError):
+                raise
+            raise UserError(f"{self}\n" f"{type(e).__name__}: {e}")
 
     def __str__(self):
         if self._name:
@@ -567,27 +571,25 @@ class Composition(list[list[Voice]]):
             self._add_voice(voice)
 
     def _add_voice(self, voice_or_path_to_voice):
-        if not (
-            isinstance(voice_or_path_to_voice, str)
-            or isinstance(voice_or_path_to_voice, dict)
-        ):
+        if not (isinstance(voice_or_path_to_voice, (str, dict))):
             raise UserError(
-                f"Expected a voice, found {type(voice_or_path_to_voice).__name__}"
+                "Expected a voice, " f"found {type(voice_or_path_to_voice).__name__}"
             )
 
-        try:
-            if isinstance(voice_or_path_to_voice, str):
-                path_to_voice = self._path / Path(voice_or_path_to_voice)
+        if isinstance(voice_or_path_to_voice, str):
+            path_to_voice = self._path / Path(voice_or_path_to_voice)
+            try:
                 voice = load_file(path_to_voice, expected_type=dict, strict=False)
-                if "name" not in voice:
-                    voice["name"] = voice_or_path_to_voice
-            else:
-                voice = voice_or_path_to_voice
-            self[-1].append(Voice(self, **voice))
-        except Exception as e:
-            if isinstance(e, UserError):
-                raise
-            raise UserError(f"{voice_or_path_to_voice}\n" f"{type(e).__name__}: {e}")
+            except Exception as e:
+                if isinstance(e, UserError):
+                    raise
+                raise UserError(f"{path_to_voice}\n" f"{type(e).__name__}: {e}")
+            if "name" not in voice:
+                voice["name"] = voice_or_path_to_voice
+        else:
+            voice = voice_or_path_to_voice
+
+        self[-1].append(Voice(self, **voice))
 
     def _equalize_orchestras_size(self):
         size = max(map(len, self))
