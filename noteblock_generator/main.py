@@ -127,10 +127,11 @@ def parse_args():
 
 
 def main():
-    from .generator import generate
-
     try:
-        generate(**parse_args())
+        args = parse_args()
+        from .generator import generate
+
+        generate(**args)
     except UserError as e:
         logger.error(e)
         sys.exit(1)
