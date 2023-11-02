@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import amulet
 
-from .main import Location, Orientation
+from .main import Location, Orientation, logger
 from .parser import DYNAMIC_RANGE, Composition, Note, Rest, UserError, Voice
 
 _Block = amulet.api.Block
@@ -141,7 +141,7 @@ class World:
         total = len(tasks)
         with ThreadPool() as pool:
             for progress, _ in enumerate(pool.imap_unordered(_apply, tasks)):
-                progress_bar(progress + 1, total * 1.5, text="INFO - Generating")
+                progress_bar(progress + 1, total * 1.5, text="Generating")
 
     def _save(self):
         # Modification of
@@ -156,9 +156,7 @@ class World:
             chunk = self._chunk_cache[cx, cz]
             wrapper.commit_chunk(chunk, self._dimension)
             chunk.changed = False
-            progress_bar(
-                total + (progress + 1) / 2, total * 1.5, text="INFO - Generating"
-            )
+            progress_bar(total + (progress + 1) / 2, total * 1.5, text="Generating")
 
         self._level.history_manager.mark_saved()
         wrapper.save()
@@ -180,25 +178,23 @@ class World:
         try:
             return self._chunk_cache[cx, cz]
         except KeyError:
-            pass
+            try:
+                chunk = self._level.get_chunk(cx, cz, self._dimension)
+            except amulet.api.errors.ChunkLoadError:
+                print()  # to go down one line from the progress bar
+                logger.error(f"Failed to load chunk {(cx, cz)}")
+                chunk = self._level.create_chunk(cx, cz, self._dimension)
 
-        try:
-            chunk = self._level.get_chunk(cx, cz, self._dimension)
-        except amulet.api.errors.ChunkDoesNotExist:
-            chunk = self._level.create_chunk(cx, cz, self._dimension)
-
-        self._chunk_cache[cx, cz] = chunk
-        return chunk
+            self._chunk_cache[cx, cz] = chunk
+            return chunk
 
     def _translate_block(self, block: _Block, /):
         try:
             return self._block_translator_cache[block]
         except KeyError:
-            pass
-
-        universal_block, _, _ = self._translator.to_universal(block)
-        self._block_translator_cache[block] = universal_block
-        return universal_block
+            universal_block, _, _ = self._translator.to_universal(block)
+            self._block_translator_cache[block] = universal_block
+            return universal_block
 
     def generate(
         self,
@@ -210,7 +206,7 @@ class World:
         theme: str,
         blend: bool,
     ):
-        progress_bar(0, 1, text="INFO - Generating")
+        progress_bar(0, 1, text="Generating")
 
         def generate_init_system_for_single_orchestra(x0: int):
             button = Block("oak_button", face="floor", facing=-x_direction)
@@ -542,17 +538,14 @@ class World:
 
 def progress_bar(iteration: float, total: float, *, text: str):
     percentage = f" {100*(iteration / total):.0f}% "
-    margin = " " * (6 - len(percentage))
 
+    alignment_spacing = " " * (6 - len(percentage))
     terminal_width, _ = os.get_terminal_size()
-    bar_length = max(0, min(80, terminal_width) - (len(text) + 6) - 3)
-
-    fill_length = int(bar_length * iteration // total)
+    total_length = max(0, min(80, terminal_width) - (len(text) + 13) - 3)
+    fill_length = int(total_length * iteration // total)
     finished_portion = "#" * fill_length
-    remaining_portion = "-" * (bar_length - fill_length)
-    progress_bar = f"[{finished_portion}{remaining_portion}]" if bar_length else ""
+    remaining_portion = "-" * (total_length - fill_length)
+    progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
+    end_of_line = "\033[F" if iteration != total else ""
 
-    print(
-        f"\r{text}{margin}{percentage}{progress_bar}",
-        end="\n" if iteration == total else "",
-    )
+    logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
