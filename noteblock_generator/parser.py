@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Optional, Type, TypeVar, get_origin
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig(format="%(levelname)s - %(message)s")
+from .main import UserError, logger
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -57,12 +54,6 @@ DELAY_RANGE = range(1, 5)
 DYNAMIC_RANGE = range(0, 5)
 
 
-class UserError(Exception):
-    """To be raised if there is an error when translating the json file,
-    e.g. invalid instrument name or note out of the instrument's range.
-    """
-
-
 T = TypeVar("T")
 
 
@@ -102,7 +93,7 @@ def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
     error_message = f"Path {path} is invalid, or does not exist"
     if strict:
         raise UserError(error_message)
-    logger.warn(error_message)
+    logger.warning(error_message)
     create_empty_file(expected_type)
     return expected_type()
 
@@ -540,7 +531,7 @@ class Composition(list[list[Voice]]):
         elif division <= 0:
             raise UserError("Division must be posititve")
         if division not in range(12, 17):
-            logger.warn(
+            logger.warning(
                 f"Division {division} is not ideal, a value from 12 to 16 is recommended"
             )
         self.division = division

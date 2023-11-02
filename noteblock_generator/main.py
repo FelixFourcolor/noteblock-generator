@@ -1,8 +1,12 @@
+import logging
 import sys
 from argparse import ArgumentParser
+from functools import partial
 from typing import NamedTuple
 
-from .parser import UserError, logger, parse
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logging.basicConfig(format="%(levelname)s - %(message)s")
 
 
 class Coordinate(int):
@@ -24,6 +28,10 @@ class Orientation(NamedTuple):
     x: bool
     y: bool
     z: bool
+
+
+class UserError(Exception):
+    pass
 
 
 def get_args():
@@ -64,12 +72,6 @@ def get_args():
 
 def parse_args():
     args = get_args()
-
-    # path in
-    composition = parse(args.path_in)
-
-    # path out
-    path_out = args.path_out
 
     # location
     if len(args.location) != 3:
@@ -113,29 +115,35 @@ def parse_args():
     theme = args.theme
 
     # blend
-    clear = not args.blend
+    blend = args.blend
 
-    return {
-        "composition": composition,
-        "location": location,
-        "dimension": dimension,
-        "orientation": orientation,
-        "theme": theme,
-        "clear": clear,
-        "path_out": path_out,
-    }
+    # parse music
+    from .parser import parse
+
+    composition = parse(args.path_in)
+
+    # load world
+    from .generator import World
+
+    world = World(args.path_out)
+    return partial(
+        world.generate,
+        composition=composition,
+        location=location,
+        dimension=dimension,
+        orientation=orientation,
+        theme=theme,
+        blend=blend,
+    )
 
 
 def main():
     try:
-        args = parse_args()
-        from .generator import generate
-
-        generate(**args)
+        generator = parse_args()
+        generator()
     except UserError as e:
         logger.error(e)
         sys.exit(1)
-
     logger.info("All done!")
 
 

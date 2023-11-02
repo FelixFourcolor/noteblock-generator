@@ -84,18 +84,14 @@ class World:
     # TODO: make this a command-line argument
     _VERSION = ("java", (1, 20))
 
-    # only assigned values when __enter__ is called
     _level: _Level
     _modifications: dict[tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]]
-
-    dimension = "minecraft:overworld"  # will be modified by self.generate()
 
     def __init__(self, path: str):
         self._path = str(path)
         self._block_translator_cache = {}
         self._chunk_cache = {}
 
-    def __enter__(self):
         try:
             level = amulet.load_level(self._path)
         except Exception as e:
@@ -107,13 +103,8 @@ class World:
         self._level = level
         self._modifications = {}
         self._translator = level.translation_manager.get_version(*self._VERSION).block
-        self.players = list(map(level.get_player, level.all_player_ids()))
-        return self
-
-    def __exit__(self, exc_type, exc_value, exc_tb):
-        self._apply_modifications()
-        self._save()
-        self._level.close()
+        self._players = list(map(level.get_player, level.all_player_ids()))
+        self._dimension = "minecraft:overworld"
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         x, y, z = coordinates
@@ -155,7 +146,7 @@ class World:
 
         for progress, (cx, cz) in enumerate(changed_chunks):
             chunk = self._chunk_cache[cx, cz]
-            wrapper.commit_chunk(chunk, self.dimension)
+            wrapper.commit_chunk(chunk, self._dimension)
             chunk.changed = False
             progress_bar(
                 total + (progress + 1) / 2, total * 1.5, text="INFO - Generating"
@@ -180,9 +171,9 @@ class World:
             pass
 
         try:
-            chunk = self._level.get_chunk(cx, cz, self.dimension)
+            chunk = self._level.get_chunk(cx, cz, self._dimension)
         except amulet.api.errors.ChunkDoesNotExist:
-            chunk = self._level.create_chunk(cx, cz, self.dimension)
+            chunk = self._level.create_chunk(cx, cz, self._dimension)
 
         self._chunk_cache[cx, cz] = chunk
         return chunk
@@ -205,8 +196,10 @@ class World:
         dimension: Optional[str],
         orientation: Orientation,
         theme: str,
-        clear: bool,
+        blend: bool,
     ):
+        progress_bar(0, 1, text="INFO - Generating")
+
         def generate_init_system_for_single_orchestra(x0: int):
             button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
@@ -364,7 +357,11 @@ class World:
                                 y,
                                 Z + z_increment * z,
                             )
-                            if clear or x in (0, X_BOUNDARY) or z in (0, Z_BOUNDARY):
+                            if (
+                                not blend
+                                or x in (0, X_BOUNDARY)
+                                or z in (0, Z_BOUNDARY)
+                            ):
                                 self[coordinates] = air
                             else:
                                 self[coordinates] = remove_danger
@@ -390,7 +387,7 @@ class World:
                 noteblock = NoteBlock(note)
                 for i in range(note.dynamic):
                     self[x + placement_order[i], y + 2, z + z_increment] = noteblock
-                    if not clear:
+                    if blend:
                         self[x + placement_order[i], y + 1, z + z_increment] = air
                         self[x + placement_order[i], y + 3, z + z_increment] = air
 
@@ -461,7 +458,7 @@ class World:
         INIT_DIVISIONS = math.ceil((composition.size - 1) / composition.division)
 
         try:
-            player_location = tuple(map(math.floor, self.players[0].location))
+            player_location = tuple(map(math.floor, self._players[0].location))
         except IndexError:
             player_location = (0, 0, 0)
         X, Y, Z = location
@@ -472,10 +469,10 @@ class World:
         if location.z.relative:
             Z += player_location[2]
         if dimension is not None:
-            self.dimension = dimension
+            self._dimension = dimension
         else:
             try:
-                self.dimension = self.players[0].dimension
+                self._dimension = self._players[0]._dimension
             except IndexError:
                 pass
 
@@ -509,11 +506,9 @@ class World:
             for i in range(composition.length // 2):
                 generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
 
-
-def generate(path_out, **kwargs):
-    with World(path_out) as world:
-        progress_bar(0, 1, text="INFO - Generating")
-        world.generate(**kwargs)
+        self._apply_modifications()
+        self._save()
+        self._level.close()
 
 
 def progress_bar(iteration: float, total: float, *, text: str):
