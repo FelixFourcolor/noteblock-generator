@@ -9,7 +9,7 @@ from typing import Callable, Optional
 import amulet
 
 from .main import Location, Orientation, logger
-from .parser import DYNAMIC_RANGE, Composition, Note, Rest, UserError, Voice
+from .parser import Composition, Note, Rest, UserError, Voice
 
 _Block = amulet.api.Block
 _Level = amulet.api.level.World | amulet.api.level.Structure
@@ -17,7 +17,7 @@ _BlockPlacement = _Block | Callable[[tuple[int, int, int]], Optional[_Block]]
 
 
 class Block(_Block):
-    """A thin wrapper of amulet block, with a more convenient constructor"""
+    """A thin wrapper of amulet Block, with a more convenient constructor"""
 
     def __init__(self, name: str, **properties):
         properties = {k: amulet.StringTag(v) for k, v in properties.items()}
@@ -76,12 +76,63 @@ class Redstone(Block):
         )
 
 
-class World:
-    # TODO: make this a command-line argument
-    _VERSION = ("java", (1, 20))
+# Blocks to be removed if using blend mode,
+# since they may interfere with redstones and/or noteblocks.
 
-    _level: _Level
-    _modifications: dict[tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]]
+_LIQUID = {
+    # these would destroy our redstone components if interacted
+    "lava",
+    "water",
+    # these are always waterlogged and it's impossible to remove water from them
+    # so practically treat them as water
+    "bubble_column",
+    "kelp",
+    "kelp_plant",
+    "seagrass",
+    "tall_seagrass",
+}
+_GRAVITY_AFFECTED_BLOCKS = {
+    # these may fall on top of noteblocks and prevent them to play
+    "anvil",
+    "concrete_powder",
+    "dragon_egg",
+    "gravel",
+    "pointed_dripstone",
+    "sand",
+    "scaffolding",
+    "suspicious_sand",
+    "suspicious_gravel",
+}
+
+_REDSTONE_COMPONENTS = {
+    # these either emit redstone signals or activated by redstone signals,
+    # either of which may mess up with the music performance
+    "calibrated_sculk_sensor",
+    "comparator",
+    "jukebox",
+    "note_block",
+    "observer",
+    "piston",
+    "red_sand",
+    "redstone_block",
+    "redstone_torch",
+    "redstone_wire",
+    "repeater",
+    "sculk_sensor",
+    "sticky_piston",
+    "tnt",
+    "tnt_minecart",
+}
+
+REMOVE_LIST = _LIQUID | _GRAVITY_AFFECTED_BLOCKS | _REDSTONE_COMPONENTS
+
+
+class World:
+    """A wrapper of amulet Level,
+    with modified methods to get/set blocks that optimize performance for our specific usage
+    """
+
+    _VERSION = ("java", (1, 20))
 
     def __init__(self, path: str):
         self._path = str(path)
@@ -97,14 +148,15 @@ class World:
             )
 
         self._level = level
-        self._modifications = {}
+        self._modifications: dict[
+            tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]
+        ] = {}
         self._translator = level.translation_manager.get_version(*self._VERSION).block
         self._players = list(map(level.get_player, level.all_player_ids()))
         self._dimension = "minecraft:overworld"
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
-        # Modification of
-        # self._level.get_version_block
+        # A modified version of self._level.get_version_block,
         # optimized for performance
 
         x, y, z = coordinates
@@ -119,6 +171,8 @@ class World:
         return block
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
+        # Does not actually set blocks,
+        # but caches what blocks to be set into a hashmap organized by chunks
         x, y, z = coordinates
         cx, cz = x // 16, z // 16
         if (cx, cz) not in self._modifications:
@@ -126,6 +180,10 @@ class World:
         self._modifications[cx, cz][x, y, z] = block
 
     def _apply_modifications(self):
+        # Actual block-settings happen here
+        if not self._modifications:
+            return
+
         def _apply(tasks: dict[tuple[int, int, int], _BlockPlacement]):
             for coordinates, placement in tasks.items():
                 if callable(placement):
@@ -134,9 +192,8 @@ class World:
                 else:
                     self._set_block(*coordinates, placement)
 
-        if not self._modifications:
-            return
-
+        # Modifications are organize into chunks to optimize multithreading:
+        # every thread has to load exactly one chunk
         tasks = self._modifications.values()
         total = len(tasks)
         with ThreadPool() as pool:
@@ -144,9 +201,9 @@ class World:
                 progress_bar(progress + 1, total * 1.5, text="Generating")
 
     def _save(self):
-        # Modification of
-        # self._level.save_iter
-        # optimized for performance, with a customized progress bar
+        # A modified version of self._level.save,
+        # optimized for performance,
+        # with customized progress handling so that generating and saving uses the same progress bar
 
         changed_chunks = self._modifications.keys()
         total = len(changed_chunks)
@@ -156,14 +213,14 @@ class World:
             chunk = self._chunk_cache[cx, cz]
             wrapper.commit_chunk(chunk, self._dimension)
             chunk.changed = False
+            # Saving takes approximately half the time of generating
             progress_bar(total + (progress + 1) / 2, total * 1.5, text="Generating")
 
         self._level.history_manager.mark_saved()
         wrapper.save()
 
     def _set_block(self, x: int, y: int, z: int, block: _Block):
-        # Modification of
-        # self._level.set_version_block
+        # A modified version of self._level.set_version_block,
         # optimized for performance
 
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
@@ -316,39 +373,6 @@ class World:
 
                 glass = Block("glass")
 
-                REMOVE_LIST = (
-                    "anvil",
-                    "bubble_column",
-                    "calibrated_sculk_sensor",
-                    "comparator",
-                    "concrete_powder",
-                    "dragon_egg",
-                    "gravel",
-                    "jukebox",
-                    "kelp",
-                    "kelp_plant",
-                    "lava",
-                    "note_block",
-                    "observer",
-                    "piston",
-                    "pointed_dripstone",
-                    "red_sand",
-                    "redstone_block",
-                    "redstone_torch",
-                    "redstone_wire",
-                    "repeater",
-                    "sand",
-                    "sculk_sensor",
-                    "seagrass",
-                    "sticky_piston",
-                    "suspicious_sand",
-                    "suspicious_gravel",
-                    "tall_seagrass",
-                    "tnt",
-                    "tnt_minecart",
-                    "water",
-                )
-
                 mandatory_clear_range = [y_glass + 2, y_glass + 1]
                 optional_clear_range = range(y_glass - Y_BOUNDARY, y_glass)
 
@@ -474,10 +498,11 @@ class World:
         air = Block("air")
         theme_block = Block(theme)
 
-        NOTE_LENGTH = 2
-        DIVISION_WIDTH = DYNAMIC_RANGE.stop  # 4 noteblocks + 1 stone in the middle
-        VOICE_HEIGHT = 2
+        NOTE_LENGTH = 2  # noteblock + repeater
+        DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
+        VOICE_HEIGHT = 2  # noteblock + air above
         DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
+
         # add this number of divisions to the beginning of every voice
         # so that with a push of a button, all voices start at the same time
         INIT_DIVISIONS = math.ceil((composition.size - 1) / composition.division)
@@ -541,7 +566,7 @@ def progress_bar(iteration: float, total: float, *, text: str):
 
     alignment_spacing = " " * (6 - len(percentage))
     terminal_width, _ = os.get_terminal_size()
-    total_length = max(0, min(80, terminal_width) - (len(text) + 13) - 3)
+    total_length = max(0, min(80, terminal_width) - len(text) - 16)
     fill_length = int(total_length * iteration // total)
     finished_portion = "#" * fill_length
     remaining_portion = "-" * (total_length - fill_length)
