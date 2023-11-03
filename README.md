@@ -33,7 +33,7 @@ options:
   --location [LOCATION ...]       build location (in x y z); default is ~ ~ ~
   --dimension DIMENSION           build dimension; default is player's dimension
   --orientation [ORIENTATION ...] build orientation (in x y z); default is + + +
-  --theme THEME                   opaque block for redstone components; default is stone
+  --theme THEME                   redstone-conductive block; default is stone
   --blend                         blend the structure in with its environment (EXPERIMENTAL)
 ```
 
@@ -70,11 +70,11 @@ All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -`,
 Note: Make sure there is enough space in your specified direction. The program cannot generate below bedrock, or above the height limit, etc. For example,`--location 0 -64 0 --orientation + - +` will not work.
 
 ### Theme
-Choose a block that can conduct redstones for the basis of the structure. Default is `stone`.
+Choose a block that can conduct redstones. Default is `stone`.
 
 Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest as-is. The result is the structure will appear blended in with its environment, which in my opinion looks quite nice.
 
-This is an experimental feature (the list of things to be removed is continually updated). If the redstones and/or noteblocks don't behave as expected, turn it off.
+This is an experimental feature. If the redstones and/or noteblocks don't behave as expected, turn it off.
