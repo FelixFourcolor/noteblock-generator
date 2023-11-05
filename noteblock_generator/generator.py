@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import _thread
+import hashlib
+import logging
 import math
 import os
+import shutil
+import threading
 from enum import Enum
 from functools import cached_property
+from io import StringIO
 from multiprocessing.pool import ThreadPool
-from typing import Callable, Optional
+from pathlib import Path
+from typing import Callable, Iterable, Optional
 
 import amulet
+from platformdirs import user_cache_dir
 
 from .main import Location, Orientation, logger
 from .parser import Composition, Note, Rest, UserError, Voice
@@ -129,6 +137,84 @@ _REDSTONE_COMPONENTS = {
 REMOVE_LIST = _LIQUID | _GRAVITY_AFFECTED_BLOCKS | _REDSTONE_COMPONENTS
 
 
+TERMINAL_WIDTH = min(80, os.get_terminal_size()[0])
+
+
+def progress_bar(iteration: float, total: float, *, text: str):
+    ratio = iteration / total
+    percentage = f" {100*ratio:.0f}% "
+
+    alignment_spacing = " " * (6 - len(percentage))
+    total_length = max(0, TERMINAL_WIDTH - len(text) - 16)
+    fill_length = int(total_length * ratio)
+    finished_portion = "#" * fill_length
+    remaining_portion = "-" * (total_length - fill_length)
+    progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
+    end_of_line = "" if ratio == 1 else "\033[F"
+
+    logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
+
+
+class ThreadedUserPrompt:
+    def __init__(self, prompt: str, choices: Iterable[str]):
+        self._prompt = prompt
+        self._choices = choices
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def _run(self):
+        # capture logs to not interrupt the user prompt
+        logging.basicConfig(
+            format="%(levelname)s - %(message)s",
+            stream=(buffer := StringIO()),
+            force=True,
+        )
+        # prompt
+        result = input(self._prompt).lower() in self._choices
+        # stop capturing
+        logging.basicConfig(format="%(levelname)s - %(message)s", force=True)
+
+        if result:
+            # release captured logs
+            print(f"\n{buffer.getvalue()}", end="")
+        else:
+            _thread.interrupt_main()
+
+    def wait(self):
+        self._thread.join()
+
+
+def hash_directory(directory: str | Path):
+    def update(directory: str | Path, _hash: hashlib._Hash):
+        for path in sorted(Path(directory).iterdir(), key=lambda p: str(p).lower()):
+            _hash.update(path.name.encode())
+            if path.is_file():
+                with open(path, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        _hash.update(chunk)
+            elif path.is_dir():
+                _hash = update(path, _hash)
+        return _hash
+
+    return update(directory, hashlib.blake2b(usedforsecurity=False)).digest()
+
+
+def copyfile(src: Path, dst: Path) -> Path:
+    _dir, _name = dst.parent, dst.stem
+    i = 0
+    while True:
+        # in case _path_copy already exists
+        try:
+            shutil.copytree(src, dst)
+        except FileExistsError:
+            if _name.endswith(suffix := f" ({i})"):
+                _name = _name[: -len(suffix)]
+            _name += f" ({(i := i + 1)})"
+            dst = _dir / _name
+        else:
+            return dst
+
+
 class World:
     """A wrapper of amulet Level,
     with modified methods to get/set blocks that optimize performance for our specific usage
@@ -138,8 +224,8 @@ class World:
     _level: _Level
     _dimension: str
 
-    def __init__(self, path: str):
-        self._path = str(path)
+    def __init__(self, path: str | Path):
+        self._path = Path(path)
         self._block_translator_cache = {}
         self._chunk_cache: dict[tuple[int, int], _Chunk] = {}
         self._modifications: dict[
@@ -149,20 +235,31 @@ class World:
                 _BlockPlacement,  # what to do at that location
             ],
         ] = {}
-        self._load_level()
 
-    def _load_level(self):
+    def __enter__(self):
+        cache_dir = Path(user_cache_dir("noteblock-generator"))
+
         try:
-            self._level = amulet.load_level(self._path)
+            # make a copy of World to work on that one
+            self._path_copy = copyfile(self._path, cache_dir / self._path.stem)
+            # load
+            self._level = level = amulet.load_level(str(self._path_copy))
+            # keep a hash of the original World
+            # to detect if user has entered the world while generating.
+            self._hash = hash_directory(self._path)
+            # see self._save() for when this is used
         except Exception as e:
-            raise UserError(
-                f"Path {self._path} is invalid, or does not exist\n"
-                f"{type(e).__name__}: {e}."
-            )
+            if isinstance(e, UserError):
+                raise e
+            raise UserError(f"Path {self._path} is invalid\n{type(e).__name__}: {e}")
 
-    @cached_property
-    def _translator(self):
-        return self._level.translation_manager.get_version(*self._VERSION).block
+        self._translator = level.translation_manager.get_version(*self._VERSION).block
+        self._players = tuple(level.get_player(i) for i in self._level.all_player_ids())
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self._level.close()
+        shutil.rmtree(self._path_copy, ignore_errors=True)
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         # A modified version of self._level.get_version_block,
@@ -180,8 +277,10 @@ class World:
         return block
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
-        # Does not actually set blocks,
-        # but caches what blocks to be set into a hashmap organized by chunks
+        """Does not actually set blocks,
+        but saves what blocks to be set and where into a hashmap organized by chunks
+        """
+
         x, y, z = coordinates
         cx, cz = x // 16, z // 16
         if (cx, cz) not in self._modifications:
@@ -189,12 +288,13 @@ class World:
         self._modifications[cx, cz][x, y, z] = block
 
     def _apply_modifications(self):
-        # Actual block-settings happen here
+        """Actual block-setting happens here"""
+
         if not self._modifications:
             return
 
-        def _apply(tasks: dict[tuple[int, int, int], _BlockPlacement]):
-            for coordinates, placement in tasks.items():
+        def _modify_chunk(modifications: dict[tuple[int, int, int], _BlockPlacement]):
+            for coordinates, placement in modifications.items():
                 if callable(placement):
                     if (block := placement(coordinates)) is not None:
                         self._set_block(*coordinates, block)
@@ -203,30 +303,42 @@ class World:
 
         # Modifications are organize into chunks to optimize multithreading:
         # every thread has to load exactly one chunk
-        tasks = self._modifications.values()
-        total = len(tasks)
+        total = len(self._modifications)
         with ThreadPool() as pool:
-            for progress, _ in enumerate(pool.imap_unordered(_apply, tasks)):
-                progress_bar(progress + 1, total * 1.5, text="Generating")
+            for progress, _ in enumerate(
+                pool.imap_unordered(_modify_chunk, self._modifications.values())
+            ):
+                # so that block-setting and saving uses the same progress bar
+                progress_bar(2 * (progress + 1), 3 * total, text="Generating")
 
-    def _save(self):
         # A modified version of self._level.save,
         # optimized for performance,
         # with customized progress handling so that generating and saving uses the same progress bar
-
-        changed_chunks = self._modifications.keys()
-        total = len(changed_chunks)
+        chunks = self._modifications.keys()
         wrapper = self._level.level_wrapper
-
-        for progress, (cx, cz) in enumerate(changed_chunks):
+        for progress, (cx, cz) in enumerate(chunks):
             chunk = self._chunk_cache[cx, cz]
             wrapper.commit_chunk(chunk, self._dimension)
-            chunk.changed = False
-            # Saving takes approximately half the time of generating
-            progress_bar(total + (progress + 1) / 2, total * 1.5, text="Generating")
-
+            # saving takes approximately half the time
+            progress_bar(2 * total + (progress + 1), 3 * total, text="Generating")
         self._level.history_manager.mark_saved()
         wrapper.save()
+
+    def _save(self):
+        # Move the copy World, now modified, back to original location.
+        try:
+            _hash = hash_directory(self._path)
+        except FileNotFoundError:
+            pass
+        else:
+            # First check if user has entered the world, if so tell them to quit.
+            if self._hash != _hash:
+                input(
+                    "\nIf you are currently inside the world, exit it now."
+                    "\nThen press ENTER to proceed.\n"
+                )
+            shutil.rmtree(self._path, ignore_errors=True)
+        shutil.move(self._path_copy, self._path)
 
     def _set_block(self, x: int, y: int, z: int, block: _Block):
         # A modified version of self._level.set_version_block,
@@ -238,7 +350,6 @@ class World:
         chunk.set_block(offset_x, y, offset_z, universal_block)
         if (x, y, z) in chunk.block_entities:
             del chunk.block_entities[x, y, z]
-        chunk.changed = True
 
     def _get_chunk(self, cx: int, cz: int):
         try:
@@ -247,7 +358,7 @@ class World:
             try:
                 chunk = self._level.get_chunk(cx, cz, self._dimension)
             except amulet.api.errors.ChunkDoesNotExist:
-                message = f"Failed to load chunk {(cx, cz)}"
+                message = f"Missing chunk {(cx, cz)}"
                 end_of_line = " " * max(0, TERMINAL_WIDTH - len(message) - 10)
                 logger.warning(f"{message}{end_of_line}")
                 chunk = self._level.create_chunk(cx, cz, self._dimension)
@@ -262,10 +373,11 @@ class World:
             self._block_translator_cache[block] = universal_block
             return universal_block
 
-    @cached_property
-    def _players(self):
-        return tuple(self._level.get_player(i) for i in self._level.all_player_ids())
+    # -----------------------------------------------------------------------------
+    # The two methods below are properties so that they are lazily evaluated,
+    # so that they are only called if user uses relative location/dimension,
 
+    # this one is cached because it's called thrice, once for each coordinate
     @cached_property
     def _player_location(self) -> tuple[float, float, float]:
         results = {p.location for p in self._players}
@@ -292,7 +404,13 @@ class World:
             )
         return results.pop()
 
-    def generate(
+    # -----------------------------------------------------------------------------
+
+    def generate(self, **kwargs):
+        with self:
+            self._generate(**kwargs)
+
+    def _generate(
         self,
         *,
         composition: Composition,
@@ -303,6 +421,9 @@ class World:
         blend: bool,
         no_confirm: bool,
     ):
+        # -----------------------------------------------------------------------------
+        # Subroutines
+
         def generate_init_system_for_single_orchestra(x0: int):
             button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
@@ -533,6 +654,7 @@ class World:
                     z_direction = -z_direction
                     z_increment = z_direction[1]
 
+        # Function main begins
         # -----------------------------------------------------------------------------
         # Parse arguments
 
@@ -634,59 +756,51 @@ class World:
         # Get user confirmation
 
         if not no_confirm:
-            print()
-            response = input(
-                "The structure will occupy the space between "
-                f"{(min_x, min_y, min_z)} and {max_x, max_y, max_z} in {self._dimension}. "
-                "Anything within this space may be overriden. Make sure to back up."
-                "\nIf you are inside the world, save and quit now. "
-                "And do not enter until the program finishes, "
-                "otherwise the it will crash and may corrupt your data."
-                '\nSay "yes" to proceed: '
+            dimension = self._dimension
+            if dimension.startswith("minecraft:"):
+                dimension = dimension[10:]
+
+            user_prompt = ThreadedUserPrompt(
+                prompt=(
+                    "\nThe structure will occupy the space "
+                    f"{(min_x, min_y, min_z)} to {max_x, max_y, max_z} in {dimension}."
+                    "\nAnything within this area may be overwritten. Make sure to back up."
+                    "\nFeel free to enter the world to check that everything is right."
+                    "\nHowever, if you do decide to proceed, all of your changes from this point will be discarded."
+                    '\nSay "yes" when you are ready: '
+                ),
+                choices=("y", "yes"),
             )
-            print()
-            if response.lower() not in ("y", "yes"):
-                logger.info("Aborted.")
-                return
-            # Reload level because user might have entered the world after getting the prompt,
-            # which is exactly what they're supposed to do: double check everything before proceeding
-            self._level.close()
-            self._load_level()
+
+        else:
+            user_prompt = None
 
         # -----------------------------------------------------------------------------
         # Generate
 
-        progress_bar(0, 1, text="Generating")
+        try:
+            # Generate while waiting for user input, just don't save yet.
+            progress_bar(0, 1, text="Generating")
 
-        if len(composition) == 1:
-            generate_orchestra(composition[0], z_direction)
-            for i in range(composition.length // 2):
-                generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
+            if len(composition) == 1:
+                generate_orchestra(composition[0], z_direction)
+                for i in range(composition.length // 2):
+                    generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
+            else:
+                generate_orchestra(composition[0], z_direction)
+                Z += z_increment * Z_BOUNDARY
+                generate_orchestra(composition[1], z_direction)
+                for i in range(composition.length // 2):
+                    generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
+            self._apply_modifications()
+
+            if user_prompt is not None:
+                user_prompt.wait()
+
+        except KeyboardInterrupt:
+            print()
+            logger.info("Aborted.")
+            logger.disabled = True
         else:
-            generate_orchestra(composition[0], z_direction)
-            Z += z_increment * Z_BOUNDARY
-            generate_orchestra(composition[1], z_direction)
-            for i in range(composition.length // 2):
-                generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
-
-        self._apply_modifications()
-        self._save()
-        logger.info("Finished.")
-
-
-TERMINAL_WIDTH = min(80, os.get_terminal_size()[0])
-
-
-def progress_bar(iteration: float, total: float, *, text: str):
-    ratio = iteration / total
-    percentage = f" {100*ratio:.0f}% "
-
-    alignment_spacing = " " * (6 - len(percentage))
-    total_length = max(0, TERMINAL_WIDTH - len(text) - 16)
-    fill_length = int(total_length * ratio)
-    finished_portion = "#" * fill_length
-    remaining_portion = "-" * (total_length - fill_length)
-    progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
-    end_of_line = "" if ratio == 1 else "\033[F"
-
-    logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
+            self._save()
+            logger.info("Finished.")
