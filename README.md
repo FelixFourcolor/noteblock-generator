@@ -18,45 +18,35 @@ See my projects:
 ## Installation:
 ```pip install --upgrade noteblock-generator```
 
-Do not use git version, it is for development (i.e. myself) only. I cannot guarantee that it is compatible with all of my projects.
-
 ## Usage
 ```
-noteblock-generator [-h] [--location [LOCATION ...]] [--orientation [ORIENTATION ...]] [--theme THEME] [--blend] path_in path_out
+noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
 
-positional arguments:
-  path_in                         path to music source file/folder
-  path_out                        path to Minecraft world
-
-options:
-  -h, --help                      show this help message and exit
+Options:
   --location [LOCATION ...]       build location (in x y z); default is ~ ~ ~
   --dimension DIMENSION           build dimension; default is player's dimension
   --orientation [ORIENTATION ...] build orientation (in x y z); default is + + +
   --theme THEME                   redstone-conductive block; default is stone
   --blend                         blend the structure in with its environment (EXPERIMENTAL)
+  --no-confirm                    skip user confirmation
 ```
 
-### Path in
-Path to a music file, or a folder containing multiple music files.
+### Music source
+Path to the music source. This program is only intended for my own use, so there is no documentation for writing music files. Follow my `Build from source` instructions to replicate my builds.
 
-This program is only intended for my own use, so there is no documentation for writing music files. Follow my `Build from source` instructions to replicate my builds.
-
-### Path out
-Path to a Minecraft world save folder.
+### Minecraft world
+Path to an existing minecraft world. On Linux, the save folder is probably at `~/.minecraft/saves`. On Windows it's probably at `C:\Users\<username>\AppData/Roaming\.minecraft\saves`.
 
 ### Location
 The location where the structure will be generated.
 
 This uses Minecraft's relative coordinates syntax, where `~` stands for the player's location. For example, `--location ~ ~ ~` (default) is the player's current location, `--location ~ ~10 ~` is 10 blocks above the player, etc.
 
-Warning: If you are on a Unix operating system, the character `~` must be escaped (e.g. the above example would be `--location \~ ~10 \~`).
+Warning: On Linux, the character `~` must be escaped (e.g. the above example would be `--location \~ ~10 \~`).
 
 
 ### Dimension
-The dimension where the structure will be generated. 
-
-Valid choices are `overworld`, `the_nether`, `the_end`.
+The dimension where the structure will be generated, e.g. `overworld`, `the_nether`, `the_end`.
 
 If not given, it will be the player's current dimension.
 
@@ -67,8 +57,6 @@ In which direction, from the aforementioned location, the structure will be gene
 
 All valid orientations are `+ + +`, `+ + -`, `+ - +`, `+ - -`, `- + +`, `- + -`, `+ + +`, `+ + -`, `+ - +`, `+ - -`.
 
-Note: Make sure there is enough space in your specified direction. The program cannot generate below bedrock, or above the height limit, etc. For example,`--location 0 -64 0 --orientation + - +` will not work.
-
 ### Theme
 Choose a block that can conduct redstones. Default is `stone`.
 
@@ -78,3 +66,6 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest as-is. The result is the structure will appear blended in with its environment, which in my opinion looks quite nice.
 
 This is an experimental feature. If the redstones and/or noteblocks don't behave as expected, turn it off.
+
+## No confirm
+By default, the user will be prompted to confirm before the generator begins. Add `--no-confirm` to skip the prompt.

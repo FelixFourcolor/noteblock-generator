@@ -35,11 +35,9 @@ class UserError(Exception):
 
 
 def get_args():
-    parser = ArgumentParser(
-        description="Generate music compositions in Minecraft noteblocks",
-    )
-    parser.add_argument("path_in", help="path to music source file/folder")
-    parser.add_argument("path_out", help="path to Minecraft world")
+    parser = ArgumentParser()
+    parser.add_argument("music_source", help="path to music source")
+    parser.add_argument("minecraft_world", help="path to Minecraft world")
     parser.add_argument(
         "--location",
         nargs="*",
@@ -67,6 +65,11 @@ def get_args():
         action="store_true",
         help=("blend the structure in with its environment (EXPERIMENTAL)"),
     )
+    parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help=("skip user confirmation"),
+    )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
 
@@ -91,13 +94,9 @@ def parse_args():
     location = Location(*_location)
 
     # dimension
-    choices = ["overworld", "the_nether", "the_end"]
     if (dimension := args.dimension) is not None:
-        if dimension not in choices:
-            raise UserError(
-                f"{dimension} is not a valid dimension; expected one of {choices}"
-            )
-        dimension = "minecraft:" + dimension
+        if not dimension.startswith("minecraft:"):
+            dimension = "minecraft:" + dimension
 
     # orientation
     if len(args.orientation) != 3:
@@ -111,29 +110,24 @@ def parse_args():
             raise UserError(f"{arg} is not a valid direction; expected + or -")
     orientation = Orientation(*_orientation)
 
-    # theme
-    theme = args.theme
-
-    # blend
-    blend = args.blend
-
     # parse music
     from .parser import parse
 
-    composition = parse(args.path_in)
+    composition = parse(args.music_source)
 
     # load world
     from .generator import World
 
-    world = World(args.path_out)
+    world = World(args.minecraft_world)
     return partial(
         world.generate,
         composition=composition,
         location=location,
         dimension=dimension,
         orientation=orientation,
-        theme=theme,
-        blend=blend,
+        theme=args.theme,
+        blend=args.blend,
+        no_confirm=args.no_confirm,
     )
 
 
@@ -144,7 +138,6 @@ def main():
     except UserError as e:
         logger.error(e)
         sys.exit(1)
-    logger.info("All done!")
 
 
 if __name__ == "__main__":

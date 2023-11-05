@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 import os
 from enum import Enum
+from functools import cached_property
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
@@ -11,6 +12,7 @@ import amulet
 from .main import Location, Orientation, logger
 from .parser import Composition, Note, Rest, UserError, Voice
 
+_Chunk = amulet.api.chunk.Chunk
 _Block = amulet.api.Block
 _Level = amulet.api.level.World | amulet.api.level.Structure
 _BlockPlacement = _Block | Callable[[tuple[int, int, int]], Optional[_Block]]
@@ -133,27 +135,34 @@ class World:
     """
 
     _VERSION = ("java", (1, 20))
+    _level: _Level
+    _dimension: str
 
     def __init__(self, path: str):
         self._path = str(path)
         self._block_translator_cache = {}
-        self._chunk_cache = {}
+        self._chunk_cache: dict[tuple[int, int], _Chunk] = {}
+        self._modifications: dict[
+            tuple[int, int],  # chunk location
+            dict[
+                tuple[int, int, int],  # location within chunk
+                _BlockPlacement,  # what to do at that location
+            ],
+        ] = {}
+        self._load_level()
 
+    def _load_level(self):
         try:
-            level = amulet.load_level(self._path)
+            self._level = amulet.load_level(self._path)
         except Exception as e:
             raise UserError(
                 f"Path {self._path} is invalid, or does not exist\n"
                 f"{type(e).__name__}: {e}."
             )
 
-        self._level = level
-        self._modifications: dict[
-            tuple[int, int], dict[tuple[int, int, int], _BlockPlacement]
-        ] = {}
-        self._translator = level.translation_manager.get_version(*self._VERSION).block
-        self._players = list(map(level.get_player, level.all_player_ids()))
-        self._dimension = "minecraft:overworld"
+    @cached_property
+    def _translator(self):
+        return self._level.translation_manager.get_version(*self._VERSION).block
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         # A modified version of self._level.get_version_block,
@@ -237,11 +246,11 @@ class World:
         except KeyError:
             try:
                 chunk = self._level.get_chunk(cx, cz, self._dimension)
-            except amulet.api.errors.ChunkLoadError:
-                print()  # to go down one line from the progress bar
-                logger.error(f"Failed to load chunk {(cx, cz)}")
+            except amulet.api.errors.ChunkDoesNotExist:
+                message = f"Failed to load chunk {(cx, cz)}"
+                end_of_line = " " * max(0, TERMINAL_WIDTH - len(message) - 10)
+                logger.warning(f"{message}{end_of_line}")
                 chunk = self._level.create_chunk(cx, cz, self._dimension)
-
             self._chunk_cache[cx, cz] = chunk
             return chunk
 
@@ -253,6 +262,36 @@ class World:
             self._block_translator_cache[block] = universal_block
             return universal_block
 
+    @cached_property
+    def _players(self):
+        return tuple(self._level.get_player(i) for i in self._level.all_player_ids())
+
+    @cached_property
+    def _player_location(self) -> tuple[float, float, float]:
+        results = {p.location for p in self._players}
+        if not results:
+            out = (0, 63, 0)
+            logger.warning(f"No players detected. Default location {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative location is not supported."
+            )
+        return results.pop()
+
+    @property
+    def _player_dimension(self) -> str:
+        results = {p.dimension for p in self._players}
+        if not results:
+            out = "minecraft:overworld"
+            logger.warning(f"No players detected. Default dimension {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative dimension is not supported."
+            )
+        return results.pop()
+
     def generate(
         self,
         *,
@@ -262,9 +301,8 @@ class World:
         orientation: Orientation,
         theme: str,
         blend: bool,
+        no_confirm: bool,
     ):
-        progress_bar(0, 1, text="Generating")
-
         def generate_init_system_for_single_orchestra(x0: int):
             button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
@@ -373,8 +411,8 @@ class World:
 
                 glass = Block("glass")
 
-                mandatory_clear_range = [y_glass + 2, y_glass + 1]
-                optional_clear_range = range(y_glass - Y_BOUNDARY, y_glass)
+                mandatory_clear_range = range(max_y, y_glass)
+                optional_clear_range = range(min_y, y_glass)
 
                 def blend_block(xyz: tuple[int, int, int], /) -> Optional[_Block]:
                     """Take coordinates to a block.
@@ -495,36 +533,34 @@ class World:
                     z_direction = -z_direction
                     z_increment = z_direction[1]
 
-        air = Block("air")
-        theme_block = Block(theme)
+        # -----------------------------------------------------------------------------
+        # Parse arguments
 
         NOTE_LENGTH = 2  # noteblock + repeater
         DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
         VOICE_HEIGHT = 2  # noteblock + air above
         DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
-
-        # add this number of divisions to the beginning of every voice
-        # so that with a push of a button, all voices start at the same time
         INIT_DIVISIONS = math.ceil((composition.size - 1) / composition.division)
+        # this number of divisions is added to the beginning of every voice
+        # so that with a push of a button, all voices start at the same time
 
-        try:
-            player_location = tuple(map(math.floor, self._players[0].location))
-        except IndexError:
-            player_location = (0, 0, 0)
+        air = Block("air")
+        theme_block = Block(theme)
+
         X, Y, Z = location
         if location.x.relative:
-            X += player_location[0]
+            X += int(self._player_location[0])
         if location.y.relative:
-            Y += player_location[1]
+            Y += int(self._player_location[1])
         if location.z.relative:
-            Z += player_location[2]
-        if dimension is not None:
-            self._dimension = dimension
-        else:
-            try:
-                self._dimension = self._players[0]._dimension
-            except IndexError:
-                pass
+            Z += int(self._player_location[2])
+        if dimension is None:
+            dimension = self._player_dimension
+        if dimension not in self._level.dimensions:
+            raise UserError(
+                f"{dimension} is not a valid dimension; expected one of {self._level.dimensions}"
+            )
+        self._dimension = dimension
 
         x_direction = Direction((1, 0))
         if not orientation.x:
@@ -541,9 +577,86 @@ class World:
             z_direction = -z_direction
         z_increment = z_direction[1]
 
-        Z_BOUNDARY = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
+        # -----------------------------------------------------------------------------
+        # Calculate the space the structure will occucpy,
+        # and verify that it's within bounds
+
         X_BOUNDARY = (composition.length + INIT_DIVISIONS) * DIVISION_WIDTH + 1
+        Z_BOUNDARY = composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
         Y_BOUNDARY = VOICE_HEIGHT * (composition.size + 1)
+        BOUNDS = self._level.bounds(self._dimension)
+
+        if orientation.x:
+            min_x, max_x = X, X + X_BOUNDARY
+        else:
+            min_x, max_x = X - X_BOUNDARY, X
+        if min_x < BOUNDS.min_x:
+            raise UserError(
+                f"Location is out of bound: x-coordinate cannot go below {BOUNDS.min_x}"
+            )
+        if max_x > BOUNDS.max_x:
+            raise UserError(
+                f"Location is out of bound: x-coordinate cannot go above {BOUNDS.max_x}"
+            )
+
+        if orientation.z:
+            min_z = Z
+            if len(composition) == 1:
+                max_z = Z + Z_BOUNDARY
+            else:
+                max_z = Z + 2 * Z_BOUNDARY
+        else:
+            max_z = Z
+            if len(composition) == 1:
+                min_z = Z - Z_BOUNDARY
+            else:
+                min_z = Z - 2 * Z_BOUNDARY
+        if min_z < BOUNDS.min_z:
+            raise UserError(
+                f"Location is out of bound: z-coordinate cannot go below {BOUNDS.min_z}"
+            )
+        if max_z > BOUNDS.max_z:
+            raise UserError(
+                f"Location is out of bound: z-coordinate cannot go above {BOUNDS.max_z}"
+            )
+
+        min_y, max_y = y_glass - Y_BOUNDARY, y_glass + 2
+        if min_y < BOUNDS.min_y:
+            raise UserError(
+                f"Location is out of bound: y-coordinate cannot go below {BOUNDS.min_y}"
+            )
+        if max_y > BOUNDS.max_y:
+            raise UserError(
+                f"Location is out of bound: y-coordinate cannot go above {BOUNDS.max_y}"
+            )
+
+        # -----------------------------------------------------------------------------
+        # Get user confirmation
+
+        if not no_confirm:
+            print()
+            response = input(
+                "The structure will occupy the space between "
+                f"{(min_x, min_y, min_z)} and {max_x, max_y, max_z} in {self._dimension}. "
+                "Anything within this space may be overriden. Make sure to back up."
+                "\nIf you are inside the world, save and quit now. "
+                "And do not enter until the program finishes, "
+                "otherwise the it will crash and may corrupt your data."
+                '\nSay "yes" to proceed: '
+            )
+            print()
+            if response.lower() not in ("y", "yes"):
+                logger.info("Aborted.")
+                return
+            # Reload level because user might have entered the world after getting the prompt,
+            # which is exactly what they're supposed to do: double check everything before proceeding
+            self._level.close()
+            self._load_level()
+
+        # -----------------------------------------------------------------------------
+        # Generate
+
+        progress_bar(0, 1, text="Generating")
 
         if len(composition) == 1:
             generate_orchestra(composition[0], z_direction)
@@ -558,19 +671,22 @@ class World:
 
         self._apply_modifications()
         self._save()
-        self._level.close()
+        logger.info("Finished.")
+
+
+TERMINAL_WIDTH = min(80, os.get_terminal_size()[0])
 
 
 def progress_bar(iteration: float, total: float, *, text: str):
-    percentage = f" {100*(iteration / total):.0f}% "
+    ratio = iteration / total
+    percentage = f" {100*ratio:.0f}% "
 
     alignment_spacing = " " * (6 - len(percentage))
-    terminal_width, _ = os.get_terminal_size()
-    total_length = max(0, min(80, terminal_width) - len(text) - 16)
-    fill_length = int(total_length * iteration // total)
+    total_length = max(0, TERMINAL_WIDTH - len(text) - 16)
+    fill_length = int(total_length * ratio)
     finished_portion = "#" * fill_length
     remaining_portion = "-" * (total_length - fill_length)
     progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
-    end_of_line = "\033[F" if iteration != total else ""
+    end_of_line = "" if ratio == 1 else "\033[F"
 
     logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")

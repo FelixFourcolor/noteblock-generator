@@ -601,7 +601,7 @@ class Composition(list[list[Voice]]):
 
 
 def parse(path: str):
-    logger.info("Parsing")
+    logger.info("Parsing...")
     path_to_composition = Path(path)
     try:
         composition = load_file(path_to_composition, expected_type=dict)
