@@ -6,12 +6,13 @@ import logging
 import math
 import os
 import shutil
-import threading
+import signal
 from enum import Enum
 from functools import cached_property
 from io import StringIO
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from threading import Thread
 from typing import Callable, Iterable, Optional
 
 import amulet
@@ -155,12 +156,15 @@ def progress_bar(iteration: float, total: float, *, text: str):
     logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
 
 
-class ThreadedUserPrompt:
-    def __init__(self, prompt: str, choices: Iterable[str]):
+class UserPrompt:
+    def __init__(self, prompt: str, choices: Iterable[str], *, blocking: bool):
         self._prompt = prompt
         self._choices = choices
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
+        self._thread = Thread(target=self._run, daemon=True)
+        if blocking:
+            self._thread.run()
+        else:
+            self._thread.start()
 
     def _run(self):
         # capture logs to not interrupt the user prompt
@@ -196,16 +200,19 @@ def hash_directory(directory: str | Path):
                 _hash = update(path, _hash)
         return _hash
 
-    return update(directory, hashlib.blake2b(usedforsecurity=False)).digest()
+    return update(directory, hashlib.blake2b()).digest()
 
 
-def copyfile(src: Path, dst: Path) -> Path:
+def copytree(src: Path, dst: Path, *args, **kwargs) -> Path:
+    """shutil.copytree,
+    but replace dst with dst (1), dst (2), etc. if dst already exists
+    """
+
     _dir, _name = dst.parent, dst.stem
     i = 0
     while True:
-        # in case _path_copy already exists
         try:
-            shutil.copytree(src, dst)
+            shutil.copytree(src, dst, *args, **kwargs)
         except FileExistsError:
             if _name.endswith(suffix := f" ({i})"):
                 _name = _name[: -len(suffix)]
@@ -213,6 +220,14 @@ def copyfile(src: Path, dst: Path) -> Path:
             dst = _dir / _name
         else:
             return dst
+
+
+class PreventKeyboardInterrupt:
+    def __enter__(self):
+        self.handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    def __exit__(self, exc_type, exc_value, tb):
+        signal.signal(signal.SIGINT, self.handler)
 
 
 class World:
@@ -241,7 +256,7 @@ class World:
 
         try:
             # make a copy of World to work on that one
-            self._path_copy = copyfile(self._path, cache_dir / self._path.stem)
+            self._path_copy = copytree(self._path, cache_dir / self._path.stem)
             # load
             self._level = level = amulet.load_level(str(self._path_copy))
             # keep a hash of the original World
@@ -325,20 +340,26 @@ class World:
         wrapper.save()
 
     def _save(self):
-        # Move the copy World, now modified, back to original location.
+        # Check if World has been modified,
+        # if so get user confirmation to discard all changes.
         try:
             _hash = hash_directory(self._path)
         except FileNotFoundError:
             pass
         else:
-            # First check if user has entered the world, if so tell them to quit.
             if self._hash != _hash:
-                input(
-                    "\nIf you are currently inside the world, exit it now."
-                    "\nThen press ENTER to proceed.\n"
+                UserPrompt(
+                    "\nWhile the generator was running, your save files were modified by another process."
+                    "\nIf you want to proceed with this program, all other changes will be discarded."
+                    "\nConfirm to proceed? [y/N]: ",
+                    choices=("y", "yes"),
+                    blocking=True,
                 )
+        # Move the copy World back to its original location,
+        # dsiable keyboard interrupt to prevent corrupting files
+        with PreventKeyboardInterrupt():
             shutil.rmtree(self._path, ignore_errors=True)
-        shutil.move(self._path_copy, self._path)
+            shutil.move(self._path_copy, self._path)
 
     def _set_block(self, x: int, y: int, z: int, block: _Block):
         # A modified version of self._level.set_version_block,
@@ -755,31 +776,26 @@ class World:
         # -----------------------------------------------------------------------------
         # Get user confirmation
 
-        if not no_confirm:
+        if no_confirm:
+            user_prompt = None
+        else:
             dimension = self._dimension
             if dimension.startswith("minecraft:"):
                 dimension = dimension[10:]
-
-            user_prompt = ThreadedUserPrompt(
+            user_prompt = UserPrompt(
                 prompt=(
                     "\nThe structure will occupy the space "
                     f"{(min_x, min_y, min_z)} to {max_x, max_y, max_z} in {dimension}."
-                    "\nAnything within this area may be overwritten. Make sure to back up."
-                    "\nFeel free to enter the world to check that everything is right."
-                    "\nHowever, if you do decide to proceed, all of your changes from this point will be discarded."
-                    '\nSay "yes" when you are ready: '
+                    "\nConfirm to proceed? [Y/n] "
                 ),
-                choices=("y", "yes"),
+                choices=("", "y", "yes"),
+                blocking=False,  # start generating while waiting for user input, just don't save yet.
             )
-
-        else:
-            user_prompt = None
 
         # -----------------------------------------------------------------------------
         # Generate
 
         try:
-            # Generate while waiting for user input, just don't save yet.
             progress_bar(0, 1, text="Generating")
 
             if len(composition) == 1:
@@ -794,13 +810,14 @@ class World:
                     generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
             self._apply_modifications()
 
+            # Wait for user confirmation, then save
             if user_prompt is not None:
                 user_prompt.wait()
+            self._save()
 
         except KeyboardInterrupt:
+            # If user denies, KeyboardInterrupt will be raised, which is caught here
             print()
             logger.info("Aborted.")
-            logger.disabled = True
         else:
-            self._save()
             logger.info("Finished.")
