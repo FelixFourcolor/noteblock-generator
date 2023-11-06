@@ -328,7 +328,7 @@ class World:
 
         # A modified version of self._level.save,
         # optimized for performance,
-        # with customized progress handling so that generating and saving uses the same progress bar
+        # with customized progress handling so that block-setting and saving uses the same progress bar
         chunks = self._modifications.keys()
         wrapper = self._level.level_wrapper
         for progress, (cx, cz) in enumerate(chunks):
@@ -342,24 +342,26 @@ class World:
     def _save(self):
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
+        modified_by_another_process = False
         try:
             _hash = hash_directory(self._path)
         except FileNotFoundError:
             pass
         else:
-            if self._hash != _hash:
+            if modified_by_another_process := self._hash != _hash:
                 UserPrompt(
                     "\nWhile the generator was running, your save files were modified by another process."
-                    "\nIf you want to proceed with this program, all other changes will be discarded."
+                    "\nIf you want to proceed with this program, all other changes must be discarded."
                     "\nConfirm to proceed? [y/N]: ",
                     choices=("y", "yes"),
                     blocking=True,
                 )
         # Move the copy World back to its original location,
-        # dsiable keyboard interrupt to prevent corrupting files
+        # disable keyboard interrupt to prevent corrupting files
         with PreventKeyboardInterrupt():
             shutil.rmtree(self._path, ignore_errors=True)
             shutil.move(self._path_copy, self._path)
+        return modified_by_another_process
 
     def _set_block(self, x: int, y: int, z: int, block: _Block):
         # A modified version of self._level.set_version_block,
@@ -378,8 +380,8 @@ class World:
         except KeyError:
             try:
                 chunk = self._level.get_chunk(cx, cz, self._dimension)
-            except amulet.api.errors.ChunkDoesNotExist:
-                message = f"Missing chunk {(cx, cz)}"
+            except amulet.api.errors.ChunkLoadError:
+                message = f"Error loading chunk {(cx, cz)}"
                 end_of_line = " " * max(0, TERMINAL_WIDTH - len(message) - 10)
                 logger.warning(f"{message}{end_of_line}")
                 chunk = self._level.create_chunk(cx, cz, self._dimension)
@@ -813,7 +815,7 @@ class World:
             # Wait for user confirmation, then save
             if user_prompt is not None:
                 user_prompt.wait()
-            self._save()
+            modified_by_another_process = self._save()
 
         except KeyboardInterrupt:
             # If user denies, KeyboardInterrupt will be raised, which is caught here
@@ -821,3 +823,7 @@ class World:
             logger.info("Aborted.")
         else:
             logger.info("Finished.")
+            if modified_by_another_process:
+                logger.info(
+                    "If you are currently inside the world, exit and re-enter to see result."
+                )
