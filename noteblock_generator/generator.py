@@ -13,7 +13,7 @@ from io import StringIO
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from threading import Thread
-from typing import Callable, Iterable, Optional
+from typing import Callable, Iterable, Optional, TypeVar, overload
 
 import amulet
 from platformdirs import user_cache_dir
@@ -21,13 +21,90 @@ from platformdirs import user_cache_dir
 from .main import Location, Orientation, logger
 from .parser import Composition, Note, Rest, UserError, Voice
 
-_Chunk = amulet.api.chunk.Chunk
-_Block = amulet.api.Block
-_Level = amulet.api.level.World | amulet.api.level.Structure
-_BlockPlacement = _Block | Callable[[tuple[int, int, int]], Optional[_Block]]
+_ChunkType = amulet.api.chunk.Chunk
+_BlockType = amulet.api.Block
+_WorldType = amulet.api.level.World | amulet.api.level.Structure
+_PlacementType = _BlockType | Callable[[tuple[int, int, int]], Optional[_BlockType]]
+_NumType = TypeVar("_NumType", int, float)
 
 
-class Block(_Block):
+class Direction(tuple[int, int], Enum):
+    """Minecraft's cardinal direction"""
+
+    # coordinates in (x, z)
+    north = (0, -1)
+    south = (0, 1)
+    east = (1, 0)
+    west = (-1, 0)
+
+    def __str__(self):
+        return self.name
+
+    # Operator overloading
+    # -----------------------------------------------------------------------------
+    # Multiplication
+    # with another Direction: like complex multiplication, return a Direction
+    # with a number: multiply our non-zero component with that number, return a number
+    # Note: negation is not the same as multiplying with -1
+
+    @overload
+    def __mul__(self, other: Direction) -> Direction:
+        ...
+
+    @overload
+    def __mul__(self, other: _NumType) -> _NumType:
+        ...
+
+    def __mul__(self, other: Direction | _NumType) -> Direction | _NumType:
+        if isinstance(other, Direction):
+            return Direction(
+                (
+                    self[0] * other[1] + self[1] * other[0],
+                    self[1] * other[1] - self[0] * other[0],
+                )
+            )
+        if isinstance(other, (int, float)):
+            return max(self, key=abs) * other
+        return NotImplemented
+
+    @overload
+    def __rmul__(self, other: Direction) -> Direction:
+        ...
+
+    @overload
+    def __rmul__(self, other: _NumType) -> _NumType:
+        ...
+
+    def __rmul__(self, other: Direction | _NumType) -> Direction | _NumType:
+        return self * other
+
+    def __neg__(self):
+        # negation is like multiplying with 0i - 1, which is north
+        return self * Direction.north
+
+    # -----------------------------------------------------------------------------
+    # Add and subtract
+    # similar to multiplying with a number
+    # no adding/subtracting another Direciton
+
+    def __add__(self, other: _NumType) -> _NumType:
+        if isinstance(other, (int, float)):
+            return max(self, key=abs) + other
+        return NotImplemented
+
+    def __radd__(self, other: _NumType) -> _NumType:
+        return self + other
+
+    def __sub__(self, other: _NumType) -> _NumType:
+        if isinstance(other, (int, float)):
+            return max(self, key=abs) - other
+        return NotImplemented
+
+    def __rsub__(self, other: _NumType) -> _NumType:
+        return -self + other
+
+
+class Block(_BlockType):
     """A thin wrapper of amulet Block, with a more convenient constructor"""
 
     def __init__(self, name: str, **properties):
@@ -40,28 +117,6 @@ class NoteBlock(Block):
 
     def __init__(self, _note: Note):
         super().__init__("note_block", note=_note.note, instrument=_note.instrument)
-
-
-class Direction(tuple[int, int], Enum):
-    """Minecraft's cardinal directions"""
-
-    # coordinates in (x, z)
-    north = (0, -1)
-    south = (0, 1)
-    east = (1, 0)
-    west = (-1, 0)
-
-    def __neg__(self):
-        match self:
-            case (x, 0):
-                return Direction((-x, 0))
-            case (0, x):
-                return Direction((0, -x))
-            case _:
-                raise NotImplementedError
-
-    def __str__(self):
-        return self.name
 
 
 class Repeater(Block):
@@ -189,8 +244,8 @@ class UserPrompt:
 
 
 def hash_directory(directory: str | Path):
-    def update(directory: str | Path, _hash: hashlib._Hash):
-        for path in sorted(Path(directory).iterdir(), key=lambda p: str(p).lower()):
+    def update(directory: str | Path, _hash: hashlib._Hash) -> hashlib._Hash:
+        for path in sorted(Path(directory).iterdir(), key=lambda p: str(p)):
             _hash.update(path.name.encode())
             if path.is_file():
                 with open(path, "rb") as f:
@@ -236,18 +291,18 @@ class World:
     """
 
     _VERSION = ("java", (1, 20))
-    _level: _Level
+    _level: _WorldType
     _dimension: str
 
     def __init__(self, path: str | Path):
         self._path = Path(path)
         self._block_translator_cache = {}
-        self._chunk_cache: dict[tuple[int, int], _Chunk] = {}
+        self._chunk_cache: dict[tuple[int, int], _ChunkType] = {}
         self._modifications: dict[
             tuple[int, int],  # chunk location
             dict[
                 tuple[int, int, int],  # location within chunk
-                _BlockPlacement,  # what to do at that location
+                _PlacementType,  # what to do at that location
             ],
         ] = {}
 
@@ -286,12 +341,12 @@ class World:
 
         src_blocks = chunk.get_block(offset_x, y, offset_z).block_tuple
         block, _, _ = self._translator.from_universal(src_blocks[0])
-        if isinstance(block, _Block):
+        if isinstance(block, _BlockType):
             for extra_block in src_blocks[1:]:
                 block += extra_block  # no need to translate, we will remove it anyway
         return block
 
-    def __setitem__(self, coordinates: tuple[int, int, int], block: _BlockPlacement):
+    def __setitem__(self, coordinates: tuple[int, int, int], block: _PlacementType):
         """Does not actually set blocks,
         but saves what blocks to be set and where into a hashmap organized by chunks
         """
@@ -308,7 +363,7 @@ class World:
         if not self._modifications:
             return
 
-        def _modify_chunk(modifications: dict[tuple[int, int, int], _BlockPlacement]):
+        def _modify_chunk(modifications: dict[tuple[int, int, int], _PlacementType]):
             for coordinates, placement in modifications.items():
                 if callable(placement):
                     if (block := placement(coordinates)) is not None:
@@ -363,7 +418,7 @@ class World:
             shutil.move(self._path_copy, self._path)
         return modified_by_another_process
 
-    def _set_block(self, x: int, y: int, z: int, block: _Block):
+    def _set_block(self, x: int, y: int, z: int, block: _BlockType):
         # A modified version of self._level.set_version_block,
         # optimized for performance
 
@@ -388,7 +443,7 @@ class World:
             self._chunk_cache[cx, cz] = chunk
             return chunk
 
-    def _translate_block(self, block: _Block, /):
+    def _translate_block(self, block: _BlockType, /):
         try:
             return self._block_translator_cache[block]
         except KeyError:
@@ -451,14 +506,14 @@ class World:
             button = Block("oak_button", face="floor", facing=-x_direction)
             redstone = Redstone(z_direction, -z_direction)
 
-            x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
+            x = X + x_direction * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
             z = Z
 
             def first():
                 def generate_button():
                     """A button in the middle of the structure."""
-                    z_button = z + z_increment * math.ceil(Z_BOUNDARY / 2)
+                    z_button = z + z_direction * math.ceil(Z_BOUNDARY / 2)
                     self[x, y, z_button] = theme_block
                     self[x, y + 1, z_button] = button
 
@@ -466,38 +521,38 @@ class World:
                     """Connect the button to the main system."""
                     repeater = Repeater(delay=1, direction=-z_direction)
 
-                    self[x, y - 3, z + z_increment] = theme_block
-                    self[x, y - 2, z + z_increment] = redstone
-                    self[x, y - 1, z + z_increment] = air
-                    self[x, y - 2, z + z_increment * 2] = theme_block
-                    self[x, y - 1, z + z_increment * 2] = redstone
-                    self[x, y - 1, z + z_increment * 3] = theme_block
-                    self[x, y, z + z_increment * 3] = redstone
+                    self[x, y - 3, z + z_direction] = theme_block
+                    self[x, y - 2, z + z_direction] = redstone
+                    self[x, y - 1, z + z_direction] = air
+                    self[x, y - 2, z + z_direction * 2] = theme_block
+                    self[x, y - 1, z + z_direction * 2] = redstone
+                    self[x, y - 1, z + z_direction * 3] = theme_block
+                    self[x, y, z + z_direction * 3] = redstone
 
                     for i in range(4, math.ceil(Z_BOUNDARY / 2)):
-                        self[x, y, z + z_increment * i] = theme_block
-                        self[x, y + 1, z + z_increment * i] = (
+                        self[x, y, z + z_direction * i] = theme_block
+                        self[x, y + 1, z + z_direction * i] = (
                             redstone if i % 16 else repeater
                         )
 
                 def generate_empty_bridge():
                     """A bridge that leads to nowhere, just for symmetry."""
                     for i in range(math.ceil(Z_BOUNDARY / 2) + 1, Z_BOUNDARY - 3):
-                        self[x, y, z + z_increment * i] = theme_block
+                        self[x, y, z + z_direction * i] = theme_block
 
                 generate_button()
                 generate_redstone_bridge()
                 generate_empty_bridge()
 
             def subsequent():
-                self[x, y - 3, z + z_increment] = theme_block
-                self[x, y - 2, z + z_increment] = redstone
-                self[x, y - 1, z + z_increment] = air
-                self[x, y - 1, z + z_increment * 2] = redstone
-                self[x, y - 1, z + z_increment * 3] = theme_block
+                self[x, y - 3, z + z_direction] = theme_block
+                self[x, y - 2, z + z_direction] = redstone
+                self[x, y - 1, z + z_direction] = air
+                self[x, y - 1, z + z_direction * 2] = redstone
+                self[x, y - 1, z + z_direction * 3] = theme_block
 
-                self[x, y, z + z_increment * 2] = theme_block
-                self[x, y + 1, z + z_increment * 2] = button
+                self[x, y, z + z_direction * 2] = theme_block
+                self[x, y + 1, z + z_direction * 2] = button
 
             if x0 == 0:
                 first()
@@ -506,37 +561,35 @@ class World:
 
         def generate_init_system_for_double_orchestras(x0: int):
             def generate_bridge(z: int, z_direction: Direction):
-                z_increment = z_direction[1]
-
                 repeater = Repeater(delay=1, direction=-z_direction)
-                self[x, y - 3, z + z_increment] = theme_block
-                self[x, y - 2, z + z_increment] = redstone
-                self[x, y - 1, z + z_increment] = air
-                self[x, y - 2, z + z_increment * 2] = theme_block
-                self[x, y - 1, z + z_increment * 2] = redstone
-                self[x, y - 1, z + z_increment * 3] = theme_block
-                self[x, y, z + z_increment * 3] = redstone
+                self[x, y - 3, z + z_direction] = theme_block
+                self[x, y - 2, z + z_direction] = redstone
+                self[x, y - 1, z + z_direction] = air
+                self[x, y - 2, z + z_direction * 2] = theme_block
+                self[x, y - 1, z + z_direction * 2] = redstone
+                self[x, y - 1, z + z_direction * 3] = theme_block
+                self[x, y, z + z_direction * 3] = redstone
 
                 for i in range(4, math.ceil(Z_BOUNDARY / 2) + 1):
                     if x0 == 0 or i == 4:
-                        self[x, y, z + z_increment * i] = theme_block
-                    self[x, y + 1, z + z_increment * i] = (
+                        self[x, y, z + z_direction * i] = theme_block
+                    self[x, y + 1, z + z_direction * i] = (
                         redstone if i % 16 else repeater
                     )
 
             def generate_button():
-                z = Z + z_increment * (1 - math.ceil(Z_BOUNDARY / 2))
+                z = Z + z_direction * (1 - math.ceil(Z_BOUNDARY / 2))
                 button = Block("oak_button", face="floor", facing=-x_direction)
                 if x0 == 0 or composition.division == 1:
                     self[x, y, z] = theme_block
                 self[x, y + 1, z] = button
 
-            x = X + x_increment * (x0 + math.ceil(DIVISION_WIDTH / 2))
+            x = X + x_direction * (x0 + math.ceil(DIVISION_WIDTH / 2))
             y = y_glass
             redstone = Redstone(z_direction, -z_direction)
 
-            generate_bridge(Z - z_increment * Z_BOUNDARY, z_direction)
-            generate_bridge(Z + z_increment * 2, -z_direction)
+            generate_bridge(Z - z_direction * Z_BOUNDARY, z_direction)
+            generate_bridge(Z + z_direction * 2, -z_direction)
             generate_button()
 
         def generate_orchestra(voices: list[Voice], z_direction: Direction):
@@ -545,12 +598,12 @@ class World:
 
             def generate_space():
                 def generate_walking_glass():
-                    self[X + x_increment * x, y_glass, Z + z_increment * z] = glass
+                    self[X + x_direction * x, y_glass, Z + z_direction * z] = glass
                     for y in mandatory_clear_range:
                         self[
-                            X + x_increment * x,
+                            X + x_direction * x,
                             y,
-                            Z + z_increment * z,
+                            Z + z_direction * z,
                         ] = air
 
                 glass = Block("glass")
@@ -558,7 +611,7 @@ class World:
                 mandatory_clear_range = range(max_y, y_glass, -1)
                 optional_clear_range = range(min_y, y_glass)
 
-                def blend_block(xyz: tuple[int, int, int], /) -> Optional[_Block]:
+                def blend_block(xyz: tuple[int, int, int], /) -> Optional[_BlockType]:
                     """Take coordinates to a block.
                     Return what should be placed there in order to implement the blend feature.
                     """
@@ -566,7 +619,7 @@ class World:
                     block = self[xyz]
                     if (name := block.base_name) in REMOVE_LIST:
                         return air
-                    if not isinstance(block, _Block):
+                    if not isinstance(block, _BlockType):
                         return
                     if block.extra_blocks:
                         # remove all extra blocks, just in case water is among them
@@ -582,9 +635,9 @@ class World:
                         generate_walking_glass()
                         for y in optional_clear_range:
                             coordinates = (
-                                X + x_increment * x,
+                                X + x_direction * x,
                                 y,
-                                Z + z_increment * z,
+                                Z + z_direction * z,
                             )
                             if (
                                 not blend
@@ -598,50 +651,49 @@ class World:
             def generate_redstones():
                 self[x, y, z] = theme_block
                 self[x, y + 1, z] = Repeater(note.delay, z_direction)
-                self[x, y + 1, z + z_increment] = theme_block
-                self[x, y + 2, z + z_increment] = Redstone()
-                self[x, y + 2, z + z_increment * 2] = theme_block
+                self[x, y + 1, z + z_direction] = theme_block
+                self[x, y + 2, z + z_direction] = Redstone()
+                self[x, y + 2, z + z_direction * 2] = theme_block
 
             def generate_noteblocks():
                 if not note.dynamic:
                     return
 
                 placement_order = [
-                    -x_increment,
-                    x_increment,
-                    -x_increment * 2,
-                    x_increment * 2,
+                    -x_direction,
+                    x_direction,
+                    -x_direction * 2,
+                    x_direction * 2,
                 ]
 
                 noteblock = NoteBlock(note)
                 for i in range(note.dynamic):
-                    self[x + placement_order[i], y + 2, z + z_increment] = noteblock
+                    self[x + placement_order[i], y + 2, z + z_direction] = noteblock
                     if blend:
-                        self[x + placement_order[i], y + 1, z + z_increment] = air
-                        self[x + placement_order[i], y + 3, z + z_increment] = air
+                        self[x + placement_order[i], y + 1, z + z_direction] = air
+                        self[x + placement_order[i], y + 3, z + z_direction] = air
 
             def generate_division_bridge():
-                self[x, y, z + z_increment * 2] = theme_block
-                self[x, y + 1, z + z_increment * 2] = Redstone(
+                self[x, y, z + z_direction * 2] = theme_block
+                self[x, y + 1, z + z_direction * 2] = Redstone(
                     z_direction, -z_direction
                 )
-                self[x, y, z + z_increment * 3] = theme_block
-                self[x, y + 1, z + z_increment * 3] = Redstone(
+                self[x, y, z + z_direction * 3] = theme_block
+                self[x, y + 1, z + z_direction * 3] = Redstone(
                     x_direction, -z_direction
                 )
                 for i in range(1, DIVISION_WIDTH):
-                    self[x + x_increment * i, y, z + z_increment * 3] = theme_block
-                    self[x + x_increment * i, y + 1, z + z_increment * 3] = Redstone(
+                    self[x + x_direction * i, y, z + z_direction * 3] = theme_block
+                    self[x + x_direction * i, y + 1, z + z_direction * 3] = Redstone(
                         x_direction, -x_direction
                     )
                 self[
-                    x + x_increment * DIVISION_WIDTH, y, z + z_increment * 3
+                    x + x_direction * DIVISION_WIDTH, y, z + z_direction * 3
                 ] = theme_block
                 self[
-                    x + x_increment * DIVISION_WIDTH, y + 1, z + z_increment * 3
+                    x + x_direction * DIVISION_WIDTH, y + 1, z + z_direction * 3
                 ] = Redstone(-z_direction, -x_direction)
 
-            z_increment = z_direction[1]
             generate_space()
 
             for i, voice in enumerate(voices[::-1]):
@@ -649,16 +701,15 @@ class World:
                     voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
                 y = y_glass - VOICE_HEIGHT * (i + 1) - 2
-                z = Z + z_increment * (DIVISION_CHANGING_LENGTH + 2)
+                z = Z + z_direction * (DIVISION_CHANGING_LENGTH + 2)
 
                 for j, division in enumerate(voice):
-                    x = X + x_increment * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
-                    z_increment = z_direction[1]
-                    z0 = z - z_increment * DIVISION_CHANGING_LENGTH
+                    x = X + x_direction * (1 + DIVISION_WIDTH // 2 + j * DIVISION_WIDTH)
+                    z0 = z - z_direction * DIVISION_CHANGING_LENGTH
                     self[x, y + 2, z0] = theme_block
 
                     for k, note in enumerate(division):
-                        z = z0 + k * z_increment * NOTE_LENGTH
+                        z = z0 + k * z_direction * NOTE_LENGTH
                         generate_redstones()
                         generate_noteblocks()
 
@@ -675,7 +726,6 @@ class World:
                 if len(voice) % 2 == 0:
                     # z_direction has been flipped, reset it to original
                     z_direction = -z_direction
-                    z_increment = z_direction[1]
 
         # Function main begins
         # -----------------------------------------------------------------------------
@@ -707,20 +757,16 @@ class World:
             )
         self._dimension = dimension
 
-        x_direction = Direction((1, 0))
+        x_direction = Direction.east
         if not orientation.x:
             x_direction = -x_direction
-        x_increment = x_direction[0]
-        y_increment = 1
         if orientation.y:
             y_glass = Y + VOICE_HEIGHT * (composition.size + 1)
         else:
-            y_increment = -y_increment
             y_glass = Y - 1
-        z_direction = Direction((0, 1))
+        z_direction = Direction.south
         if not orientation.z:
             z_direction = -z_direction
-        z_increment = z_direction[1]
 
         # -----------------------------------------------------------------------------
         # Calculate the space the structure will occucpy,
@@ -806,7 +852,7 @@ class World:
                     generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
             else:
                 generate_orchestra(composition[0], z_direction)
-                Z += z_increment * Z_BOUNDARY
+                Z += z_direction * Z_BOUNDARY
                 generate_orchestra(composition[1], z_direction)
                 for i in range(composition.length // 2):
                     generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
