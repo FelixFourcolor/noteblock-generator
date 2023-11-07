@@ -13,7 +13,7 @@ from io import StringIO
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from threading import Thread
-from typing import Callable, Iterable, Optional, TypeVar, overload
+from typing import Callable, Iterable, Optional, TypeVar
 
 import amulet
 from platformdirs import user_cache_dir
@@ -25,7 +25,6 @@ _ChunkType = amulet.api.chunk.Chunk
 _BlockType = amulet.api.Block
 _WorldType = amulet.api.level.World | amulet.api.level.Structure
 _PlacementType = _BlockType | Callable[[tuple[int, int, int]], Optional[_BlockType]]
-_NumType = TypeVar("_NumType", int, float)
 
 
 class Direction(tuple[int, int], Enum):
@@ -44,18 +43,10 @@ class Direction(tuple[int, int], Enum):
     # -----------------------------------------------------------------------------
     # Multiplication
     # with another Direction: like complex multiplication, return a Direction
-    # with a number: multiply our non-zero component with that number, return a number
-    # Note: negation is not the same as multiplying with -1
+    # with a tuple: like complex multiplication, return a tuple
+    # with an int: multiply our non-zero component with the int, return an int
 
-    @overload
-    def __mul__(self, other: Direction) -> Direction:
-        ...
-
-    @overload
-    def __mul__(self, other: _NumType) -> _NumType:
-        ...
-
-    def __mul__(self, other: Direction | _NumType) -> Direction | _NumType:
+    def __mul__(self, other: _DirectionType) -> _DirectionType:
         if isinstance(other, Direction):
             return Direction(
                 (
@@ -63,19 +54,16 @@ class Direction(tuple[int, int], Enum):
                     self[1] * other[1] - self[0] * other[0],
                 )
             )
-        if isinstance(other, (int, float)):
+        if isinstance(other, tuple):
+            return (
+                self[0] * other[1] + self[1] * other[0],
+                self[1] * other[1] - self[0] * other[0],
+            )
+        if isinstance(other, int):
             return max(self, key=abs) * other
         return NotImplemented
 
-    @overload
-    def __rmul__(self, other: Direction) -> Direction:
-        ...
-
-    @overload
-    def __rmul__(self, other: _NumType) -> _NumType:
-        ...
-
-    def __rmul__(self, other: Direction | _NumType) -> Direction | _NumType:
+    def __rmul__(self, other: _DirectionType) -> _DirectionType:
         return self * other
 
     def __neg__(self):
@@ -83,12 +71,14 @@ class Direction(tuple[int, int], Enum):
         return self * Direction.north
 
     # -----------------------------------------------------------------------------
-    # Add and subtract
-    # similar to multiplying with a number
-    # no adding/subtracting another Direciton
+    # Addition and subtraction
+    # with a tuple: like complex addition and subtraction
+    # with an int: add/subtract our non-zero component with the int, return an int
 
     def __add__(self, other: _NumType) -> _NumType:
-        if isinstance(other, (int, float)):
+        if isinstance(other, tuple):
+            return (self[0] + other[0], self[1] + other[1])
+        if isinstance(other, int):
             return max(self, key=abs) + other
         return NotImplemented
 
@@ -96,12 +86,18 @@ class Direction(tuple[int, int], Enum):
         return self + other
 
     def __sub__(self, other: _NumType) -> _NumType:
-        if isinstance(other, (int, float)):
+        if isinstance(other, tuple):
+            return (self[0] - other[0], self[1] - other[1])
+        if isinstance(other, int):
             return max(self, key=abs) - other
         return NotImplemented
 
     def __rsub__(self, other: _NumType) -> _NumType:
         return -self + other
+
+
+_DirectionType = TypeVar("_DirectionType", Direction, tuple[int, int], int)
+_NumType = TypeVar("_NumType", tuple[int, int], int)
 
 
 class Block(_BlockType):
