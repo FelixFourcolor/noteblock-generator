@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from pathlib import Path
 from typing import Optional, Type, TypeVar, get_origin
@@ -590,14 +591,17 @@ class Composition(list[list[Voice]]):
 
     def _equalize_voices_length(self):
         length = max(map(len, [v for orchestra in self for v in orchestra]))
+        init_length = math.ceil(self.size / self.division)
         for orchestra in self:
             for voice in orchestra:
-                for j in range(self.division - len(voice[-1])):
+                for _ in range(self.division - len(voice[-1])):
                     voice[-1].append(Rest(voice))
-                for i in range(length - len(voice)):
+                for _ in range(length - len(voice)):
                     voice.append([Rest(voice)])
-                    for j in range(voice.division - 1):
+                    for _ in range(voice.division - 1):
                         voice[-1].append(Rest(voice))
+                for _ in range(init_length):
+                    voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
 
 def parse(path: str):

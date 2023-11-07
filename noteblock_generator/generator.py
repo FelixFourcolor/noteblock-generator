@@ -3,16 +3,16 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .main import Location, Orientation, logger
-from .parser import Composition, Rest, UserError, Voice
+from .parser import Composition, UserError, Voice
 from .world import (
     Block,
+    BlockType,
     Direction,
     NoteBlock,
     Redstone,
     Repeater,
     UserPrompt,
     World,
-    _BlockType,
     progress_bar,
 )
 
@@ -65,6 +65,12 @@ _REDSTONE_COMPONENTS = {
 }
 
 REMOVE_LIST = _LIQUID | _GRAVITY_AFFECTED_BLOCKS | _REDSTONE_COMPONENTS
+
+
+NOTE_LENGTH = 2  # noteblock + repeater
+DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
+VOICE_HEIGHT = 2  # noteblock + air above
+DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
 
 
 @dataclass(kw_only=True)
@@ -197,7 +203,7 @@ class Generator:
                 mandatory_clear_range = range(max_y, y_glass, -1)
                 optional_clear_range = range(min_y, y_glass)
 
-                def blend_block(xyz: tuple[int, int, int], /) -> Optional[_BlockType]:
+                def blend_block(xyz: tuple[int, int, int], /) -> Optional[BlockType]:
                     """Take coordinates to a block.
                     Return what should be placed there in order to implement the self.blend feature.
                     """
@@ -205,7 +211,7 @@ class Generator:
                     block = self.world[xyz]
                     if (name := block.base_name) in REMOVE_LIST:
                         return air
-                    if not isinstance(block, _BlockType):
+                    if not isinstance(block, BlockType):
                         return
                     if block.extra_blocks:
                         # remove all extra blocks, just in case water is among them
@@ -287,9 +293,6 @@ class Generator:
             generate_space()
 
             for i, voice in enumerate(voices[::-1]):
-                for _ in range(INIT_DIVISIONS):
-                    voice.insert(0, [Rest(voice, delay=1)] * voice.division)
-
                 y = y_glass - VOICE_HEIGHT * (i + 1) - 2
                 z = Z + z_direction * (DIVISION_CHANGING_LENGTH + 2)
 
@@ -320,16 +323,6 @@ class Generator:
         # Function main begins
         # -----------------------------------------------------------------------------
         # Parse arguments
-
-        NOTE_LENGTH = 2  # noteblock + repeater
-        DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
-        VOICE_HEIGHT = 2  # noteblock + air above
-        DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
-        INIT_DIVISIONS = math.ceil(
-            (self.composition.size - 1) / self.composition.division
-        )
-        # this number of divisions is added to the beginning of every voice
-        # so that with a push of a button, all voices start at the same time
 
         air = Block("air")
         theme_block = Block(self.theme)
@@ -364,7 +357,7 @@ class Generator:
         # Calculate the space the structure will occucpy,
         # and verify that it's within bounds
 
-        X_BOUNDARY = (self.composition.length + INIT_DIVISIONS) * DIVISION_WIDTH + 1
+        X_BOUNDARY = self.composition.length * DIVISION_WIDTH + 1
         Z_BOUNDARY = (
             self.composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
         )

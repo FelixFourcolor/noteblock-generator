@@ -20,10 +20,10 @@ from platformdirs import user_cache_dir
 from .main import logger
 from .parser import Note, UserError
 
-_ChunkType = amulet.api.chunk.Chunk
-_BlockType = amulet.api.Block
-_WorldType = amulet.api.level.World | amulet.api.level.Structure
-_PlacementType = _BlockType | Callable[[tuple[int, int, int]], Optional[_BlockType]]
+ChunkType = amulet.api.chunk.Chunk
+BlockType = amulet.api.Block
+WorldType = amulet.api.level.World | amulet.api.level.Structure
+PlacementType = BlockType | Callable[[tuple[int, int, int]], Optional[BlockType]]
 
 
 class Direction(tuple[int, int], Enum):
@@ -99,7 +99,7 @@ _DirectionType = TypeVar("_DirectionType", Direction, tuple[int, int], int)
 _NumType = TypeVar("_NumType", tuple[int, int], int)
 
 
-class Block(_BlockType):
+class Block(BlockType):
     """A thin wrapper of amulet Block, with a more convenient constructor"""
 
     def __init__(self, name: str, **properties):
@@ -235,18 +235,18 @@ class World:
     """
 
     _VERSION = ("java", (1, 20))
-    _level: _WorldType
+    _level: WorldType
     dimension: str
 
     def __init__(self, path: str | Path):
         self._path = Path(path)
         self._block_translator_cache = {}
-        self._chunk_cache: dict[tuple[int, int], _ChunkType] = {}
+        self._chunk_cache: dict[tuple[int, int], ChunkType] = {}
         self._modifications: dict[
             tuple[int, int],  # chunk location
             dict[
                 tuple[int, int, int],  # location within chunk
-                _PlacementType,  # what to do at that location
+                PlacementType,  # what to do at that location
             ],
         ] = {}
 
@@ -285,12 +285,12 @@ class World:
 
         src_blocks = chunk.get_block(offset_x, y, offset_z).block_tuple
         block, _, _ = self._translator.from_universal(src_blocks[0])
-        if isinstance(block, _BlockType):
+        if isinstance(block, BlockType):
             for extra_block in src_blocks[1:]:
                 block += extra_block  # no need to translate, we will remove it anyway
         return block
 
-    def __setitem__(self, coordinates: tuple[int, int, int], block: _PlacementType):
+    def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         """Does not actually set blocks,
         but saves what blocks to be set and where into a hashmap organized by chunks
         """
@@ -307,7 +307,7 @@ class World:
         if not self._modifications:
             return
 
-        def _modify_chunk(modifications: dict[tuple[int, int, int], _PlacementType]):
+        def _modify_chunk(modifications: dict[tuple[int, int, int], PlacementType]):
             for coordinates, placement in modifications.items():
                 if callable(placement):
                     if (block := placement(coordinates)) is not None:
@@ -362,7 +362,7 @@ class World:
             shutil.move(self._path_copy, self._path)
         return modified_by_another_process
 
-    def _set_block(self, x: int, y: int, z: int, block: _BlockType):
+    def _set_block(self, x: int, y: int, z: int, block: BlockType):
         # A modified version of self._level.set_version_block,
         # optimized for performance
 
@@ -387,7 +387,7 @@ class World:
             self._chunk_cache[cx, cz] = chunk
             return chunk
 
-    def _translate_block(self, block: _BlockType, /):
+    def _translate_block(self, block: BlockType, /):
         try:
             return self._block_translator_cache[block]
         except KeyError:
