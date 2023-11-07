@@ -338,6 +338,9 @@ class World:
         self._level.history_manager.mark_saved()
         wrapper.save()
 
+        # Windows fix: must close level before moving its folder
+        self._level.close()
+
     def save(self):
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
