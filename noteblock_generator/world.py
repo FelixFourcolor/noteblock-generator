@@ -15,6 +15,7 @@ from threading import Thread
 from typing import Callable, Iterable, Optional, TypeVar
 
 import amulet
+import colorama
 from platformdirs import user_cache_dir
 
 from .main import logger
@@ -24,6 +25,9 @@ ChunkType = amulet.api.chunk.Chunk
 BlockType = amulet.api.Block
 WorldType = amulet.api.level.World | amulet.api.level.Structure
 PlacementType = BlockType | Callable[[tuple[int, int, int]], Optional[BlockType]]
+
+# Enable ANSI escape code for Windows PowerShell
+colorama.just_fix_windows_console()
 
 
 class Direction(tuple[int, int], Enum):
