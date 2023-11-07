@@ -2,7 +2,7 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
-from .main import Location, Orientation, logger
+from .main import Location, logger
 from .parser import Composition, Note, UserError, Voice
 from .world import (
     Block,
@@ -73,6 +73,14 @@ DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
 VOICE_HEIGHT = 2  # noteblock + air above
 DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
 
+ROTATION_MAP = {
+    -180: Direction.north,
+    -90: Direction.east,
+    0: Direction.south,
+    90: Direction.west,
+    180: Direction.north,
+}
+
 
 @dataclass(kw_only=True)
 class Generator:
@@ -80,12 +88,10 @@ class Generator:
     composition: Composition
     location: Location
     dimension: Optional[str]
-    orientation: Orientation
+    orientation: Optional[tuple[float, float]]
     theme: str
     blend: bool
     no_confirm: bool
-
-    rotation = Direction((1, 0))
 
     def __call__(self):
         with self.world:
@@ -126,11 +132,13 @@ class Generator:
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         x, y, z = coordinates
+        # BUG: I don't know why but this rotation must be negated
         delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
         return self.world[self.X + delta_x, y, self.Z + delta_z]
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         x, y, z = coordinates
+        # BUG: I don't know why but this rotation must be negated
         delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
         self.world[self.X + delta_x, y, self.Z + delta_z] = block
 
@@ -160,15 +168,18 @@ class Generator:
 
         # orientation
         self.x_direction = Direction.east
-        if not self.orientation.x:
-            self.x_direction = -self.x_direction
-        if self.orientation.y:
-            self.y_glass = self.Y + VOICE_HEIGHT * (self.composition.size + 1)
-        else:
-            self.y_glass = self.Y - 1
         self.z_direction = Direction.south
-        if not self.orientation.z:
-            self.z_direction = -self.z_direction
+
+        if self.orientation is None:
+            self.orientation = self.world.player_orientation
+        h_rotation, v_rotation = self.orientation
+        self.rotation = ROTATION_MAP[
+            min(ROTATION_MAP.keys(), key=lambda x: abs(x - h_rotation))
+        ]
+        if v_rotation >= 0:
+            self.y_glass = self.Y - 1
+        else:
+            self.y_glass = self.Y + VOICE_HEIGHT * (self.composition.size + 1)
 
         self.noteblock_order = [
             -self.x_direction,
@@ -177,7 +188,7 @@ class Generator:
             self.x_direction * 2,
         ]
 
-        # validate that orientations are in bounds
+        # validate that coordinates are in bounds
         self.X_BOUNDARY = self.composition.length * DIVISION_WIDTH + 1
         self.Z_BOUNDARY = (
             self.composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
@@ -186,10 +197,7 @@ class Generator:
         BOUNDS = self.world.bounds
 
         # x
-        if self.orientation.x:
-            self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
-        else:
-            self.min_x, self.max_x = self.X - self.X_BOUNDARY, self.X
+        self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
         if self.min_x < BOUNDS.min_x:
             raise UserError(
                 f"Location is out of bound: x-coordinate cannot go below {BOUNDS.min_x}"
@@ -199,18 +207,11 @@ class Generator:
                 f"Location is out of bound: x-coordinate cannot go above {BOUNDS.max_x}"
             )
         # z
-        if self.orientation.z:
-            self.min_z = self.Z
-            if len(self.composition) == 1:
-                self.max_z = self.Z + self.Z_BOUNDARY
-            else:
-                self.max_z = self.Z + 2 * self.Z_BOUNDARY
+        self.min_z = self.Z
+        if len(self.composition) == 1:
+            self.max_z = self.Z + self.Z_BOUNDARY
         else:
-            self.max_z = self.Z
-            if len(self.composition) == 1:
-                self.min_z = self.Z - self.Z_BOUNDARY
-            else:
-                self.min_z = self.Z - 2 * self.Z_BOUNDARY
+            self.max_z = self.Z + 2 * self.Z_BOUNDARY
         if self.min_z < BOUNDS.min_z:
             raise UserError(
                 f"Location is out of bound: z-coordinate cannot go below {BOUNDS.min_z}"

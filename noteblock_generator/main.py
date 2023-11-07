@@ -23,12 +23,6 @@ class Location(NamedTuple):
     z: Coordinate
 
 
-class Orientation(NamedTuple):
-    x: bool
-    y: bool
-    z: bool
-
-
 class UserError(Exception):
     pass
 
@@ -41,7 +35,7 @@ def get_args():
         "--location",
         nargs="*",
         default=["~", "~", "~"],
-        help="build location (in x y z); default is ~ ~ ~",
+        help="build location (in x y z); default is player's location",
     )
     parser.add_argument(
         "--dimension",
@@ -51,8 +45,10 @@ def get_args():
     parser.add_argument(
         "--orientation",
         nargs="*",
-        default=["+", "+", "+"],
-        help=("build orientation (in x y z); default is + + +"),
+        default=None,
+        help=(
+            "build orientation (in horizontal, vertical); default is player's orientation"
+        ),
     )
     parser.add_argument(
         "--theme",
@@ -88,7 +84,7 @@ def parse_args():
             try:
                 value = int(arg)
             except ValueError:
-                raise UserError(f"Expected integer coordinates; found {arg}")
+                raise UserError(f"Expected integer coordinates; received {arg}")
         _location.append(Coordinate(value, relative=relative))
     location = Location(*_location)
 
@@ -98,25 +94,20 @@ def parse_args():
             dimension = "minecraft:" + dimension
 
     # orientation
-    if len(args.orientation) != 3:
-        raise UserError("3 orientations are required")
-    _orientation: list[bool] = []
-    _options = "+-"
-    for arg in args.orientation:
-        try:
-            _orientation.append(_options.index(arg) == 0)
-        except ValueError:
-            raise UserError(f"{arg} is not a valid direction; expected + or -")
-    orientation = Orientation(*_orientation)
-
-    # theme
-    theme = args.theme
-    if not isinstance(theme, str):
-        raise UserError(f"Expected a string for theme; found {type(theme)}")
-
-    # flags
-    blend: bool = args.blend
-    no_confirm: bool = args.no_confirm
+    if (orientation := args.orientation) is not None:
+        if len(args.orientation) != 2:
+            raise UserError("Orientation requires 2 values")
+        for index, value in enumerate(orientation):
+            try:
+                orientation[index] = float(value)
+            except ValueError:
+                raise UserError(
+                    f"Expected float values for orientation; received {value}"
+                )
+        if not (-180 <= orientation[0] <= 180):
+            raise UserError("Horizontal orientation must between -180 and 180")
+        if not (-90 <= orientation[1] <= 90):
+            raise UserError("Vertical orientation must between -90 and 90")
 
     # parse music
     from .parser import parse
@@ -135,9 +126,9 @@ def parse_args():
         "location": location,
         "dimension": dimension,
         "orientation": orientation,
-        "theme": theme,
-        "blend": blend,
-        "no_confirm": no_confirm,
+        "theme": args.theme,
+        "blend": args.blend,
+        "no_confirm": args.no_confirm,
     }
 
 

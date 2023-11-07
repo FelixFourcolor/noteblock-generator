@@ -71,7 +71,7 @@ class Direction(tuple[int, int], Enum):
 
     # -----------------------------------------------------------------------------
     # Addition and subtraction
-    # with a tuple: like complex addition and subtraction
+    # with a tuple: like complex addition and subtraction, return a tuple
     # with an int: add/subtract our non-zero component with the int, return an int
 
     def __add__(self, other: _NumType) -> _NumType:
@@ -93,6 +93,12 @@ class Direction(tuple[int, int], Enum):
 
     def __rsub__(self, other: _NumType) -> _NumType:
         return -self + other
+
+    # -----------------------------------------------------------------------------
+    # bool: whether the non-zero component is positive
+
+    def __bool__(self):
+        return max(self, key=abs) > 0
 
 
 _DirectionType = TypeVar("_DirectionType", Direction, tuple[int, int], int)
@@ -258,6 +264,7 @@ class World:
             self._path_copy = copytree(self._path, cache_dir / self._path.stem)
             # load
             self._level = level = amulet.load_level(str(self._path_copy))
+            self._level.players
             # keep a hash of the original World
             # to detect if user has entered the world while generating.
             self._hash = hash_directory(self._path)
@@ -268,7 +275,7 @@ class World:
             raise UserError(f"Path {self._path} is invalid\n{type(e).__name__}: {e}")
 
         self._translator = level.translation_manager.get_version(*self._VERSION).block
-        self._players = tuple(level.get_player(i) for i in self._level.all_player_ids())
+        self._players = tuple(level.get_player(i) for i in level.all_player_ids())
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -395,9 +402,17 @@ class World:
             self._block_translator_cache[block] = universal_block
             return universal_block
 
+    @property
+    def bounds(self):
+        return self._level.bounds(self.dimension)
+
+    @property
+    def dimensions(self):
+        return self._level.dimensions
+
     # -----------------------------------------------------------------------------
-    # The two methods below are properties so that they are lazily evaluated,
-    # so that they are only called if user uses relative location/dimension,
+    # The methods below are properties so that they are lazily evaluated,
+    # so that they are only called if user uses relative location/dimension/orientation,
 
     # this one is cached because it's called thrice, once for each coordinate
     @cached_property
@@ -427,9 +442,14 @@ class World:
         return results.pop()
 
     @property
-    def bounds(self):
-        return self._level.bounds(self.dimension)
-
-    @property
-    def dimensions(self):
-        return self._level.dimensions
+    def player_orientation(self) -> tuple[float, float]:
+        results = {p.rotation for p in self._players}
+        if not results:
+            out = (0.0, 45.0)
+            logger.warning(f"No players detected. Default orientation {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative orientation is not supported."
+            )
+        return results.pop()
