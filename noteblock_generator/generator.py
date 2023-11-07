@@ -167,15 +167,16 @@ class Generator:
         self.world.dimension = self.dimension
 
         # orientation
-        self.x_direction = Direction.east
-        self.z_direction = Direction.south
+        self.x_direction = Direction((1, 0))
+        self.z_direction = Direction((0, 1))
 
         if self.orientation is None:
             self.orientation = self.world.player_orientation
         h_rotation, v_rotation = self.orientation
-        self.rotation = ROTATION_MAP[
-            min(ROTATION_MAP.keys(), key=lambda x: abs(x - h_rotation))
-        ]
+        self.rotation = (
+            Direction((-1, 0))
+            * ROTATION_MAP[min(ROTATION_MAP.keys(), key=lambda x: abs(x - h_rotation))]
+        )
         if v_rotation >= 0:
             self.y_glass = self.Y - 1
         else:
