@@ -1,7 +1,6 @@
 import logging
 import sys
 from argparse import ArgumentParser
-from functools import partial
 from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
@@ -110,31 +109,44 @@ def parse_args():
             raise UserError(f"{arg} is not a valid direction; expected + or -")
     orientation = Orientation(*_orientation)
 
+    # theme
+    theme = args.theme
+    if not isinstance(theme, str):
+        raise UserError(f"Expected a string for theme; found {type(theme)}")
+
+    # flags
+    blend: bool = args.blend
+    no_confirm: bool = args.no_confirm
+
     # parse music
     from .parser import parse
 
     composition = parse(args.music_source)
 
     # load world
-    from .generator import World
+    from .world import World
 
     world = World(args.minecraft_world)
-    return partial(
-        world.generate,
-        composition=composition,
-        location=location,
-        dimension=dimension,
-        orientation=orientation,
-        theme=args.theme,
-        blend=args.blend,
-        no_confirm=args.no_confirm,
-    )
+
+    # return
+    return {
+        "world": world,
+        "composition": composition,
+        "location": location,
+        "dimension": dimension,
+        "orientation": orientation,
+        "theme": theme,
+        "blend": blend,
+        "no_confirm": no_confirm,
+    }
 
 
 def main():
     try:
-        generator = parse_args()
-        generator()
+        args = parse_args()
+        from .generator import Generator
+
+        Generator(**args)()
     except UserError as e:
         logger.error(e)
         sys.exit(1)
