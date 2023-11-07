@@ -555,7 +555,7 @@ class World:
 
                 glass = Block("glass")
 
-                mandatory_clear_range = range(max_y, y_glass)
+                mandatory_clear_range = range(max_y, y_glass, -1)
                 optional_clear_range = range(min_y, y_glass)
 
                 def blend_block(xyz: tuple[int, int, int], /) -> Optional[_Block]:
