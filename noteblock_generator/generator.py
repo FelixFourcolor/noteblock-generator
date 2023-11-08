@@ -1,3 +1,4 @@
+from functools import cache
 import math
 from dataclasses import dataclass
 from typing import Optional
@@ -126,9 +127,11 @@ class Generator:
         delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
         return self.X + delta_x, y, self.Z + delta_z
 
+    @cache
     def Redstone(self, *connections: Direction):
         return Redstone(*[self.rotation * c for c in connections])
 
+    @cache
     def Repeater(self, delay: int, direction: Direction):
         return Repeater(delay=delay, direction=self.rotation * direction)
 
@@ -140,6 +143,9 @@ class Generator:
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         self.world[self.rotate(coordinates)] = block
+
+    def __hash__(self):
+        return 0
 
     # enerator subroutines
 
