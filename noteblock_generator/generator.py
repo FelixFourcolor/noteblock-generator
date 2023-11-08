@@ -73,7 +73,7 @@ DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
 VOICE_HEIGHT = 2  # noteblock + air above
 DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
 
-ROTATION_MAP = {
+ROTATION = {
     -180: Direction.north,
     -90: Direction.east,
     0: Direction.south,
@@ -120,6 +120,11 @@ class Generator:
                     )
 
     # Rotation system
+    def rotate(self, coordinates: tuple[int, int, int]):
+        x, y, z = coordinates
+        # BUG: I don't know why but this rotation must be negated
+        delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
+        return self.X + delta_x, y, self.Z + delta_z
 
     def Redstone(self, *connections: Direction):
         return Redstone(*[self.rotation * c for c in connections])
@@ -131,16 +136,10 @@ class Generator:
         return Block("oak_button", facing=self.rotation * facing, **kwargs)
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
-        x, y, z = coordinates
-        # BUG: I don't know why but this rotation must be negated
-        delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
-        return self.world[self.X + delta_x, y, self.Z + delta_z]
+        return self.world[self.rotate(coordinates)]
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
-        x, y, z = coordinates
-        # BUG: I don't know why but this rotation must be negated
-        delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
-        self.world[self.X + delta_x, y, self.Z + delta_z] = block
+        self.world[self.rotate(coordinates)] = block
 
     # enerator subroutines
 
@@ -175,7 +174,7 @@ class Generator:
         h_rotation, v_rotation = self.orientation
         self.rotation = (
             Direction((-1, 0))
-            * ROTATION_MAP[min(ROTATION_MAP.keys(), key=lambda x: abs(x - h_rotation))]
+            * ROTATION[min(ROTATION.keys(), key=lambda x: abs(x - h_rotation))]
         )
         if v_rotation >= 0:
             self.y_glass = self.Y - 1
@@ -196,9 +195,17 @@ class Generator:
         )
         Y_BOUNDARY = VOICE_HEIGHT * (self.composition.size + 1)
         BOUNDS = self.world.bounds
-
-        # x
-        self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
+        min_x, max_x = self.X, self.X + self.X_BOUNDARY
+        min_z = self.Z
+        if len(self.composition) == 1:
+            max_z = self.Z + self.Z_BOUNDARY
+        else:
+            max_z = self.Z + 2 * self.Z_BOUNDARY
+        min_y, max_y = self.y_glass - Y_BOUNDARY, self.y_glass + 2
+        min_x, self.min_y, min_z = self.rotate((min_x, min_y, min_z))
+        max_x, self.max_y, max_z = self.rotate((max_x, max_y, max_z))
+        self.min_x, self.max_x = min(min_x, max_x), max(min_x, max_x)
+        self.min_z, self.max_z = min(min_z, max_z), max(min_z, max_z)
         if self.min_x < BOUNDS.min_x:
             raise UserError(
                 f"Location is out of bound: x-coordinate cannot go below {BOUNDS.min_x}"
@@ -207,12 +214,6 @@ class Generator:
             raise UserError(
                 f"Location is out of bound: x-coordinate cannot go above {BOUNDS.max_x}"
             )
-        # z
-        self.min_z = self.Z
-        if len(self.composition) == 1:
-            self.max_z = self.Z + self.Z_BOUNDARY
-        else:
-            self.max_z = self.Z + 2 * self.Z_BOUNDARY
         if self.min_z < BOUNDS.min_z:
             raise UserError(
                 f"Location is out of bound: z-coordinate cannot go below {BOUNDS.min_z}"
@@ -221,8 +222,6 @@ class Generator:
             raise UserError(
                 f"Location is out of bound: z-coordinate cannot go above {BOUNDS.max_z}"
             )
-        # y
-        self.min_y, self.max_y = self.y_glass - Y_BOUNDARY, self.y_glass + 2
         if self.min_y < BOUNDS.min_y:
             raise UserError(
                 f"Location is out of bound: y-coordinate cannot go below {BOUNDS.min_y}"
