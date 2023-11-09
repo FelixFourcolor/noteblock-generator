@@ -183,7 +183,7 @@ class Voice(list[list[Note]]):
     ):
         self._bar_number: int = 1
         self._beat_number: int = 1
-        self._index = len(_composition)
+        self._index = (len(_composition), len(_composition[-1]) + 1)
         self._composition = _composition
         self._name = name
 
@@ -239,10 +239,10 @@ class Voice(list[list[Note]]):
                 raise
             raise UserError(f"{self}\n" f"{type(e).__name__}: {e}")
 
-    def __str__(self):
+    def __repr__(self):
         if self._name:
             return self._name
-        return f"Voice {self._index + 1}"
+        return f"Voice {self._index}"
 
     @property
     def delay_map(self):
@@ -264,7 +264,7 @@ class Voice(list[list[Note]]):
             return notes_or_path_to_notes
 
         if self._name is None:
-            self._name = notes_or_path_to_notes
+            self._name = str(Path(notes_or_path_to_notes).with_suffix(""))
         try:
             notes_or_another_voice = load_file(
                 self._composition._path / Path(notes_or_path_to_notes),
@@ -579,7 +579,7 @@ class Composition(list[list[Voice]]):
                     raise
                 raise UserError(f"{path_to_voice}\n" f"{type(e).__name__}: {e}")
             if "name" not in voice:
-                voice["name"] = voice_or_path_to_voice
+                voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
         else:
             voice = voice_or_path_to_voice
 
