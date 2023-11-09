@@ -99,6 +99,8 @@ class Generator:
         with self.world:
             self.parse_args()
             user_prompt = self.get_user_confirmation()
+            if user_prompt is None:
+                print()
             # start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
             # hence put the whole generator inside a try-catch block.
@@ -115,6 +117,7 @@ class Generator:
                 logger.info("Aborted.")
                 logger.disabled = True
             else:
+                print()
                 logger.info("Finished.")
                 if modified_by_another_process:
                     logger.warning(

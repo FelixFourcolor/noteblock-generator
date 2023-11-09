@@ -110,14 +110,14 @@ def parse_args():
     # so that we catch command-line errors quickly
     # and parse Composition before World, because former is faster
 
-    logger.info("Parsing music...")
+    logger.info("Parsing music")
 
     from .parser import parse
 
     composition = parse(args.music_source)
 
     print()
-    logger.info("Loading world...")
+    logger.info("Loading world")
 
     from .world import World
 
