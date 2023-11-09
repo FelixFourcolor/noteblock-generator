@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Optional
 
+from .generator_utils import UserPrompt, progress_bar, terminal_width
 from .main import Location, Orientation, logger
 from .parser import Composition, Note, UserError, Voice
-from .utils import UserPrompt, progress_bar
 from .world import (
     Block,
     BlockType,
@@ -98,7 +98,11 @@ class Generator:
     def __call__(self):
         with self.world:
             self.parse_args()
-            user_prompt = self.get_user_confirmation()
+            user_prompt = UserPrompt.info(
+                "\nConfirm to proceed? [y/N] ",
+                yes=("y", "yes"),
+                blocking=False,
+            )
             # start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
             # hence put the whole generator inside a try-catch block.
@@ -111,13 +115,11 @@ class Generator:
                     user_prompt.wait()
                 modified_by_another_process = self.world.save(quiet=self.quiet)
             except KeyboardInterrupt:
-                if not self.quiet:
-                    print()
-                logger.info("Aborted.")
+                message = "Aborted."
+                end_of_line = " " * max(0, terminal_width() - len(message) - 10)
+                logger.info(f"{message}{end_of_line}")
                 logger.disabled = True
             else:
-                if not self.quiet:
-                    print()
                 logger.info("Finished.")
                 if modified_by_another_process:
                     logger.info(
@@ -247,13 +249,6 @@ class Generator:
             raise UserError(
                 f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
-
-    def get_user_confirmation(self):
-        if self.quiet:
-            return
-        return UserPrompt(
-            "Confirm to proceed? [y/N] ", yes=("y", "yes"), blocking=False
-        )
 
     def prepare_space(self, Z: int):
         def generate_walking_glass():

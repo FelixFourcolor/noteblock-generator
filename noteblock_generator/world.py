@@ -12,17 +12,17 @@ from typing import Callable, Optional
 import amulet
 
 from . import amulet_fix
-from .main import logger
-from .parser import Note, UserError
-from .utils import (
-    TERMINAL_WIDTH,
+from .generator_utils import (
     Direction,
     PreventKeyboardInterrupt,
     UserPrompt,
     backup_directory,
     hash_directory,
     progress_bar,
+    terminal_width,
 )
+from .main import logger
+from .parser import Note, UserError
 
 ChunkType = amulet.api.chunk.Chunk
 BlockType = amulet.api.Block
@@ -192,19 +192,19 @@ class World:
             pass
         else:
             if modified_by_another_process := self._hash != _hash:
-                if not quiet:
-                    print()
                 logger.warning(
-                    "While the generator was running, your save files were modified by another process."
+                    "Your save files have been modified by a different process"
                 )
                 logger.warning(
-                    "If you want to continue with this program, all other changes must be discarded."
+                    "To keep this generation, all other changes must be discarded"
                 )
-                UserPrompt(
-                    "Confirm to proceed? [y/N] ", yes=("y", "yes"), blocking=True
+                UserPrompt.warning(
+                    "Confirm to proceed? [y/N] ",
+                    yes=("y", "yes"),
+                    blocking=True,
                 )
         # Move the copy World back to its original location,
-        # disable keyboard interrupt to prevent corrupting files
+        # disable keyboard interrupt to prevent corruptingz files
         with PreventKeyboardInterrupt():
             shutil.rmtree(self._path, ignore_errors=True)
             shutil.move(self._path_copy, self._path)
@@ -229,8 +229,8 @@ class World:
             try:
                 chunk = self._level.get_chunk(cx, cz, self._dimension)
             except amulet.api.errors.ChunkLoadError:
-                message = f"Error loading chunk {(cx, cz)}"
-                end_of_line = " " * max(0, TERMINAL_WIDTH - len(message) - 10)
+                message = f"Missing chunk {(cx, cz)}"
+                end_of_line = " " * max(0, terminal_width() - len(message) - 11)
                 logger.warning(f"{message}{end_of_line}")
                 chunk = self._level.create_chunk(cx, cz, self._dimension)
             self._chunk_cache[cx, cz] = chunk

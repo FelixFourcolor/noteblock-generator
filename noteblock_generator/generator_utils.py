@@ -102,7 +102,9 @@ _DirectionType = TypeVar("_DirectionType", Direction, tuple[int, int], int)
 _NumType = TypeVar("_NumType", tuple[int, int], int)
 
 
-TERMINAL_WIDTH = min(80, os.get_terminal_size()[0])
+def terminal_width():
+    return min(80, os.get_terminal_size()[0])
+
 
 # Enable ANSI escape code on Windows PowerShell for the progress bar
 colorama.just_fix_windows_console()
@@ -113,12 +115,12 @@ def progress_bar(iteration: float, total: float, *, text: str):
     percentage = f" {100*ratio:.0f}% "
 
     alignment_spacing = " " * (6 - len(percentage))
-    total_length = max(0, TERMINAL_WIDTH - len(text) - 16)
+    total_length = max(0, terminal_width() - len(text) - 16)
     fill_length = int(total_length * ratio)
     finished_portion = "#" * fill_length
     remaining_portion = "-" * (total_length - fill_length)
     progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
-    end_of_line = "" if ratio == 1 else "\033[F"
+    end_of_line = "\n" if ratio == 1 else "\033[F"
 
     logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
 
@@ -142,18 +144,43 @@ class UserPrompt:
         )
         # prompt
         result = input(self._prompt).lower().strip() in self._yes
+        print()
         # stop capturing
         logging.basicConfig(format="%(levelname)s - %(message)s", force=True)
 
         if result:
             # release captured logs
-            if logs := buffer.getvalue():
-                print(f"\n{logs}", end="")
+            print(buffer.getvalue(), end="")
         else:
             _thread.interrupt_main()
 
     def wait(self):
         self._thread.join()
+
+    @classmethod
+    def debug(cls, *args, **kwargs):
+        if logger.isEnabledFor(logging.DEBUG):
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def info(cls, *args, **kwargs):
+        if logger.isEnabledFor(logging.INFO):
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def warning(cls, *args, **kwargs):
+        if logger.isEnabledFor(logging.WARNING):
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def error(cls, *args, **kwargs):
+        if logger.isEnabledFor(logging.ERROR):
+            return cls(*args, **kwargs)
+
+    @classmethod
+    def critical(cls, *args, **kwargs):
+        if logger.isEnabledFor(logging.CRITICAL):
+            return cls(*args, **kwargs)
 
 
 def hash_directory(directory: str | Path):
