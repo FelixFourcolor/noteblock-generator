@@ -37,7 +37,7 @@ Path to the music source. This program is only intended for my own use, so there
 ### Minecraft world
 Path to an existing minecraft world. Only Java Edition is supported.
 
-On Linux the save folder is probably at `~/.minecraft/saves`. On Windows it's probably at `C:\Users\<username>\AppData/Roaming\.minecraft\saves`.
+On Linux the save folder is probably at `~/.minecraft/saves`. On Windows it's probably at `C:\Users\<username>\AppData\Roaming\.minecraft\saves`.
 
 ### Location
 The location where the structure will be generated.
@@ -67,4 +67,4 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
 
 ## Quiet
-Suppress all text outputs, unless an error occurs. Outputs include diagnostic information regarding the music and/or the minecraft world, as well as user confirmation dialogs in critical steps (suppressed = agree to all). For advanced users only.
+Suppress all text outputs, unless an error occurs. Outputs include diagnostic information about the music and the minecraft world, as well as user confirmation dialogs in important steps (suppressed = agree to all).
