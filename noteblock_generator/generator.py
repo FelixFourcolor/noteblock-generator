@@ -1,6 +1,6 @@
-from functools import cache
 import math
 from dataclasses import dataclass
+from functools import cache
 from typing import Optional
 
 from .main import Location, logger

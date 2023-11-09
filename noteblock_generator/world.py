@@ -1,3 +1,6 @@
+# Required Notice: Copyright Amulet Team. (https://www.amuletmc.com/)
+# https://github.com/Amulet-Team/Amulet-Core/blob/update-licence-info-2/LICENSE
+
 from __future__ import annotations
 
 import _thread
@@ -17,6 +20,7 @@ from typing import Callable, Iterable, Optional, TypeVar
 import amulet
 from platformdirs import user_cache_dir
 
+from . import amulet_fix
 from .main import logger
 from .parser import Note, UserError
 
@@ -263,7 +267,7 @@ class World:
             # make a copy of World to work on that one
             self._path_copy = copytree(self._path, cache_dir / self._path.stem)
             # load
-            self._level = level = amulet.load_level(str(self._path_copy))
+            self._level = level = amulet_fix.load_level(str(self._path_copy))
             self._level.players
             # keep a hash of the original World
             # to detect if user has entered the world while generating.
