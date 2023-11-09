@@ -132,8 +132,7 @@ class Generator:
     # Rotation system
     def rotate(self, coordinates: tuple[int, int, int]):
         x, y, z = coordinates
-        # BUG: I don't know why but this rotation must be negated
-        delta_x, delta_z = -self._rotation * (self.X - x, self.Z - z)
+        delta_x, delta_z = self._rotation * (x - self.X, z - self.Z)
         return self.X + delta_x, y, self.Z + delta_z
 
     @cache
