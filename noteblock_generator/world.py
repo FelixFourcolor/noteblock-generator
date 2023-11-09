@@ -18,6 +18,7 @@ from threading import Thread
 from typing import Callable, Iterable, Optional, TypeVar
 
 import amulet
+import colorama
 from platformdirs import user_cache_dir
 
 from . import amulet_fix
@@ -28,6 +29,9 @@ ChunkType = amulet.api.chunk.Chunk
 BlockType = amulet.api.Block
 WorldType = amulet.api.level.World | amulet.api.level.Structure
 PlacementType = BlockType | Callable[[tuple[int, int, int]], Optional[BlockType]]
+
+# Enable ANSI escape code for Windows PowerShell
+colorama.just_fix_windows_console()
 
 
 class Direction(tuple[int, int], Enum):
@@ -351,6 +355,9 @@ class World:
             progress_bar(2 * total + (progress + 1), 4 * total, text="Generating")
         self._level.history_manager.mark_saved()
         wrapper.save()
+
+        # Windows fix: must close level before moving its folder
+        self._level.close()
 
     def save(self):
         # Check if World has been modified,
