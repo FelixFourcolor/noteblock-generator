@@ -83,6 +83,8 @@ ROTATION = {
     180: Direction.north,
 }
 
+NOTEBLOCKS_ORDER = [-1, 1, -2, 2]
+
 
 @dataclass(kw_only=True)
 class Generator:
@@ -179,6 +181,7 @@ class Generator:
         # orientation
         self.x_direction = Direction((1, 0))
         self.z_direction = Direction((0, 1))
+        self.z_inc = 1
         h_rotation, v_rotation = self.orientation
         if h_rotation.relative:
             h_rotation += self.world.player_orientation[0]
@@ -196,12 +199,6 @@ class Generator:
             self.y_glass = self.Y - 1
         else:
             self.y_glass = self.Y + VOICE_HEIGHT * (self.composition.size + 1)
-        self.noteblock_order = [
-            -self.x_direction,
-            self.x_direction,
-            -self.x_direction * 2,
-            self.x_direction * 2,
-        ]
 
         # validate that coordinates are in bounds
         self.X_BOUNDARY = self.composition.length * DIVISION_WIDTH + 1
@@ -255,15 +252,15 @@ class Generator:
     def prepare_space(self, Z: int):
         def generate_walking_glass():
             self[
-                self.X + self.x_direction * x,
+                self.X + x,
                 self.y_glass,
-                Z + self.z_direction * z,
+                Z + z,
             ] = GLASS
             for y in mandatory_clear_range:
                 self[
-                    self.X + self.x_direction * x,
+                    self.X + x,
                     y,
-                    Z + self.z_direction * z,
+                    Z + z,
                 ] = AIR
 
         mandatory_clear_range = range(self.max_y, self.y_glass, -1)
@@ -293,9 +290,9 @@ class Generator:
                 generate_walking_glass()
                 for y in optional_clear_range:
                     coordinates = (
-                        self.X + self.x_direction * x,
+                        self.X + x,
                         y,
-                        Z + self.z_direction * z,
+                        Z + z,
                     )
                     if (
                         not self.blend
@@ -310,9 +307,9 @@ class Generator:
         # redstone components
         self[x, y, z] = self.theme_block
         self[x, y + 1, z] = self.Repeater(note.delay, self.z_direction)
-        self[x, y + 1, z + self.z_direction] = self.theme_block
-        self[x, y + 2, z + self.z_direction] = self.Redstone()
-        self[x, y + 2, z + self.z_direction * 2] = self.theme_block
+        self[x, y + 1, z + self.z_inc] = self.theme_block
+        self[x, y + 2, z + self.z_inc] = self.Redstone()
+        self[x, y + 2, z + self.z_inc * 2] = self.theme_block
 
         # noteblocks
         if not note.dynamic:
@@ -320,34 +317,30 @@ class Generator:
 
         noteblock = NoteBlock(note)
         for i in range(note.dynamic):
-            self[x + self.noteblock_order[i], y + 2, z + self.z_direction] = noteblock
+            self[x + NOTEBLOCKS_ORDER[i], y + 2, z + self.z_inc] = noteblock
             if self.blend:
-                self[x + self.noteblock_order[i], y + 1, z + self.z_direction] = AIR
-                self[x + self.noteblock_order[i], y + 3, z + self.z_direction] = AIR
+                self[x + NOTEBLOCKS_ORDER[i], y + 1, z + self.z_inc] = AIR
+                self[x + NOTEBLOCKS_ORDER[i], y + 3, z + self.z_inc] = AIR
 
     def generate_division_bridge(self, x: int, y: int, z: int):
-        self[x, y, z + self.z_direction * 2] = self.theme_block
-        self[x, y + 1, z + self.z_direction * 2] = self.Redstone(
+        self[x, y, z + self.z_inc * 2] = self.theme_block
+        self[x, y + 1, z + self.z_inc * 2] = self.Redstone(
             self.z_direction, -self.z_direction
         )
-        self[x, y, z + self.z_direction * 3] = self.theme_block
-        self[x, y + 1, z + self.z_direction * 3] = self.Redstone(
+        self[x, y, z + self.z_inc * 3] = self.theme_block
+        self[x, y + 1, z + self.z_inc * 3] = self.Redstone(
             self.x_direction, -self.z_direction
         )
         for i in range(1, DIVISION_WIDTH):
-            self[
-                x + self.x_direction * i, y, z + self.z_direction * 3
-            ] = self.theme_block
-            self[
-                x + self.x_direction * i, y + 1, z + self.z_direction * 3
-            ] = self.Redstone(self.x_direction, -self.x_direction)
+            self[x + i, y, z + self.z_inc * 3] = self.theme_block
+            self[x + i, y + 1, z + self.z_inc * 3] = self.Redstone(
+                self.x_direction, -self.x_direction
+            )
+        self[x + DIVISION_WIDTH, y, z + self.z_inc * 3] = self.theme_block
         self[
-            x + self.x_direction * DIVISION_WIDTH, y, z + self.z_direction * 3
-        ] = self.theme_block
-        self[
-            x + self.x_direction * DIVISION_WIDTH,
+            x + DIVISION_WIDTH,
             y + 1,
-            z + self.z_direction * 3,
+            z + self.z_inc * 3,
         ] = self.Redstone(-self.z_direction, -self.x_direction)
 
     def generate_orchestra(self, voices: list[Voice], Z: int):
@@ -357,13 +350,13 @@ class Generator:
         self.prepare_space(Z)
         for i, voice in enumerate(voices[::-1]):
             y = self.y_glass - VOICE_HEIGHT * (i + 1) - 2
-            z = Z + self.z_direction * (DIVISION_CHANGING_LENGTH + 2)
+            z = Z + self.z_inc * (DIVISION_CHANGING_LENGTH + 2)
             for j, division in enumerate(voice):
-                x = self.X + self.x_direction * (j * DIVISION_WIDTH + 3)
-                z0 = z - self.z_direction * DIVISION_CHANGING_LENGTH
+                x = self.X + (j * DIVISION_WIDTH + 3)
+                z0 = z - self.z_inc * DIVISION_CHANGING_LENGTH
                 self[x, y + 2, z0] = self.theme_block
                 for k, note in enumerate(division):
-                    z = z0 + k * self.z_direction * NOTE_LENGTH
+                    z = z0 + self.z_inc * k * NOTE_LENGTH
                     self.generate_noteblocks(x, y, z, note)
                 # if there is a next division, generate bridge and flip direction
                 try:
@@ -373,23 +366,25 @@ class Generator:
                 else:
                     self.generate_division_bridge(x, y, z)
                     self.z_direction = -self.z_direction
+                    self.z_inc = -self.z_inc
             # if number of division is even,
             # z_direction has been flipped, reset it to original
             if len(voice) % 2 == 0:
-                self.z_direction = -self.z_direction
+                self.z_direction = Direction((0, 1))
+                self.z_inc = 1
 
     def generate_init_system_for_single_orchestra(self, X: int):
         button = self.Button(face="floor", facing=-self.x_direction)
         redstone = self.Redstone(self.z_direction, -self.z_direction)
 
-        x = self.X + self.x_direction * (X + math.ceil(DIVISION_WIDTH / 2))
+        x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
         y = self.y_glass
         z = self.Z
 
         def the_first_one():
             def generate_button():
                 """A button in the middle of the structure."""
-                z_button = z + self.z_direction * math.ceil(self.Z_BOUNDARY / 2)
+                z_button = z + math.ceil(self.Z_BOUNDARY / 2)
                 self[x, y, z_button] = self.theme_block
                 self[x, y + 1, z_button] = button
 
@@ -397,37 +392,35 @@ class Generator:
                 """Connect the button to the main system."""
                 repeater = self.Repeater(delay=1, direction=-self.z_direction)
 
-                self[x, y - 3, z + self.z_direction] = self.theme_block
-                self[x, y - 2, z + self.z_direction] = redstone
-                self[x, y - 1, z + self.z_direction] = AIR
-                self[x, y - 2, z + self.z_direction * 2] = self.theme_block
-                self[x, y - 1, z + self.z_direction * 2] = redstone
-                self[x, y - 1, z + self.z_direction * 3] = self.theme_block
-                self[x, y, z + self.z_direction * 3] = redstone
+                self[x, y - 3, z + 1] = self.theme_block
+                self[x, y - 2, z + 1] = redstone
+                self[x, y - 1, z + 1] = AIR
+                self[x, y - 2, z + 2] = self.theme_block
+                self[x, y - 1, z + 2] = redstone
+                self[x, y - 1, z + 3] = self.theme_block
+                self[x, y, z + 3] = redstone
 
                 for i in range(4, math.ceil(self.Z_BOUNDARY / 2)):
-                    self[x, y, z + self.z_direction * i] = self.theme_block
-                    self[x, y + 1, z + self.z_direction * i] = (
-                        redstone if i % 16 else repeater
-                    )
+                    self[x, y, z + i] = self.theme_block
+                    self[x, y + 1, z + i] = redstone if i % 16 else repeater
 
             def generate_empty_bridge():
                 """A bridge that leads to nowhere, just for symmetry."""
                 for i in range(math.ceil(self.Z_BOUNDARY / 2) + 1, self.Z_BOUNDARY - 3):
-                    self[x, y, z + self.z_direction * i] = self.theme_block
+                    self[x, y, z + i] = self.theme_block
 
             generate_button()
             generate_redstone_bridge()
             generate_empty_bridge()
 
         def subsequent_ones():
-            self[x, y - 3, z + self.z_direction] = self.theme_block
-            self[x, y - 2, z + self.z_direction] = redstone
-            self[x, y - 1, z + self.z_direction] = AIR
-            self[x, y - 1, z + self.z_direction * 2] = redstone
-            self[x, y - 1, z + self.z_direction * 3] = self.theme_block
-            self[x, y, z + self.z_direction * 2] = self.theme_block
-            self[x, y + 1, z + self.z_direction * 2] = button
+            self[x, y - 3, z + 1] = self.theme_block
+            self[x, y - 2, z + 1] = redstone
+            self[x, y - 1, z + 1] = AIR
+            self[x, y - 1, z + 2] = redstone
+            self[x, y - 1, z + 3] = self.theme_block
+            self[x, y, z + 2] = self.theme_block
+            self[x, y + 1, z + 2] = button
 
         if X == 0:
             the_first_one()
@@ -436,29 +429,31 @@ class Generator:
 
     def generate_init_system_for_double_orchestras(self, X: int):
         def generate_bridge(z_direction: Direction):
+            z_inc = z_direction[1]
+
             repeater = self.Repeater(delay=1, direction=-z_direction)
-            self[x, y - 3, z + z_direction] = self.theme_block
-            self[x, y - 2, z + z_direction] = redstone
-            self[x, y - 1, z + z_direction] = AIR
-            self[x, y - 2, z + z_direction * 2] = self.theme_block
-            self[x, y - 1, z + z_direction * 2] = redstone
-            self[x, y - 1, z + z_direction * 3] = self.theme_block
-            self[x, y, z + z_direction * 3] = redstone
+            self[x, y - 3, z + z_inc] = self.theme_block
+            self[x, y - 2, z + z_inc] = redstone
+            self[x, y - 1, z + z_inc] = AIR
+            self[x, y - 2, z + z_inc * 2] = self.theme_block
+            self[x, y - 1, z + z_inc * 2] = redstone
+            self[x, y - 1, z + z_inc * 3] = self.theme_block
+            self[x, y, z + z_inc * 3] = redstone
 
             for i in range(4, math.ceil(self.Z_BOUNDARY / 2) + 1):
                 if X == 0 or i == 4:
-                    self[x, y, z + z_direction * i] = self.theme_block
-                self[x, y + 1, z + z_direction * i] = redstone if i % 16 else repeater
+                    self[x, y, z + z_inc * i] = self.theme_block
+                self[x, y + 1, z + z_inc * i] = redstone if i % 16 else repeater
 
         def generate_button():
-            z_button = z + self.z_direction * (math.ceil(self.Z_BOUNDARY / 2) + 1)
+            z_button = z + (math.ceil(self.Z_BOUNDARY / 2) + 1)
             button = self.Button(face="floor", facing=-self.x_direction)
             if X == 0 or self.composition.division == 1:
                 self[x, y, z_button] = self.theme_block
             self[x, y + 1, z_button] = button
 
         redstone = self.Redstone(self.z_direction, -self.z_direction)
-        x = self.X + self.x_direction * (X + math.ceil(DIVISION_WIDTH / 2))
+        x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
         y = self.y_glass
         z = self.Z
         # button in the middle
@@ -466,7 +461,7 @@ class Generator:
         # two redstone bridges going opposite directions,
         # connecting the button to each orchestra
         generate_bridge(self.z_direction)
-        z += self.z_direction * (self.Z_BOUNDARY + 2)
+        z += self.z_inc * (self.Z_BOUNDARY + 2)
         generate_bridge(-self.z_direction)
 
     def generate_composition(self):
@@ -474,7 +469,7 @@ class Generator:
             self.generate_orchestra(self.composition[0], self.Z)
         else:
             self.generate_orchestra(self.composition[0], self.Z)
-            Z = self.Z + self.z_direction * self.Z_BOUNDARY
+            Z = self.Z + self.Z_BOUNDARY
             self.generate_orchestra(self.composition[1], Z)
 
     def generate_init_system(self):

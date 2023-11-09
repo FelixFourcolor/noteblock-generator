@@ -14,10 +14,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Iterable, TypeVar
 
-# Copyright Jonathan Hartley 2013. BSD 3-Clause license.
 import colorama
-
-# Copyright (c) 2010-202x The platformdirs developers. MIT license.
 from platformdirs import user_cache_dir
 
 from .main import logger
@@ -35,14 +32,11 @@ class Direction(tuple[int, int], Enum):
     def __str__(self):
         return self.name
 
-    # Operator overloading
-    # -----------------------------------------------------------------------------
-    # Multiplication
-    # with another Direction: like complex multiplication, return a Direction
-    # with a tuple: like complex multiplication, return a tuple
-    # with an int: multiply our non-zero component with the int, return an int
+    def __mul__(self, other: DirectionType) -> DirectionType:
+        # Multiplication
+        # with another Direction: like complex multiplication, return a Direction
+        # with a tuple: like complex multiplication, return a tuple
 
-    def __mul__(self, other: _DirectionType) -> _DirectionType:
         if isinstance(other, Direction):
             return Direction(
                 (
@@ -55,51 +49,17 @@ class Direction(tuple[int, int], Enum):
                 self[0] * other[1] + self[1] * other[0],
                 self[1] * other[1] - self[0] * other[0],
             )
-        if isinstance(other, int):
-            return max(self, key=abs) * other
         return NotImplemented
 
-    def __rmul__(self, other: _DirectionType) -> _DirectionType:
+    def __rmul__(self, other: DirectionType) -> DirectionType:
         return self * other
 
     def __neg__(self):
         # negation is like multiplying with 0i - 1, which is north
         return self * Direction.north
 
-    # -----------------------------------------------------------------------------
-    # Addition and subtraction
-    # with a tuple: like complex addition and subtraction, return a tuple
-    # with an int: add/subtract our non-zero component with the int, return an int
 
-    def __add__(self, other: _NumType) -> _NumType:
-        if isinstance(other, tuple):
-            return (self[0] + other[0], self[1] + other[1])
-        if isinstance(other, int):
-            return max(self, key=abs) + other
-        return NotImplemented
-
-    def __radd__(self, other: _NumType) -> _NumType:
-        return self + other
-
-    def __sub__(self, other: _NumType) -> _NumType:
-        if isinstance(other, tuple):
-            return (self[0] - other[0], self[1] - other[1])
-        if isinstance(other, int):
-            return max(self, key=abs) - other
-        return NotImplemented
-
-    def __rsub__(self, other: _NumType) -> _NumType:
-        return -self + other
-
-    # -----------------------------------------------------------------------------
-    # bool: whether the non-zero component is positive
-
-    def __bool__(self):
-        return max(self, key=abs) > 0
-
-
-_DirectionType = TypeVar("_DirectionType", Direction, tuple[int, int], int)
-_NumType = TypeVar("_NumType", tuple[int, int], int)
+DirectionType = TypeVar("DirectionType", Direction, tuple[int, int])
 
 
 def terminal_width():

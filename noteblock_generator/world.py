@@ -14,6 +14,7 @@ import amulet
 from . import amulet_fix
 from .generator_utils import (
     Direction,
+    DirectionType,
     PreventKeyboardInterrupt,
     UserPrompt,
     backup_directory,
@@ -48,24 +49,28 @@ class NoteBlock(Block):
 class Repeater(Block):
     """A convenience class for repeaters"""
 
-    def __init__(self, delay: int, direction: Direction):
+    def __init__(self, delay: int, direction: DirectionType):
         # MiNECRAFT's BUG: repeater's direction is reversed
-        super().__init__("repeater", delay=delay, facing=(-direction).name)
+        super().__init__("repeater", delay=delay, facing=(-Direction(direction)).name)
 
 
 class Redstone(Block):
     """A convenience class for redstone wires"""
 
-    def __init__(self, *connections: Direction):
+    def __init__(self, *connections: DirectionType):
         # only support connecting sideways,
         # because that's all we need for this build
-        if not connections:
+        if connections:
+            super().__init__(
+                "redstone_wire",
+                **{Direction(direction).name: "side" for direction in connections},
+            )
+        else:
             # connected to all sides by default
-            connections = tuple(Direction)
-        super().__init__(
-            "redstone_wire",
-            **{direction.name: "side" for direction in connections},
-        )
+            super().__init__(
+                "redstone_wire",
+                **{direction.name: "side" for direction in Direction},
+            )
 
 
 class World:
