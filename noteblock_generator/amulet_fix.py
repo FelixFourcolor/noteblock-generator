@@ -1,4 +1,4 @@
-# Required Notice: Copyright Amulet Team. (https://www.amuletmc.com/)
+# Copyright Amulet Team. (https://www.amuletmc.com/)
 # https://github.com/Amulet-Team/Amulet-Core/blob/update-licence-info-2/LICENSE
 
 # type: ignore

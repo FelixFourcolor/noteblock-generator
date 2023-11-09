@@ -1,3 +1,5 @@
+# Copyright Felix Fourcolor 2023. CC0-1.0 license
+
 import logging
 import sys
 from argparse import ArgumentParser

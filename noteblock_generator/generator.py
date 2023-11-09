@@ -1,3 +1,5 @@
+# Copyright Felix Fourcolor 2023. CC0-1.0 license
+
 import math
 from dataclasses import dataclass
 from functools import cache
@@ -5,6 +7,7 @@ from typing import Optional
 
 from .main import Location, Orientation, logger
 from .parser import Composition, Note, UserError, Voice
+from .utils import UserPrompt, progress_bar
 from .world import (
     Block,
     BlockType,
@@ -13,9 +16,7 @@ from .world import (
     PlacementType,
     Redstone,
     Repeater,
-    UserPrompt,
     World,
-    progress_bar,
 )
 
 # Blocks to be removed if using blend mode,
