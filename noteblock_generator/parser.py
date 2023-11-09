@@ -626,7 +626,7 @@ class Composition(list[list[Voice]]):
         str_seconds = f"{round(seconds)} second" + ("s" if seconds != 1 else "")
         logger.info(f"Play time: {str_minutes} {str_seconds}")
 
-        logger.info(f"Loudness (on average): {(count/ticks):.1f} noteblocks/tick\n")
+        logger.info(f"Complexity: {(count/ticks):.1f} noteblocks/tick\n")
 
 
 def parse(path: str):
