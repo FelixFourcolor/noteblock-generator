@@ -218,26 +218,15 @@ class Voice(list[list[Note]]):
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
 
+        self.noteblocks_count = 0
         self._note_config = {}
         self.append([])
         try:
-            for note in notes:
-                if len(self[-1]) == self.division:
-                    self.append([])
-                kwargs = note if isinstance(note, dict) else {"name": note}
-                if "name" in kwargs:
-                    try:
-                        self._add_note(**(self._note_config | kwargs))
-                    except UserError as e:
-                        raise UserError(
-                            f"{self} at {(self._bar_number, self._beat_number)}: {e}"
-                        )
-                else:
-                    self._note_config |= kwargs
+            self._process_notes(notes)
         except Exception as e:
             if isinstance(e, UserError):
                 raise
-            raise UserError(f"{self}\n" f"{type(e).__name__}: {e}")
+            raise UserError(f"{self}\n{type(e).__name__}: {e}")
 
     def __repr__(self):
         if self._name:
@@ -278,6 +267,21 @@ class Voice(list[list[Note]]):
         if "notes" not in notes_or_another_voice:
             return self._load_notes([])
         return self._load_notes(notes_or_another_voice["notes"])
+
+    def _process_notes(self, notes: list[str | dict]):
+        for note in notes:
+            if len(self[-1]) == self.division:
+                self.append([])
+            kwargs = note if isinstance(note, dict) else {"name": note}
+            if "name" in kwargs:
+                try:
+                    self._add_note(**(self._note_config | kwargs))
+                except UserError as e:
+                    raise UserError(
+                        f"{self} at {(self._bar_number, self._beat_number)}: {e}"
+                    )
+            else:
+                self._note_config |= kwargs
 
     def _parse_note(self, value: str, beat: int):
         _tokens = value.lower().split()
@@ -484,6 +488,8 @@ class Voice(list[list[Note]]):
                 self.delay_map[len(self) - 1] = [note.delay]
             except IndexError:
                 self.delay_map[len(self) - 1].append(note.delay)
+            # update noteblocks count
+            self.noteblocks_count += note.dynamic
 
         # update bar and beat number
         div, mod = divmod(self._beat_number + duration, time)
@@ -539,6 +545,7 @@ class Composition(list[list[Voice]]):
             )
         self.division = division
 
+        self._noteblocks_count = 0
         if isinstance(voices[0], list):
             for orchestra in voices:
                 self._add_orchestra(orchestra)
@@ -546,6 +553,8 @@ class Composition(list[list[Voice]]):
             self._add_orchestra(voices)
         self._equalize_orchestras_size()
         self._equalize_voices_length()
+
+        self.log_info()
 
     @property
     def size(self):
@@ -583,7 +592,9 @@ class Composition(list[list[Voice]]):
         else:
             voice = voice_or_path_to_voice
 
-        self[-1].append(Voice(self, **voice))
+        new_voice = Voice(self, **voice)
+        self[-1].append(new_voice)
+        self._noteblocks_count += new_voice.noteblocks_count
 
     def _equalize_orchestras_size(self):
         size = max(map(len, self))
@@ -605,6 +616,18 @@ class Composition(list[list[Voice]]):
                 for _ in range(init_length):
                     voice.insert(0, [Rest(voice, delay=1)] * voice.division)
 
+    def log_info(self):
+        count = self._noteblocks_count
+        logger.info(f"Noteblocks count: {count:,}")
+
+        ticks = sum(map(sum, self.delay_map.values()))
+        minutes, seconds = divmod(ticks / 10, 60)
+        str_minutes = f"{minutes:.0f} minute" + "s" if minutes != 1 else ""
+        str_seconds = f"{round(seconds)} second" + "s" if seconds != 1 else ""
+        logger.info(f"Play time: {str_minutes} {str_seconds}")
+
+        logger.info(f"Loudness (on average): {(count/ticks):.1f} noteblocks/tick")
+
 
 def parse(path: str):
     path_to_composition = Path(path)
@@ -613,5 +636,5 @@ def parse(path: str):
     except Exception as e:
         if (error_type := type(e)) is UserError:
             raise
-        raise UserError(f"{path}\n" f"{error_type.__name__}: {e}")
+        raise UserError(f"{path}\n{error_type.__name__}: {e}")
     return Composition(**composition, _path=path_to_composition)
