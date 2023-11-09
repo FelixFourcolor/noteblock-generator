@@ -166,21 +166,18 @@ class World:
                 pool.imap_unordered(_modify_chunk, self._modifications.values())
             ):
                 # so that block-setting and saving uses the same progress bar
-                progress_bar(3 * (progress + 1), 4 * total, text="Generating")
+                progress_bar(2 * (progress + 1), 3 * total, text="Generating")
 
         # A modified version of self._level.save,
         # optimized for performance,
         # with customized progress handling so that block-setting and saving uses the same progress bar
-        for _ in self._level.pre_save_operation():
-            pass
         chunks = self._modifications.keys()
         wrapper = self._level.level_wrapper
         for progress, (cx, cz) in enumerate(chunks):
             chunk = self._chunk_cache[cx, cz]
             wrapper.commit_chunk(chunk, self._dimension)
-            chunk.changed = False
-            # saving takes approximately a third of the time
-            progress_bar(3 * total + (progress + 1), 4 * total, text="Generating")
+            # saving takes approximately half the time
+            progress_bar(2 * total + (progress + 1), 3 * total, text="Generating")
         self._level.history_manager.mark_saved()
         wrapper.save()
 
@@ -225,7 +222,6 @@ class World:
         chunk.set_block(offset_x, y, offset_z, universal_block)
         if (x, y, z) in chunk.block_entities:
             del chunk.block_entities[x, y, z]
-        chunk.changed = True
 
     def _get_chunk(self, cx: int, cz: int):
         try:
