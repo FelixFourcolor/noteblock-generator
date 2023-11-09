@@ -52,9 +52,9 @@ The dimension where the structure will be generated. Valid choices are `overworl
 If not given, it will be the player's current dimension.
 
 ### Orientation
-The orientation towards which the struture will be generated.
+The orientation towards which the structure will be generated.
 
-This uses Minecaft's rotation system, which is a pair of two numbers, the first one for horizontal, the second one for vertical. Horizontal rotation goes from -180 to 180, where -180 is north, -90 is east, 0 is south, 90 is east, and 180 is wrapping back to north. Vertical rotation goes form -90 to 90, where -90 is looking straight up and 90 is straight down.
+This uses Minecaft's rotation syntax, which is a pair of two numbers, the first one for horizontal, the second one for vertical. Horizontal rotation goes from -180 to 180, where -180 is north, -90 is east, 0 is south, 90 is east, and 180 is wrapping back to north. Vertical rotation goes form -90 to 90, where -90 is looking straight up and 90 is straight down.
 
 Similarly to location, either value of the pair (or both) can be substituted with a `~` to use the player's orientation. For example, `--orientation ~ 90` means facing the same horizontal direction as the player, looking down.
 
