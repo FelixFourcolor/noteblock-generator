@@ -124,9 +124,9 @@ def progress_bar(iteration: float, total: float, *, text: str):
 
 
 class UserPrompt:
-    def __init__(self, prompt: str, choices: Iterable[str], *, blocking: bool):
+    def __init__(self, prompt: str, yes: Iterable[str], *, blocking: bool):
         self._prompt = prompt
-        self._choices = choices
+        self._yes = yes
         self._thread = Thread(target=self._run, daemon=True)
         if blocking:
             self._thread.run()
@@ -141,13 +141,14 @@ class UserPrompt:
             force=True,
         )
         # prompt
-        result = input(self._prompt).lower() in self._choices
+        result = input(self._prompt).lower().strip() in self._yes
         # stop capturing
         logging.basicConfig(format="%(levelname)s - %(message)s", force=True)
 
         if result:
             # release captured logs
-            print(f"\n{buffer.getvalue()}", end="")
+            if logs := buffer.getvalue():
+                print(f"\n{logs}", end="")
         else:
             _thread.interrupt_main()
 

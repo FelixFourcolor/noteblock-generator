@@ -182,7 +182,7 @@ class World:
         # Windows fix: must close level before moving its folder
         self._level.close()
 
-    def save(self):
+    def save(self, *, quiet: bool):
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
         modified_by_another_process = False
@@ -192,12 +192,16 @@ class World:
             pass
         else:
             if modified_by_another_process := self._hash != _hash:
+                if not quiet:
+                    print()
+                logger.warning(
+                    "While the generator was running, your save files were modified by another process."
+                )
+                logger.warning(
+                    "If you want to continue with this program, all other changes must be discarded."
+                )
                 UserPrompt(
-                    "\nWhile the generator was running, your save files were modified by another process."
-                    "\nIf you want to proceed with this program, all other changes must be discarded."
-                    "\nConfirm to proceed? [y/N]: ",
-                    choices=("y", "yes"),
-                    blocking=True,
+                    "Confirm to proceed? [y/N] ", yes=("y", "yes"), blocking=True
                 )
         # Move the copy World back to its original location,
         # disable keyboard interrupt to prevent corrupting files
@@ -266,7 +270,7 @@ class World:
             )
         out = results.pop()
         out = (round(out[0]), round(out[1]), round(out[2]))
-        logger.info(f"Player's current location: {out}")
+        logger.info(f"Player's location: {out}")
         return out
 
     @cached_property
@@ -283,7 +287,7 @@ class World:
         out = results.pop()
         if out.startswith("minecraft:"):
             out = out[10:]
-        logger.info(f"Player's current dimension: {out}")
+        logger.info(f"Player's dimension: {out}")
         return out
 
     @cached_property
@@ -299,7 +303,7 @@ class World:
             )
         out = results.pop()
         out = (int(out[0]), int(out[1]))
-        logger.info(f"Player's current orientation: {out}")
+        logger.info(f"Player's orientation: {out}")
         return out
 
     def __hash__(self):

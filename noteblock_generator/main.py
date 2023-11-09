@@ -53,7 +53,7 @@ def get_args():
         "--location",
         nargs="*",
         default=["~", "~", "~"],
-        help="build location (x y z); default is player's location",
+        help="build location (in '<x> <y> <z>'); default is player's location",
     )
     parser.add_argument(
         "--dimension",
@@ -64,9 +64,7 @@ def get_args():
         "--orientation",
         nargs="*",
         default=["~", "~"],
-        help=(
-            "build orientation (horizontal, vertical); default is player's orientation"
-        ),
+        help="build orientation (in '<horizontal> <vertical>'); default is player's orientation",
     )
     parser.add_argument(
         "--theme",
@@ -76,12 +74,12 @@ def get_args():
     parser.add_argument(
         "--blend",
         action="store_true",
-        help=("blend the structure with its environment"),
+        help="blend the structure with its environment",
     )
     parser.add_argument(
-        "--no-confirm",
+        "--quiet",
         action="store_true",
-        help=("skip user confirmation"),
+        help="suppress all text outputs, unless an error occurs",
     )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -106,6 +104,10 @@ def parse_args():
         raise UserError("Orientation requires 2 values")
     orientation = Orientation(*map(_RelativeInt, args.orientation))
 
+    # quiet
+    if quiet := args.quiet:
+        logger.setLevel(logging.ERROR)
+
     # parse Composition and World later, because they take longer time,
     # so that we catch command-line errors quickly
     # and parse Composition before World, because former is faster
@@ -116,7 +118,8 @@ def parse_args():
 
     composition = parse(args.music_source)
 
-    print()
+    if not quiet:
+        print()
     logger.info("Loading world")
 
     from .world import World
@@ -129,9 +132,9 @@ def parse_args():
         "location": location,
         "dimension": dimension,
         "orientation": orientation,
+        "quiet": quiet,
         "theme": args.theme,
         "blend": args.blend,
-        "no_confirm": args.no_confirm,
     }
 
 

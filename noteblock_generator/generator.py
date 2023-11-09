@@ -93,14 +93,12 @@ class Generator:
     orientation: Orientation
     theme: str
     blend: bool
-    no_confirm: bool
+    quiet: bool
 
     def __call__(self):
         with self.world:
             self.parse_args()
             user_prompt = self.get_user_confirmation()
-            if user_prompt is None:
-                print()
             # start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
             # hence put the whole generator inside a try-catch block.
@@ -111,16 +109,18 @@ class Generator:
                 self.world.apply_modifications()
                 if user_prompt is not None:
                     user_prompt.wait()
-                modified_by_another_process = self.world.save()
+                modified_by_another_process = self.world.save(quiet=self.quiet)
             except KeyboardInterrupt:
-                print()
+                if not self.quiet:
+                    print()
                 logger.info("Aborted.")
                 logger.disabled = True
             else:
-                print()
+                if not self.quiet:
+                    print()
                 logger.info("Finished.")
                 if modified_by_another_process:
-                    logger.warning(
+                    logger.info(
                         "If you are currently inside the world, "
                         "exit and re-enter to see the result."
                     )
@@ -249,12 +249,10 @@ class Generator:
             )
 
     def get_user_confirmation(self):
-        if self.no_confirm:
+        if self.quiet:
             return
         return UserPrompt(
-            prompt=("\nConfirm to proceed? [y/N] "),
-            choices=("y", "yes"),
-            blocking=False,
+            "Confirm to proceed? [y/N] ", yes=("y", "yes"), blocking=False
         )
 
     def prepare_space(self, Z: int):
