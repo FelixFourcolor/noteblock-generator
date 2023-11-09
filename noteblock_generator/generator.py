@@ -145,11 +145,13 @@ class Generator:
     def Button(self, facing: Direction, **kwargs):
         return Block("oak_button", facing=self._rotation * facing, **kwargs)
 
-    def __getitem__(self, coordinates: tuple[int, int, int]):
-        return self.world[self.rotate(coordinates)]
-
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         self.world[self.rotate(coordinates)] = block
+
+    def __getitem__(self, coordinates: tuple[int, int, int]):
+        # DO NOT ROTATE
+        # rotation was already applied once when __setitem__
+        return self.world[coordinates]
 
     def __hash__(self):
         return 0
