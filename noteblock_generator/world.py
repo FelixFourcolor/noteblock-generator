@@ -175,7 +175,7 @@ class World:
             wrapper.commit_chunk(chunk, self._dimension)
             chunk.changed = False
             # saving takes approximately a third of the time
-            progress_bar(2 * total + (progress + 1), 4 * total, text="Generating")
+            progress_bar(3 * total + (progress + 1), 4 * total, text="Generating")
         self._level.history_manager.mark_saved()
         wrapper.save()
 
