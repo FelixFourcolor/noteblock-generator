@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import cache
 from typing import Optional
 
-from .main import Location, logger
+from .main import Location, Orientation, logger
 from .parser import Composition, Note, UserError, Voice
 from .world import (
     Block,
@@ -89,7 +89,7 @@ class Generator:
     composition: Composition
     location: Location
     dimension: Optional[str]
-    orientation: Optional[tuple[float, float]]
+    orientation: Orientation
     theme: str
     blend: bool
     no_confirm: bool
@@ -112,10 +112,11 @@ class Generator:
             except KeyboardInterrupt:
                 print()
                 logger.info("Aborted.")
+                logger.disabled = True
             else:
                 logger.info("Finished.")
                 if modified_by_another_process:
-                    logger.info(
+                    logger.warning(
                         "If you are currently inside the world, "
                         "exit and re-enter to see the result."
                     )
@@ -124,19 +125,19 @@ class Generator:
     def rotate(self, coordinates: tuple[int, int, int]):
         x, y, z = coordinates
         # BUG: I don't know why but this rotation must be negated
-        delta_x, delta_z = -self.rotation * (self.X - x, self.Z - z)
+        delta_x, delta_z = -self._rotation * (self.X - x, self.Z - z)
         return self.X + delta_x, y, self.Z + delta_z
 
     @cache
     def Redstone(self, *connections: Direction):
-        return Redstone(*[self.rotation * c for c in connections])
+        return Redstone(*[self._rotation * c for c in connections])
 
     @cache
     def Repeater(self, delay: int, direction: Direction):
-        return Repeater(delay=delay, direction=self.rotation * direction)
+        return Repeater(delay=delay, direction=self._rotation * direction)
 
     def Button(self, facing: Direction, **kwargs):
-        return Block("oak_button", facing=self.rotation * facing, **kwargs)
+        return Block("oak_button", facing=self._rotation * facing, **kwargs)
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         return self.world[self.rotate(coordinates)]
@@ -147,7 +148,7 @@ class Generator:
     def __hash__(self):
         return 0
 
-    # enerator subroutines
+    # generator subroutines
 
     def parse_args(self):
         # theme
@@ -156,29 +157,30 @@ class Generator:
         # location
         self.X, self.Y, self.Z = self.location
         if self.location.x.relative:
-            self.X += int(self.world.player_location[0])
+            self.X += self.world.player_location[0]
         if self.location.y.relative:
-            self.Y += int(self.world.player_location[1])
+            self.Y += self.world.player_location[1]
         if self.location.z.relative:
-            self.Z += int(self.world.player_location[2])
+            self.Z += self.world.player_location[2]
 
         # dimension
         if self.dimension is None:
             self.dimension = self.world.player_dimension
-        if self.dimension not in self.world.dimensions:
-            raise UserError(
-                f"{self.dimension} is not a valid self.dimension; expected one of {self.world.dimensions}"
-            )
         self.world.dimension = self.dimension
 
         # orientation
         self.x_direction = Direction((1, 0))
         self.z_direction = Direction((0, 1))
-
-        if self.orientation is None:
-            self.orientation = self.world.player_orientation
         h_rotation, v_rotation = self.orientation
-        self.rotation = (
+        if h_rotation.relative:
+            h_rotation += self.world.player_orientation[0]
+        if v_rotation.relative:
+            v_rotation += self.world.player_orientation[1]
+        if not (-180 <= h_rotation <= 180):
+            raise UserError("Horizontal orientation must be between -180 and 180")
+        if not (-90 <= v_rotation <= 90):
+            raise UserError("Vertical orientation must be between -90 and 90")
+        self._rotation = (
             Direction((-1, 0))
             * ROTATION[min(ROTATION.keys(), key=lambda x: abs(x - h_rotation))]
         )
@@ -186,7 +188,6 @@ class Generator:
             self.y_glass = self.Y - 1
         else:
             self.y_glass = self.Y + VOICE_HEIGHT * (self.composition.size + 1)
-
         self.noteblock_order = [
             -self.x_direction,
             self.x_direction,
@@ -212,46 +213,42 @@ class Generator:
         max_x, self.max_y, max_z = self.rotate((max_x, max_y, max_z))
         self.min_x, self.max_x = min(min_x, max_x), max(min_x, max_x)
         self.min_z, self.max_z = min(min_z, max_z), max(min_z, max_z)
+        logger.info(
+            "The structure will occupy the space "
+            f"{(self.min_x, self.min_y, self.min_z)} "
+            f"to {self.max_x, self.max_y, self.max_z} "
+            f"in {self.world.dimension}"
+        )
         if self.min_x < BOUNDS.min_x:
             raise UserError(
-                f"Location is out of bound: x-coordinate cannot go below {BOUNDS.min_x}"
+                f"Location is out of bound: x cannot go below {BOUNDS.min_x}"
             )
         if self.max_x > BOUNDS.max_x:
             raise UserError(
-                f"Location is out of bound: x-coordinate cannot go above {BOUNDS.max_x}"
+                f"Location is out of bound: x cannot go above {BOUNDS.max_x}"
             )
         if self.min_z < BOUNDS.min_z:
             raise UserError(
-                f"Location is out of bound: z-coordinate cannot go below {BOUNDS.min_z}"
+                f"Location is out of bound: z cannot go below {BOUNDS.min_z}"
             )
         if self.max_z > BOUNDS.max_z:
             raise UserError(
-                f"Location is out of bound: z-coordinate cannot go above {BOUNDS.max_z}"
+                f"Location is out of bound: z cannot go above {BOUNDS.max_z}"
             )
         if self.min_y < BOUNDS.min_y:
             raise UserError(
-                f"Location is out of bound: y-coordinate cannot go below {BOUNDS.min_y}"
+                f"Location is out of bound: y cannot go below {BOUNDS.min_y}"
             )
         if self.max_y > BOUNDS.max_y:
             raise UserError(
-                f"Location is out of bound: y-coordinate cannot go above {BOUNDS.max_y}"
+                f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
 
     def get_user_confirmation(self):
         if self.no_confirm:
             return
-
-        # cutoff "minecraft:" in dimension for a cleaner message
-        dimension = self.world.dimension
-        if dimension.startswith("minecraft:"):
-            dimension = dimension[10:]
-
         return UserPrompt(
-            prompt=(
-                "\nThe structure will occupy the space "
-                f"{(self.min_x, self.min_y, self.min_z)} to {self.max_x, self.max_y, self.max_z} in {dimension}."
-                "\nConfirm to proceed? [y/N] "
-            ),
+            prompt=("\nConfirm to proceed? [y/N] "),
             choices=("y", "yes"),
             blocking=False,
         )

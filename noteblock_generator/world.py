@@ -334,18 +334,21 @@ class World:
                 pool.imap_unordered(_modify_chunk, self._modifications.values())
             ):
                 # so that block-setting and saving uses the same progress bar
-                progress_bar(2 * (progress + 1), 3 * total, text="Generating")
+                progress_bar(3 * (progress + 1), 4 * total, text="Generating")
 
         # A modified version of self._level.save,
         # optimized for performance,
         # with customized progress handling so that block-setting and saving uses the same progress bar
+        for _ in self._level.pre_save_operation():
+            pass
         chunks = self._modifications.keys()
         wrapper = self._level.level_wrapper
         for progress, (cx, cz) in enumerate(chunks):
             chunk = self._chunk_cache[cx, cz]
-            wrapper.commit_chunk(chunk, self.dimension)
-            # saving takes approximately half the time
-            progress_bar(2 * total + (progress + 1), 3 * total, text="Generating")
+            wrapper.commit_chunk(chunk, self._dimension)
+            chunk.changed = False
+            # saving takes approximately a third of the time
+            progress_bar(2 * total + (progress + 1), 4 * total, text="Generating")
         self._level.history_manager.mark_saved()
         wrapper.save()
 
@@ -383,18 +386,19 @@ class World:
         chunk.set_block(offset_x, y, offset_z, universal_block)
         if (x, y, z) in chunk.block_entities:
             del chunk.block_entities[x, y, z]
+        chunk.changed = True
 
     def _get_chunk(self, cx: int, cz: int):
         try:
             return self._chunk_cache[cx, cz]
         except KeyError:
             try:
-                chunk = self._level.get_chunk(cx, cz, self.dimension)
+                chunk = self._level.get_chunk(cx, cz, self._dimension)
             except amulet.api.errors.ChunkLoadError:
                 message = f"Error loading chunk {(cx, cz)}"
                 end_of_line = " " * max(0, TERMINAL_WIDTH - len(message) - 10)
                 logger.warning(f"{message}{end_of_line}")
-                chunk = self._level.create_chunk(cx, cz, self.dimension)
+                chunk = self._level.create_chunk(cx, cz, self._dimension)
             self._chunk_cache[cx, cz] = chunk
             return chunk
 
@@ -407,20 +411,20 @@ class World:
             return universal_block
 
     @property
-    def bounds(self):
-        return self._level.bounds(self.dimension)
+    def _dimension(self):
+        return "minecraft:" + self.dimension
 
     @property
-    def dimensions(self):
-        return self._level.dimensions
+    def bounds(self):
+        return self._level.bounds(self._dimension)
 
     # -----------------------------------------------------------------------------
     # The methods below are properties so that they are lazily evaluated,
     # so that they are only called if user uses relative location/dimension/orientation,
+    # and cached so that loggings are only called once
 
-    # this one is cached because it's called thrice, once for each coordinate
     @cached_property
-    def player_location(self) -> tuple[float, float, float]:
+    def player_location(self) -> tuple[int, int, int]:
         results = {p.location for p in self._players}
         if not results:
             out = (0, 63, 0)
@@ -430,30 +434,43 @@ class World:
             raise UserError(
                 "There are more than 1 player in the world. Relative location is not supported."
             )
-        return results.pop()
+        out = results.pop()
+        out = (round(out[0]), round(out[1]), round(out[2]))
+        logger.info(f"Player's current location: {out}")
+        return out
 
-    @property
+    @cached_property
     def player_dimension(self) -> str:
         results = {p.dimension for p in self._players}
         if not results:
-            out = "minecraft:overworld"
+            out = "overworld"
             logger.warning(f"No players detected. Default dimension {out} is used.")
             return out
         if len(results) > 1:
             raise UserError(
                 "There are more than 1 player in the world. Relative dimension is not supported."
             )
-        return results.pop()
+        out = results.pop()
+        if out.startswith("minecraft:"):
+            out = out[10:]
+        logger.info(f"Player's current dimension: {out}")
+        return out
 
-    @property
-    def player_orientation(self) -> tuple[float, float]:
+    @cached_property
+    def player_orientation(self) -> tuple[int, int]:
         results = {p.rotation for p in self._players}
         if not results:
-            out = (0.0, 45.0)
+            out = (0, 45)
             logger.warning(f"No players detected. Default orientation {out} is used.")
             return out
         if len(results) > 1:
             raise UserError(
                 "There are more than 1 player in the world. Relative orientation is not supported."
             )
-        return results.pop()
+        out = results.pop()
+        out = (int(out[0]), int(out[1]))
+        logger.info(f"Player's current orientation: {out}")
+        return out
+
+    def __hash__(self):
+        return 0
