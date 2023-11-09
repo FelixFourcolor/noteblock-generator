@@ -622,8 +622,8 @@ class Composition(list[list[Voice]]):
 
         ticks = sum(map(sum, self.delay_map.values()))
         minutes, seconds = divmod(ticks / 10, 60)
-        str_minutes = f"{minutes:.0f} minute" + "s" if minutes != 1 else ""
-        str_seconds = f"{round(seconds)} second" + "s" if seconds != 1 else ""
+        str_minutes = f"{minutes:.0f} minute" + ("s" if minutes != 1 else "")
+        str_seconds = f"{round(seconds)} second" + ("s" if seconds != 1 else "")
         logger.info(f"Play time: {str_minutes} {str_seconds}")
 
         logger.info(f"Loudness (on average): {(count/ticks):.1f} noteblocks/tick")
