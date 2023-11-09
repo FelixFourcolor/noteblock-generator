@@ -66,5 +66,5 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
 
-## Quiet
-Suppress all text outputs, unless an error occurs. Outputs include diagnostic information about the music and the minecraft world, as well as user confirmation dialogs in important steps (suppressed = agree to all).
+### Quiet
+Suppress all outputs, unless an error occurs. Outputs include diagnostic information about the music and the minecraft world, as well as user confirmation dialogs before important steps (suppressed = agree to all). For advanced users only.
