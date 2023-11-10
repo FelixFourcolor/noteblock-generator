@@ -16,7 +16,6 @@ noteblock-generator = "noteblock_generator.main:main"
 python = ">=3.10, <4.0"
 amulet-core = "^1.9.20"
 colorama = "^0.4.6"
-platformdirs = "^3.11.0"
 
 [build-system]
 requires = ["poetry-core"]

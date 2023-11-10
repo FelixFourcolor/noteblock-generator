@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import signal
+import tempfile
 from enum import Enum
 from io import StringIO
 from pathlib import Path
@@ -15,7 +16,6 @@ from threading import Thread
 from typing import Iterable, TypeVar
 
 import colorama
-from platformdirs import user_cache_dir
 
 from .main import logger
 
@@ -159,17 +159,17 @@ def hash_directory(directory: str | Path):
 
 
 def backup_directory(src: Path, *args, **kwargs) -> Path:
-    """Copy directory to user's cache dir,
+    """Copy src directory to a temp directory,
     automatically resolve name if direcotry already exists by appending (1), (2), etc. to the end.
     Return the chosen name.
     """
 
-    cache_dir = Path(user_cache_dir("noteblock-generator"))
+    temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator/"
     name = src.stem
     i = 0
     while True:
         try:
-            shutil.copytree(src, (dst := cache_dir / name), *args, **kwargs)
+            shutil.copytree(src, (dst := temp_dir / name), *args, **kwargs)
         except FileExistsError:
             if name.endswith(suffix := f" ({i})"):
                 name = name[: -len(suffix)]

@@ -97,9 +97,9 @@ class World:
     def __enter__(self):
         try:
             # make a copy of World to work on that one
-            self._path_copy = backup_directory(self._path)
+            self._path_backup = backup_directory(self._path)
             # load
-            self._level = level = amulet_fix.load_level(str(self._path_copy))
+            self._level = level = amulet_fix.load_level(str(self._path_backup))
             self._level.players
             # keep a hash of the original World
             # to detect if user has entered the world while generating.
@@ -116,7 +116,7 @@ class World:
 
     def __exit__(self, exc_type, exc_value, tb):
         self._level.close()
-        shutil.rmtree(self._path_copy, ignore_errors=True)
+        shutil.rmtree(self._path_backup, ignore_errors=True)
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         # A modified version of self._level.get_version_block,
@@ -209,7 +209,7 @@ class World:
         # disable keyboard interrupt to prevent corruptingz files
         with PreventKeyboardInterrupt():
             shutil.rmtree(self._path, ignore_errors=True)
-            shutil.move(self._path_copy, self._path)
+            shutil.move(self._path_backup, self._path)
         return modified_by_another_process
 
     def _set_block(self, x: int, y: int, z: int, block: BlockType):
