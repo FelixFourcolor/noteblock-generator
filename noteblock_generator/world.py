@@ -105,8 +105,6 @@ class World:
             self._hash = hash_directory(self._path)
             # see self._save() for when this is used
         except Exception as e:
-            if isinstance(e, UserError):
-                raise e
             raise UserError(f"Path {self._path} is invalid\n{type(e).__name__}: {e}")
 
         self._translator = level.translation_manager.get_version(*self._VERSION).block
