@@ -100,7 +100,6 @@ class World:
             self._path_backup = backup_directory(self._path)
             # load
             self._level = level = amulet_fix.load_level(str(self._path_backup))
-            self._level.players
             # keep a hash of the original World
             # to detect if user has entered the world while generating.
             self._hash = hash_directory(self._path)
