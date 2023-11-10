@@ -103,7 +103,7 @@ class World:
             # keep a hash of the original World
             # to detect if user has entered the world while generating.
             self._hash = hash_directory(self._path)
-            # see self._save() for when this is used
+            # see self.save() for when this is used
         except Exception as e:
             raise UserError(f"Path {self._path} is invalid\n{type(e).__name__}: {e}")
 
@@ -184,26 +184,24 @@ class World:
     def save(self, *, quiet: bool):
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
-        modified_by_another_process = False
         try:
-            _hash = hash_directory(self._path)
+            modified_by_another_process = (
+                self._hash is None or self._hash != hash_directory(self._path)
+            )
         except FileNotFoundError:
-            pass
-        else:
-            if modified_by_another_process := self._hash != _hash:
-                logger.warning(
-                    "Your save files have been modified by a different process"
-                )
-                logger.warning(
-                    "To keep this generation, all other changes must be discarded"
-                )
-                UserPrompt.warning(
-                    "Confirm to proceed? [y/N] ",
-                    yes=("y", "yes"),
-                    blocking=True,
-                )
+            modified_by_another_process = False
+        if modified_by_another_process:
+            logger.warning("Your save files have been modified by another process")
+            logger.warning(
+                "To keep this generation, all other changes must be discarded"
+            )
+            UserPrompt.warning(
+                "Confirm to proceed? [y/N] ",
+                yes=("y", "yes"),
+                blocking=True,
+            )
         # Move the copy World back to its original location,
-        # disable keyboard interrupt to prevent corruptingz files
+        # disable keyboard interrupt to prevent corrupting files
         with PreventKeyboardInterrupt():
             shutil.rmtree(self._path, ignore_errors=True)
             shutil.move(self._path_backup, self._path)

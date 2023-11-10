@@ -155,21 +155,30 @@ def hash_directory(directory: str | Path):
                 _hash = update(path, _hash)
         return _hash
 
-    return update(directory, hashlib.blake2b()).digest()
+    try:
+        return update(directory, hashlib.blake2b()).digest()
+    except PermissionError:
+        return
 
 
-def backup_directory(src: Path, *args, **kwargs) -> Path:
+def backup_directory(src: Path) -> Path:
     """Copy src directory to a temp directory,
     automatically resolve name if direcotry already exists by appending (1), (2), etc. to the end.
     Return the chosen name.
     """
+
+    def _safe_copy(*args, **kwargs):
+        try:
+            return shutil.copy2(*args, **kwargs)
+        except PermissionError:
+            pass
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator/"
     name = src.stem
     i = 0
     while True:
         try:
-            shutil.copytree(src, (dst := temp_dir / name), *args, **kwargs)
+            shutil.copytree(src, (dst := temp_dir / name), copy_function=_safe_copy)
         except FileExistsError:
             if name.endswith(suffix := f" ({i})"):
                 name = name[: -len(suffix)]
