@@ -2,6 +2,7 @@
 # https://github.com/Amulet-Team/Amulet-Core/blob/update-licence-info-2/LICENSE
 
 from __future__ import annotations
+import math
 
 import shutil
 from functools import cached_property
@@ -264,10 +265,9 @@ class World:
             raise UserError(
                 "There are more than 1 player in the world. Relative location is not supported."
             )
-        out = results.pop()
-        out = (round(out[0]), round(out[1]), round(out[2]))
+        out = tuple(map(math.floor, results.pop()))
         logger.info(f"Player's location: {out}")
-        return out
+        return out  # type: ignore
 
     @cached_property
     def player_dimension(self) -> str:
