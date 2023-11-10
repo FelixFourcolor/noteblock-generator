@@ -287,10 +287,10 @@ class World:
         return out
 
     @cached_property
-    def player_orientation(self) -> tuple[int, int]:
+    def player_orientation(self) -> tuple[float, float]:
         results = {p.rotation for p in self._players}
         if not results:
-            out = (0, 45)
+            out = (0.0, 45.0)
             logger.warning(f"No players detected. Default orientation {out} is used.")
             return out
         if len(results) > 1:
@@ -298,8 +298,7 @@ class World:
                 "There are more than 1 player in the world. Relative orientation is not supported."
             )
         out = results.pop()
-        out = (int(out[0]), int(out[1]))
-        logger.info(f"Player's orientation: {out}")
+        logger.info(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
         return out
 
     def __hash__(self):

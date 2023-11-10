@@ -199,54 +199,62 @@ class Generator:
             self.y_glass = self.Y + VOICE_HEIGHT * (self.composition.size + 1)
         self.x_dir = Direction((1, 0))
         self.z_i = 1 if h_rotation > matched_h_rotation else -1
+        if abs(h_rotation - matched_h_rotation) < 22.5:
+            self.z_i = -self.z_i
         self.z_dir = Direction((0, self.z_i))
 
-        # validate that coordinates are in bounds
+        # calculate bounds
         self.X_BOUNDARY = self.composition.length * DIVISION_WIDTH + 1
         self.Z_BOUNDARY = (
             self.composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
         )
         Y_BOUNDARY = VOICE_HEIGHT * (self.composition.size + 1)
         BOUNDS = self.world.bounds
-        min_x, max_x = self.X, self.X + self.X_BOUNDARY
-        min_z = self.Z
-        if len(self.composition) == 1:
-            max_z = self.Z + self.z_i * self.Z_BOUNDARY
+        self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
+        if abs(h_rotation - matched_h_rotation) >= 22.5:
+            self.min_z = self.Z
+        elif len(self.composition) == 1:
+            self.min_z = self.Z - self.z_i * math.ceil(self.Z_BOUNDARY / 2)
         else:
-            max_z = self.Z + self.z_i * 2 * self.Z_BOUNDARY
-        # min_z, max_x = min(min_z, max_z), max(min_z, max_z)
-        min_y, max_y = self.y_glass - Y_BOUNDARY, self.y_glass + 2
-        min_x, self.min_y, min_z = self.rotate((min_x, min_y, min_z))
-        max_x, self.max_y, max_z = self.rotate((max_x, max_y, max_z))
-        self.min_x, self.max_x = min(min_x, max_x), max(min_x, max_x)
-        self.min_z, self.max_z = min(min_z, max_z), max(min_z, max_z)
+            self.min_z = self.Z - self.Z_BOUNDARY
+        if len(self.composition) == 1:
+            self.max_z = self.min_z + self.z_i * self.Z_BOUNDARY
+        else:
+            self.max_z = self.min_z + self.z_i * 2 * self.Z_BOUNDARY
+        self.min_y, self.max_y = self.y_glass - Y_BOUNDARY, self.y_glass + 2
+
+        # verify that structure's bounds are game-valid
+        min_x, min_y, min_z = self.rotate((self.min_x, self.min_y, self.min_z))
+        max_x, max_y, max_z = self.rotate((self.max_x, self.max_y, self.max_z))
+        min_x, max_x = min(min_x, max_x), max(min_x, max_x)
+        min_z, max_z = min(min_z, max_z), max(min_z, max_z)
         logger.info(
             "The structure will occupy the space "
-            f"{(self.min_x, self.min_y, self.min_z)} "
-            f"to {self.max_x, self.max_y, self.max_z} "
+            f"{(min_x, self.min_y, min_z)} "
+            f"to {max_x, max_y, max_z} "
             f"in {self.world.dimension}"
         )
-        if self.min_x < BOUNDS.min_x:
+        if min_x < BOUNDS.min_x:
             raise UserError(
                 f"Location is out of bound: x cannot go below {BOUNDS.min_x}"
             )
-        if self.max_x > BOUNDS.max_x:
+        if max_x > BOUNDS.max_x:
             raise UserError(
                 f"Location is out of bound: x cannot go above {BOUNDS.max_x}"
             )
-        if self.min_z < BOUNDS.min_z:
+        if min_z < BOUNDS.min_z:
             raise UserError(
                 f"Location is out of bound: z cannot go below {BOUNDS.min_z}"
             )
-        if self.max_z > BOUNDS.max_z:
+        if max_z > BOUNDS.max_z:
             raise UserError(
                 f"Location is out of bound: z cannot go above {BOUNDS.max_z}"
             )
-        if self.min_y < BOUNDS.min_y:
+        if min_y < BOUNDS.min_y:
             raise UserError(
                 f"Location is out of bound: y cannot go below {BOUNDS.min_y}"
             )
-        if self.max_y > BOUNDS.max_y:
+        if max_y > BOUNDS.max_y:
             raise UserError(
                 f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
@@ -377,7 +385,7 @@ class Generator:
 
         x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
         y = self.y_glass
-        z = self.Z
+        z = self.min_z
 
         def the_first_one():
             def generate_button():
@@ -453,7 +461,7 @@ class Generator:
         redstone = self.Redstone(self.z_dir, -self.z_dir)
         x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
         y = self.y_glass
-        z = self.Z
+        z = self.min_z
         # button in the middle
         generate_button()
         # two redstone bridges going opposite directions,
@@ -464,18 +472,17 @@ class Generator:
 
     def generate_composition(self):
         if len(self.composition) == 1:
-            self.generate_orchestra(self.composition[0], self.Z)
+            self.generate_orchestra(self.composition[0], self.min_z)
         else:
-            self.generate_orchestra(self.composition[0], self.Z)
-            Z = self.Z + self.z_i * self.Z_BOUNDARY
-            self.generate_orchestra(self.composition[1], Z)
+            self.generate_orchestra(self.composition[0], self.min_z)
+            self.generate_orchestra(
+                self.composition[1], self.min_z + self.z_i * self.Z_BOUNDARY
+            )
 
     def generate_init_system(self):
         if len(self.composition) == 1:
             for i in range(self.composition.length // 2):
-                X = 2 * DIVISION_WIDTH * i
-                self.generate_init_system_for_single_orchestra(X)
+                self.generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
         else:
             for i in range(self.composition.length // 2):
-                X = 2 * DIVISION_WIDTH * i
-                self.generate_init_system_for_double_orchestras(X)
+                self.generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
