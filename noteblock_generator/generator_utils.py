@@ -167,11 +167,11 @@ def backup_directory(src: Path) -> Path:
     Return the chosen name.
     """
 
-    def _safe_copy(*args, **kwargs):
+    def _safe_copy(src: str, dst: str):
         try:
-            return shutil.copy2(*args, **kwargs)
+            return shutil.copy2(src, dst)
         except PermissionError:
-            pass
+            logger.warning("WARNING - Permission denied, file ignored: {src}")
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator/"
     name = src.stem
