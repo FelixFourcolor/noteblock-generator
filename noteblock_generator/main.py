@@ -6,8 +6,7 @@ from argparse import ArgumentParser
 from typing import Any, NamedTuple
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logging.basicConfig(format="%(levelname)s - %(message)s")
+logging.basicConfig(format="%(message)s")
 
 
 class _RelativeInt(int):
@@ -76,10 +75,14 @@ def get_args():
         action="store_true",
         help="blend the structure with its environment",
     )
-    parser.add_argument(
+    log_level = parser.add_mutually_exclusive_group()
+    log_level.add_argument(
+        "--verbose", action="store_true", help="increase output verbosity"
+    )
+    log_level.add_argument(
         "--quiet",
         action="store_true",
-        help="suppress all text outputs, unless an error occurs",
+        help="decrease output verbosity",
     )
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
 
@@ -104,9 +107,13 @@ def parse_args():
         raise UserError("Orientation requires 2 values")
     orientation = Orientation(*map(_RelativeInt, args.orientation))
 
-    # quiet
-    if quiet := args.quiet:
-        logger.setLevel(logging.ERROR)
+    # verbosity
+    if args.quiet:
+        logger.setLevel(logging.WARNING)
+    elif args.verbose:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
 
     # parse Composition and World later, because they take longer time,
     # so that we catch command-line errors quickly
@@ -126,7 +133,6 @@ def parse_args():
         "location": location,
         "dimension": dimension,
         "orientation": orientation,
-        "quiet": quiet,
         "theme": args.theme,
         "blend": args.blend,
     }
@@ -139,7 +145,7 @@ def main():
 
         Generator(**args)()
     except UserError as e:
-        logger.error(e)
+        logger.error(f"ERROR - {e}")
         sys.exit(1)
 
 

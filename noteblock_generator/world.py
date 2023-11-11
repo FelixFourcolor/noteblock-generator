@@ -2,8 +2,8 @@
 # https://github.com/Amulet-Team/Amulet-Core/blob/update-licence-info-2/LICENSE
 
 from __future__ import annotations
-import math
 
+import math
 import shutil
 from functools import cached_property
 from multiprocessing.pool import ThreadPool
@@ -182,7 +182,7 @@ class World:
         # Windows fix: must close level before moving its folder
         self._level.close()
 
-    def save(self, *, quiet: bool):
+    def save(self):
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
         try:
@@ -192,9 +192,9 @@ class World:
         except FileNotFoundError:
             modified_by_another_process = False
         if modified_by_another_process:
-            logger.warning("Your save files have been modified by another process")
             logger.warning(
-                "To keep this generation, all other changes must be discarded"
+                "Your save files have been modified by another process."
+                "\nTo keep this generation, all other changes must be discarded"
             )
             UserPrompt.warning(
                 "Confirm to proceed? [y/N] ",
@@ -226,8 +226,8 @@ class World:
             try:
                 chunk = self._level.get_chunk(cx, cz, self._dimension)
             except amulet.api.errors.ChunkLoadError:
-                message = f"Missing chunk {(cx, cz)}"
-                end_of_line = " " * max(0, terminal_width() - len(message) - 11)
+                message = f"WARNING - Missing chunk {(cx, cz)}"
+                end_of_line = " " * max(0, terminal_width() - len(message))
                 logger.warning(f"{message}{end_of_line}")
                 chunk = self._level.create_chunk(cx, cz, self._dimension)
             self._chunk_cache[cx, cz] = chunk
@@ -266,7 +266,7 @@ class World:
                 "There are more than 1 player in the world. Relative location is not supported."
             )
         out = tuple(map(math.floor, results.pop()))
-        logger.info(f"Player's location: {out}")
+        logger.debug(f"Player's location: {out}")
         return out  # type: ignore
 
     @cached_property
@@ -283,7 +283,7 @@ class World:
         out = results.pop()
         if out.startswith("minecraft:"):
             out = out[10:]
-        logger.info(f"Player's dimension: {out}")
+        logger.debug(f"Player's dimension: {out}")
         return out
 
     @cached_property
@@ -298,7 +298,7 @@ class World:
                 "There are more than 1 player in the world. Relative orientation is not supported."
             )
         out = results.pop()
-        logger.info(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
+        logger.debug(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
         return out
 
     def __hash__(self):

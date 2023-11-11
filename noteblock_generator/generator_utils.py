@@ -63,7 +63,7 @@ DirectionType = TypeVar("DirectionType", Direction, tuple[int, int])
 
 
 def terminal_width():
-    return min(80, os.get_terminal_size()[0])
+    return min(80, os.get_terminal_size()[0] - 1)
 
 
 # Enable ANSI escape code on Windows PowerShell for the progress bar
@@ -75,7 +75,7 @@ def progress_bar(iteration: float, total: float, *, text: str):
     percentage = f" {100*ratio:.0f}% "
 
     alignment_spacing = " " * (6 - len(percentage))
-    total_length = max(0, terminal_width() - len(text) - 16)
+    total_length = max(0, terminal_width() - len(text) - 8)
     fill_length = int(total_length * ratio)
     finished_portion = "#" * fill_length
     remaining_portion = "-" * (total_length - fill_length)
@@ -98,15 +98,13 @@ class UserPrompt:
     def _run(self):
         # capture logs to not interrupt the user prompt
         logging.basicConfig(
-            format="%(levelname)s - %(message)s",
-            stream=(buffer := StringIO()),
-            force=True,
+            format="%(message)s", stream=(buffer := StringIO()), force=True
         )
         # prompt
         result = input(self._prompt).lower().strip() in self._yes
         print()
         # stop capturing
-        logging.basicConfig(format="%(levelname)s - %(message)s", force=True)
+        logging.basicConfig(format="%(message)s", force=True)
 
         if result:
             # release captured logs

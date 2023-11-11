@@ -618,15 +618,20 @@ class Composition(list[list[Voice]]):
 
     def log_info(self):
         count = self._noteblocks_count
-        logger.info(f"Noteblocks count: {count:,}")
+        logger.debug(f"Noteblocks count: {count:,}")
 
         ticks = sum(map(sum, self.delay_map.values()))
         minutes, seconds = divmod(ticks / 10, 60)
-        str_minutes = f"{minutes:.0f} minute" + ("s" if minutes != 1 else "")
+        str_minutes = (
+            f"{minutes:.0f} minute " + ("s" if minutes != 1 else "")
+            if minutes > 0
+            else ""
+        )
         str_seconds = f"{round(seconds)} second" + ("s" if seconds != 1 else "")
-        logger.info(f"Play time: {str_minutes} {str_seconds}")
+        logger.debug(f"Duration: {str_minutes}{str_seconds}")
 
-        logger.info(f"Complexity: {(count/ticks):.1f} noteblocks/tick\n")
+        str_complexity = f"{(count/ticks):.1f} noteblocks/tick" if ticks > 0 else "N/A"
+        logger.debug(f"Complexity: {str_complexity}\n")
 
 
 def parse(path: str):

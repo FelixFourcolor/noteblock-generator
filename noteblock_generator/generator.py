@@ -95,14 +95,13 @@ class Generator:
     orientation: Orientation
     theme: str
     blend: bool
-    quiet: bool
 
     def __call__(self):
         with self.world:
             self.parse_args()
             user_prompt = UserPrompt.info(
-                "\nConfirm to proceed? [y/N] ",
-                yes=("y", "yes"),
+                "\nConfirm to proceed? [Y/n] ",
+                yes=("", "y", "yes"),
                 blocking=False,
             )
             # start generating while waiting for user input, just don't save yet.
@@ -115,16 +114,16 @@ class Generator:
                 self.world.apply_modifications()
                 if user_prompt is not None:
                     user_prompt.wait()
-                modified_by_another_process = self.world.save(quiet=self.quiet)
+                modified_by_another_process = self.world.save()
             except KeyboardInterrupt:
                 message = "Aborted."
-                end_of_line = " " * max(0, terminal_width() - len(message) - 10)
+                end_of_line = " " * max(0, terminal_width() - len(message) - 2)
                 logger.info(f"{message}{end_of_line}")
                 logger.disabled = True
             else:
                 logger.info("Finished.")
                 if modified_by_another_process:
-                    logger.info(
+                    logger.warning(
                         "If you are currently inside the world, "
                         "exit and re-enter to see the result."
                     )
@@ -232,7 +231,7 @@ class Generator:
             "The structure will occupy the space "
             f"{(min_x, self.min_y, min_z)} "
             f"to {max_x, max_y, max_z} "
-            f"in {self.world.dimension}"
+            f"in {self.world.dimension}."
         )
         if min_x < BOUNDS.min_x:
             raise UserError(

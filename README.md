@@ -23,12 +23,12 @@ See my projects:
 noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
 
 Options:
-  --location [LOCATION ...]       build location (in '<x> <y> <z>'); default is player's location
+  --location [LOCATION ...]       build location (in <x> <y> <z>); default is player's location
   --dimension DIMENSION           build dimension; default is player's dimension
-  --orientation [ORIENTATION ...] build orientation (in '<horizontal> <vertical>'); default is player's orientation
+  --orientation [ORIENTATION ...] build orientation (in <horizontal> <vertical>); default is player's orientation
   --theme THEME                   redstone-conductive block; default is stone
   --blend                         blend the structure with its environment
-  --quiet                         suppress all text outputs, unless an error occurs
+  [--verbose | --quiet]           increase/decrease output verbosity
 ```
 
 ### Music source
@@ -65,6 +65,3 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
-
-### Quiet
-Suppress all outputs, unless an error occurs. Outputs include diagnostic information about the music and the minecraft world, as well as user confirmation dialogs before important steps (suppressed = agree to all). For advanced users only.
