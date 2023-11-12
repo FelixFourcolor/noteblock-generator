@@ -92,7 +92,7 @@ def parse_args():
 
     # location
     if len(args.location) != 3:
-        raise UserError("Location requries 3 values")
+        raise UserError("Location requires 3 values")
     location = Location(*map(_RelativeInt, args.location))
 
     # dimension

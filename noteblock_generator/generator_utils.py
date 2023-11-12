@@ -161,7 +161,7 @@ def hash_directory(directory: str | Path):
 
 def backup_directory(src: Path) -> Path:
     """Copy src directory to a temp directory,
-    automatically resolve name if direcotry already exists by appending (1), (2), etc. to the end.
+    automatically resolve name if directory already exists by appending (1), (2), etc. to the end.
     Return the chosen name.
     """
 
@@ -171,7 +171,7 @@ def backup_directory(src: Path) -> Path:
         except PermissionError:
             logger.warning("WARNING - Permission denied, file ignored: {src}")
 
-    temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator/"
+    temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
     name = src.stem
     i = 0
     while True:
