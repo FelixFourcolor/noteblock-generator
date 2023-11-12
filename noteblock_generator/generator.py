@@ -104,7 +104,7 @@ class Generator:
                 yes=("", "y", "yes"),
                 blocking=False,
             )
-            # start generating while waiting for user input, just don't save yet.
+            # Start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
             # hence put the whole generator inside a try-catch block.
             try:
@@ -124,8 +124,7 @@ class Generator:
                 logger.info("Finished.")
                 if modified_by_another_process:
                     logger.warning(
-                        "If you are currently inside the world, "
-                        "exit and re-enter to see the result."
+                        "If you are inside the world, exit and re-enter to see the result."
                     )
 
     # Rotation system
