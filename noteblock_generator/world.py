@@ -105,6 +105,10 @@ class World:
             # to detect if user has entered the world while generating.
             self._hash = hash_directory(self._path)
             # see self.save() for when this is used
+        except PermissionError as e:
+            raise UserError(
+                f"{e}.\nIf you are inside the world, exit it first and try again."
+            )
         except Exception as e:
             raise UserError(f"Path {self._path} is invalid\n{type(e).__name__}: {e}")
 

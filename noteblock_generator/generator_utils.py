@@ -165,28 +165,44 @@ def backup_directory(src: Path) -> Path:
     Return the chosen name.
     """
 
-    def _safe_copy(src: str, dst: str):
+    class PermissionDenied(Exception):
+        """PermissionError raised inside copyfile
+        will be propagated by shutil.copytree as OSError, which is not helpful.
+        So raise this instead.
+        """
+
+    def safe_copy(src: str, dst: str):
         try:
             return shutil.copy2(src, dst)
-        except PermissionError:
-            logger.warning("WARNING - Permission denied, file ignored: {src}")
+        except PermissionError as e:
+            # This isn't a problem for linux,
+            # but windows raises PermissionError if we try to read the save folder while the game is running.
+            # The only file I know  that does this is "session.lock",
+            # and it's also the only file I know that can be deleted without losing data.
+            # Therefore, if "session.lock" raises PermissionError, ignore it,
+            # otherwise propagate the error to the user.
+            if Path(src).name != "sesion.lock":
+                raise PermissionDenied(f"{src}: {e}")
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
     name = src.stem
     i = 0
     while True:
         try:
-            shutil.copytree(src, (dst := temp_dir / name), copy_function=_safe_copy)
+            shutil.copytree(src, (dst := temp_dir / name), copy_function=safe_copy)
         except FileExistsError:
             if name.endswith(suffix := f" ({i})"):
                 name = name[: -len(suffix)]
             name += f" ({(i := i + 1)})"
+        except PermissionDenied as e:
+            raise PermissionError(e)
+
         else:
             return dst
 
 
 class PreventKeyboardInterrupt:
-    """Place any code inside "with PreventKeyboardInterrupt(): ..."
+    """Place any code inside "wibth PreventKeyboardInterrupt(): ..."
     to prevent keyboard interrupt
     """
 
