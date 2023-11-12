@@ -46,8 +46,6 @@ The location where the structure will be generated.
 
 This uses Minecraft's relative coordinates syntax, where `~` stands for the player's location. For example, `--location ~ ~ ~` (default) is the player's current location, `--location ~ ~10 ~` is 10 blocks above the player, etc.
 
-Warning: On Linux the character `~` must be escaped (e.g. the above example would be `--location \~ ~10 \~`).
-
 ### Dimension
 The dimension where the structure will be generated. Valid choices are `overworld`, `the_nether`, `the_end`.
 

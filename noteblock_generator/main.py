@@ -1,41 +1,45 @@
 # Copyright Felix Fourcolor 2023. CC0-1.0 license
 
 import logging
+import os
 import sys
 from argparse import ArgumentParser
-from typing import Any, NamedTuple
+from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(message)s")
 
 
-class _RelativeInt(int):
+_HOME = os.path.expanduser("~")
+
+
+class Coordinate(int):
     relative: bool
 
-    def __new__(cls, arg: Any):
-        if relative := arg.startswith("~"):
-            arg = arg[1:]
-        if not arg:
+    def __new__(cls, _value: str, /):
+        if not (relative := _value != (_value := _value.removeprefix("~"))):
+            relative = _value != (_value := _value.removeprefix(_HOME))
+        if not _value:
             value = 0
         else:
             try:
-                value = int(arg)
+                value = int(_value)
             except ValueError:
-                raise UserError(f"Expected integer values; received {arg}")
+                raise UserError(f"Expected integer values; received {_value}")
         self = super().__new__(cls, value)
         self.relative = relative
         return self
 
 
 class Location(NamedTuple):
-    x: _RelativeInt
-    y: _RelativeInt
-    z: _RelativeInt
+    x: Coordinate
+    y: Coordinate
+    z: Coordinate
 
 
 class Orientation(NamedTuple):
-    horizontal: _RelativeInt
-    vertical: _RelativeInt
+    horizontal: Coordinate
+    vertical: Coordinate
 
 
 class UserError(Exception):
@@ -93,7 +97,7 @@ def parse_args():
     # location
     if len(args.location) != 3:
         raise UserError("Location requires 3 values")
-    location = Location(*map(_RelativeInt, args.location))
+    location = Location(*map(Coordinate, args.location))
 
     # dimension
     if (dimension := args.dimension) is not None:
@@ -105,7 +109,7 @@ def parse_args():
     # orientation
     if len(args.orientation) != 2:
         raise UserError("Orientation requires 2 values")
-    orientation = Orientation(*map(_RelativeInt, args.orientation))
+    orientation = Orientation(*map(Coordinate, args.orientation))
 
     # verbosity
     if args.quiet:
