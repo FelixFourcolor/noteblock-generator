@@ -29,33 +29,18 @@ class Direction(tuple[int, int], Enum):
     east = (1, 0)
     west = (-1, 0)
 
-    def __str__(self):
-        return self.name
-
     def __mul__(self, other: DirectionType) -> DirectionType:
-        # Multiplication
-        # with another Direction: like complex multiplication, return a Direction
-        # with a tuple: like complex multiplication, return a tuple
+        """Complex multiplication, withy (x, z) representing xi + z"""
 
-        if isinstance(other, Direction):
-            return Direction(
-                (
-                    self[0] * other[1] + self[1] * other[0],
-                    self[1] * other[1] - self[0] * other[0],
-                )
-            )
-        if isinstance(other, tuple):
-            return (
+        return type(other)(
+            (
                 self[0] * other[1] + self[1] * other[0],
                 self[1] * other[1] - self[0] * other[0],
             )
-        return NotImplemented
-
-    def __rmul__(self, other: DirectionType) -> DirectionType:
-        return self * other
+        )
 
     def __neg__(self):
-        # negation is like multiplying with 0i - 1, which is north
+        # negation is multiplying with 0i - 1, which is north
         return self * Direction.north
 
 
