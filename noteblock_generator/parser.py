@@ -623,7 +623,7 @@ class Composition(list[list[Voice]]):
         ticks = sum(map(sum, self.delay_map.values()))
         minutes, seconds = divmod(ticks / 10, 60)
         str_minutes = (
-            f"{minutes:.0f} minute " + ("s" if minutes != 1 else "")
+            f"{minutes:.0f} minute" + ("s" if minutes != 1 else "") + " "
             if minutes > 0
             else ""
         )
