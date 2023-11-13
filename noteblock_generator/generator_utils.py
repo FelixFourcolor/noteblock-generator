@@ -29,6 +29,9 @@ class Direction(tuple[int, int], Enum):
     east = (1, 0)
     west = (-1, 0)
 
+    def __str__(self):
+        return self.name
+
     def __mul__(self, other: DirectionType) -> DirectionType:
         """Complex multiplication, withy (x, z) representing xi + z"""
 

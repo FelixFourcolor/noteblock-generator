@@ -51,7 +51,7 @@ class Repeater(Block):
 
     def __init__(self, delay: int, direction: Direction):
         # MINECRAFT's BUG: repeater's direction is reversed
-        super().__init__("repeater", delay=delay, facing=((-direction).name))
+        super().__init__("repeater", delay=delay, facing=-direction)
 
 
 class Redstone(Block):
