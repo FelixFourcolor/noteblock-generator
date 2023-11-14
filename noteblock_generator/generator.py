@@ -1,14 +1,13 @@
 # Copyright Felix Fourcolor 2023. CC0-1.0 license
 
 import math
+import shutil
 from dataclasses import dataclass
-from functools import cache
+from functools import cache, cached_property, partial
+from multiprocessing.pool import ThreadPool
 from typing import Optional
 
-from .generator_utils import UserPrompt, progress_bar, terminal_width
-from .main import Location, Orientation, logger
-from .parser import Composition, Note, UserError, Voice
-from .world import (
+from .amulet_wrapper import (
     Block,
     BlockType,
     Direction,
@@ -18,6 +17,16 @@ from .world import (
     Repeater,
     World,
 )
+from .generator_utils import (
+    PreventKeyboardInterrupt,
+    UserPrompt,
+    backup_directory,
+    hash_directory,
+    progress_bar,
+    terminal_width,
+)
+from .main import Location, Orientation, logger
+from .parser import Composition, Note, UserError, Voice
 
 # Blocks to be removed if using blend mode,
 # since they may interfere with redstones and/or noteblocks.
@@ -88,7 +97,7 @@ NOTEBLOCKS_ORDER = [-1, 1, -2, 2]
 
 @dataclass(kw_only=True)
 class Generator:
-    world: World
+    world_path: str
     composition: Composition
     location: Location
     dimension: Optional[str]
@@ -97,7 +106,7 @@ class Generator:
     blend: bool
 
     def __call__(self):
-        with self.world:
+        with self:
             self.parse_args()
             user_prompt = UserPrompt.info(
                 "\nConfirm to proceed? [Y/n] ",
@@ -111,23 +120,16 @@ class Generator:
                 progress_bar(0, 1, text="Generating")
                 self.generate_composition()
                 self.generate_init_system()
-                self.world.apply_modifications()
+                self.apply_modifications()
                 if user_prompt is not None:
                     user_prompt.wait()
-                modified_by_another_process = self.world.save()
+                self.save()
             except KeyboardInterrupt:
                 message = "Aborted."
-                end_of_line = " " * max(0, terminal_width() - len(message) - 2)
-                logger.info(f"{message}{end_of_line}")
+                end_of_line = " " * max(0, terminal_width() - len(message))
+                logger.info(f"\r{message}{end_of_line}")
                 logger.disabled = True
-            else:
-                logger.info("Finished.")
-                if modified_by_another_process:
-                    logger.warning(
-                        "If you are inside the world, exit and re-enter to see the result."
-                    )
 
-    # Rotation system
     def rotate(self, coordinates: tuple[int, int, int]):
         x, y, z = coordinates
         delta_x, delta_z = self._rotation * (x - self.X, z - self.Z)
@@ -145,17 +147,137 @@ class Generator:
         return Block("oak_button", facing=self._rotation * facing, **kwargs)
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
-        self.world[self.rotate(coordinates)] = block
+        """Does not actually set blocks,
+        but saves what blocks to be set and where into a hashmap organized by chunks
+        """
+
+        x, y, z = self.rotate(coordinates)
+        cx, cz = x // 16, z // 16
+        if (cx, cz) not in self._modifications:
+            self._modifications[cx, cz] = {}
+        self._modifications[cx, cz][x, y, z] = block
 
     def __getitem__(self, coordinates: tuple[int, int, int]):
         # DO NOT ROTATE
         # rotation was already applied once when __setitem__
-        return self.world[coordinates]
+        return self.world.get_block(coordinates, self._dimension)
 
     def __hash__(self):
         return 0
 
-    # generator subroutines
+    def __enter__(self):
+        try:
+            # make a copy of World to work on that one
+            self._tmp_world = backup_directory(self.world_path)
+            # load
+            self.world = World.load(path=self._tmp_world)
+            # to detect if user has entered the world while generating.
+            self._hash = hash_directory(self.world_path)
+            # see self.save() for when this is used
+        except PermissionError as e:
+            raise UserError(
+                f"{e}.\nIf you are inside the world, exit it first and try again."
+            )
+        except Exception as e:
+            raise UserError(
+                f"Path {self.world_path} is invalid\n{type(e).__name__}: {e}"
+            )
+
+        self._modifications: dict[
+            tuple[int, int],  # chunk location
+            dict[
+                tuple[int, int, int],  # location within chunk
+                PlacementType,  # what to do at that location
+            ],
+        ] = {}
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.world.close()
+        shutil.rmtree(self._tmp_world, ignore_errors=True)
+
+    def save(self):
+        # Check if World has been modified,
+        # if so get user confirmation to discard all changes.
+        try:
+            modified_by_another_process = (
+                self._hash is None or self._hash != hash_directory(self.world_path)
+            )
+        except FileNotFoundError:
+            modified_by_another_process = False
+        if modified_by_another_process:
+            logger.warning(
+                "Your save files have been modified by another process."
+                "\nTo keep this generation, all other changes must be discarded"
+            )
+            UserPrompt.warning(
+                "Confirm to proceed? [y/N] ",
+                yes=("y", "yes"),
+                blocking=True,
+            )
+        # Move the copy World back to its original location,
+        # disable keyboard interrupt to prevent corrupting files
+        with PreventKeyboardInterrupt():
+            # Windows fix: need to close world before moving its folder
+            self.world.close()
+            shutil.rmtree(self.world_path, ignore_errors=True)
+            shutil.move(self._tmp_world, self.world_path)
+        if modified_by_another_process:
+            logger.warning(
+                "\nIf you are inside the world, exit and re-enter to see the result."
+            )
+
+    # -----------------------------------------------------------------------------
+    # The methods below are properties so that they are lazily evaluated,
+    # so that they are only called if user uses relative location/dimension/orientation,
+    # and cached so that loggings are only called once
+
+    @cached_property
+    def player_location(self) -> tuple[int, int, int]:
+        results = {p.location for p in self.world.all_players}
+        if not results:
+            out = (0, 63, 0)
+            logger.warning(f"No players detected. Default location {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative location is not supported."
+            )
+        out = tuple(map(math.floor, results.pop()))
+        logger.debug(f"Player's location: {out}")
+        return out  # type: ignore
+
+    @cached_property
+    def player_dimension(self) -> str:
+        results = {p.dimension for p in self.world.all_players}
+        if not results:
+            out = "overworld"
+            logger.warning(f"No players detected. Default dimension {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative dimension is not supported."
+            )
+        out = results.pop()
+        if out.startswith("minecraft:"):
+            out = out[10:]
+        logger.debug(f"Player's dimension: {out}")
+        return out
+
+    @cached_property
+    def player_orientation(self) -> tuple[float, float]:
+        results = {p.rotation for p in self.world.all_players}
+        if not results:
+            out = (0.0, 45.0)
+            logger.warning(f"No players detected. Default orientation {out} is used.")
+            return out
+        if len(results) > 1:
+            raise UserError(
+                "There are more than 1 player in the world. Relative orientation is not supported."
+            )
+        out = results.pop()
+        logger.debug(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
+        return out
 
     def parse_args(self):
         # theme
@@ -164,23 +286,23 @@ class Generator:
         # location
         self.X, self.Y, self.Z = self.location
         if self.location.x.relative:
-            self.X += self.world.player_location[0]
+            self.X += self.player_location[0]
         if self.location.y.relative:
-            self.Y += self.world.player_location[1]
+            self.Y += self.player_location[1]
         if self.location.z.relative:
-            self.Z += self.world.player_location[2]
+            self.Z += self.player_location[2]
 
         # dimension
         if self.dimension is None:
-            self.dimension = self.world.player_dimension
-        self.world.dimension = self.dimension
+            self.dimension = self.player_dimension
+        self._dimension = "minecraft:" + self.dimension
 
         # orientation
         h_rotation, v_rotation = self.orientation
         if h_rotation.relative:
-            h_rotation += self.world.player_orientation[0]
+            h_rotation += self.player_orientation[0]
         if v_rotation.relative:
-            v_rotation += self.world.player_orientation[1]
+            v_rotation += self.player_orientation[1]
         if not (-180 <= h_rotation <= 180):
             raise UserError("Horizontal orientation must be between -180 and 180")
         if not (-90 <= v_rotation <= 90):
@@ -207,7 +329,7 @@ class Generator:
             self.composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
         )
         Y_BOUNDARY = VOICE_HEIGHT * (self.composition.size + 1)
-        BOUNDS = self.world.bounds
+        BOUNDS = self.world.bounds(self._dimension)
         self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
         if abs(h_rotation - matched_h_rotation) >= 22.5:
             self.min_z = self.Z
@@ -230,7 +352,7 @@ class Generator:
             "The structure will occupy the space "
             f"{(min_x, self.min_y, min_z)} "
             f"to {max_x, max_y, max_z} "
-            f"in {self.world.dimension}."
+            f"in {self.dimension}."
         )
         if min_x < BOUNDS.min_x:
             raise UserError(
@@ -484,3 +606,26 @@ class Generator:
         else:
             for i in range(self.composition.length // 2):
                 self.generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
+
+    def apply_modifications(self):
+        """Actual block-setting happens here"""
+
+        if not self._modifications:
+            return
+
+        def _modify_chunk(modifications: dict[tuple[int, int, int], PlacementType]):
+            for coordinates, placement in modifications.items():
+                if callable(placement):
+                    if (block := placement(coordinates)) is not None:
+                        self.world.set_block(coordinates, block, self._dimension)
+                else:
+                    self.world.set_block(coordinates, placement, self._dimension)
+
+        total = len(self._modifications)
+        with ThreadPool() as pool:
+            for progress, _ in enumerate(
+                pool.imap_unordered(_modify_chunk, self._modifications.values())
+            ):
+                progress_bar(progress + 1, total, text="Generating")
+
+        self.world.save(progress_callback=partial(progress_bar, text="Saving"))

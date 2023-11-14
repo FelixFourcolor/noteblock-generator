@@ -50,7 +50,7 @@ def get_args():
     parser = ArgumentParser()
     parser.add_argument("music_source", help="path to music source")
     parser.add_argument(
-        "minecraft_world", help="path to Minecraft world (Java Edition only)"
+        "world_path", help="path to Minecraft world (Java Edition only)"
     )
     parser.add_argument(
         "--location",
@@ -119,20 +119,15 @@ def parse_args():
     else:
         logger.setLevel(logging.INFO)
 
-    # parse Composition and World later, because they take longer time,
+    # parse Composition last, because it takes the most time,
     # so that we catch command-line errors quickly
-    # and parse Composition before World, because former is faster
 
     from .parser import parse
 
     composition = parse(args.music_source)
 
-    from .world import World
-
-    world = World(args.minecraft_world)
-
     return {
-        "world": world,
+        "world_path": args.world_path,
         "composition": composition,
         "location": location,
         "dimension": dimension,

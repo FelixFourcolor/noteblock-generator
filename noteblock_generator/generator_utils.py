@@ -58,7 +58,7 @@ def terminal_width():
 colorama.just_fix_windows_console()
 
 
-def progress_bar(iteration: float, total: float, *, text: str):
+def progress_bar(iteration: int, total: int, *, text: str):
     ratio = iteration / total
     percentage = f" {100*ratio:.0f}% "
 
@@ -68,7 +68,7 @@ def progress_bar(iteration: float, total: float, *, text: str):
     finished_portion = "#" * fill_length
     remaining_portion = "-" * (total_length - fill_length)
     progress_bar = f"[{finished_portion}{remaining_portion}]" if total_length else ""
-    end_of_line = "\n" if ratio == 1 else "\033[F"
+    end_of_line = "" if ratio == 1 else "\033[F"
 
     logger.info(f"{text}{alignment_spacing}{percentage}{progress_bar}{end_of_line}")
 
@@ -90,13 +90,12 @@ class UserPrompt:
         )
         # prompt
         result = input(self._prompt).lower().strip() in self._yes
-        print()
         # stop capturing
         logging.basicConfig(format="%(message)s", force=True)
 
         if result:
             # release captured logs
-            print(buffer.getvalue(), end="")
+            print("\n", buffer.getvalue(), end="")
         else:
             _thread.interrupt_main()
 
@@ -147,7 +146,7 @@ def hash_directory(directory: str | Path):
         return
 
 
-def backup_directory(src: Path) -> Path:
+def backup_directory(src: str) -> str:
     """Copy src directory to a temp directory,
     automatically resolve name if directory already exists by appending (1), (2), etc. to the end.
     Return the chosen name.
@@ -173,7 +172,7 @@ def backup_directory(src: Path) -> Path:
                 raise PermissionDenied(f"{src}: {e}")
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
-    name = src.stem
+    name = Path(src).stem
     i = 0
     while True:
         try:
@@ -186,7 +185,7 @@ def backup_directory(src: Path) -> Path:
             raise PermissionError(e)
 
         else:
-            return dst
+            return str(dst)
 
 
 class PreventKeyboardInterrupt:

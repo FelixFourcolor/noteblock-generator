@@ -4,11 +4,6 @@
 # type: ignore
 # ruff: noqa
 from amulet.level.formats.anvil_world.format import *
-from amulet.level.load import *
-
-
-def load_level(path: str):
-    return World(path, FixedAnvilFormat(path))
 
 
 class FixedAnvilFormat(AnvilFormat):
