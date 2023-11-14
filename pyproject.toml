@@ -13,9 +13,9 @@ keywords = ["minecraft", "noteblock"]
 noteblock-generator = "noteblock_generator.main:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10, <4.0"
+python = ">=3.10, <3.13"
 amulet-core = "^1.9.20"
-colorama = "^0.4.6"
+colorama = "^0.4"
 
 [build-system]
 requires = ["poetry-core"]

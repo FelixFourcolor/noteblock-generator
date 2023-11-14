@@ -13,13 +13,13 @@ See my projects:
 
 ## Requirements
 * Minecraft java 1.19+
-* python 3.10+
+* Python 3.10-3.12
+* Only tested to work on Linux and Windows. I hope it works on Mac too (I don't see why it wouldn't), but I have no way to test.
 
 ## Installation:
 ```pip install --upgrade noteblock-generator```
 
 ## Usage
-Only tested to work on Linux and Windows. Other platforms probably work as well as long as you satisfy the above requirements, but you would be on your own.
 
 ```
 noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
