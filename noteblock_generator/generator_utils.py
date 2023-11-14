@@ -1,5 +1,3 @@
-# Copyright Felix Fourcolor 2023. CC0-1.0 license
-
 from __future__ import annotations
 
 import _thread
@@ -58,8 +56,8 @@ def terminal_width():
 colorama.just_fix_windows_console()
 
 
-def progress_bar(iteration: int, total: int, *, text: str):
-    ratio = iteration / total
+def progress_bar(progress: int, total: int, *, text: str):
+    ratio = progress / total
     percentage = f" {100*ratio:.0f}% "
 
     alignment_spacing = " " * (6 - len(percentage))
@@ -77,10 +75,10 @@ class UserPrompt:
     def __init__(self, prompt: str, yes: Iterable[str], *, blocking: bool):
         self._prompt = prompt
         self._yes = yes
-        self._thread = Thread(target=self._run, daemon=True)
         if blocking:
-            self._thread.run()
+            self._run()
         else:
+            self._thread = Thread(target=self._run, daemon=True)
             self._thread.start()
 
     def _run(self):
@@ -95,7 +93,7 @@ class UserPrompt:
 
         if result:
             # release captured logs
-            print("\n", buffer.getvalue(), end="")
+            print(f"\n{buffer.getvalue()}", end="")
         else:
             _thread.interrupt_main()
 

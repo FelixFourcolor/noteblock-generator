@@ -1,5 +1,3 @@
-# Copyright Felix Fourcolor 2023. CC0-1.0 license
-
 from __future__ import annotations
 
 import json
