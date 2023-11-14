@@ -154,7 +154,7 @@ def backup_directory(src: Path) -> Path:
     """
 
     class PermissionDenied(Exception):
-        """PermissionError raised inside copyfile
+        """PermissionError raised inside safe_copy
         will be propagated by shutil.copytree as OSError, which is not helpful.
         So raise this instead.
         """
@@ -165,11 +165,11 @@ def backup_directory(src: Path) -> Path:
         except PermissionError as e:
             # This isn't a problem for linux,
             # but windows raises PermissionError if we try to read the save folder while the game is running.
-            # The only file I know  that does this is "session.lock",
+            # The only file I know that does this is "session.lock",
             # and it's also the only file I know that can be deleted without losing data.
             # Therefore, if "session.lock" raises PermissionError, ignore it,
             # otherwise propagate the error to the user.
-            if Path(src).name != "sesion.lock":
+            if Path(src).name != "session.lock":
                 raise PermissionDenied(f"{src}: {e}")
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
