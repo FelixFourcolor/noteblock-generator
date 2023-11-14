@@ -7,7 +7,6 @@ from typing import Callable, Optional
 
 import amulet
 
-from .amulet_fix import FixedAnvilFormat
 from .generator_utils import Direction, terminal_width
 from .main import logger
 from .parser import Note
@@ -66,7 +65,7 @@ class World(WorldType):
 
     @classmethod
     def load(cls, *, path: str):
-        return cls(path, FixedAnvilFormat(path))
+        return cls(path, amulet.load_format(path))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
