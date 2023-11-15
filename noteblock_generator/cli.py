@@ -117,19 +117,24 @@ def parse_args():
     else:
         logger.setLevel(logging.INFO)
 
-    # parse Composition last, because it takes the most time,
+    # parse Composition and load Generator last,
+    # because because they take the most time,
     # so that we catch command-line errors quickly
 
-    from .parser import parse
+    from .parser import Composition
 
-    composition = parse(args.music_source)
+    composition = Composition(args.music_source)
 
-    return {
-        "world_path": args.world_path,
-        "composition": composition,
-        "location": location,
-        "dimension": dimension,
-        "orientation": orientation,
-        "theme": args.theme,
-        "blend": args.blend,
-    }
+    # Load Generator after, so that we catch writing errors quickly
+
+    from .generator import Generator
+
+    return Generator(
+        world_path=args.world_path,
+        composition=composition,
+        location=location,
+        dimension=dimension,
+        orientation=orientation,
+        theme=args.theme,
+        blend=args.blend,
+    )

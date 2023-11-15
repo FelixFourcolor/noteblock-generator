@@ -103,6 +103,7 @@ class Note:
     def __init__(
         self,
         _voice: Voice,
+        /,
         *,
         pitch: str,
         delay: int = None,
@@ -167,6 +168,7 @@ class Voice(list[list[Note]]):
     def __init__(
         self,
         _composition: Composition,
+        /,
         *,
         notes: str | list[str | dict] = [],
         name: str = None,
@@ -221,9 +223,9 @@ class Voice(list[list[Note]]):
         self.append([])
         try:
             self._process_notes(notes)
+        except UserError:
+            raise
         except Exception as e:
-            if isinstance(e, UserError):
-                raise
             raise UserError(f"{self}\n{type(e).__name__}: {e}")
 
     def __repr__(self):
@@ -501,8 +503,9 @@ class Composition(list[list[Voice]]):
 
     def __init__(
         self,
+        _path: str = None,
+        /,
         *,
-        _path: Path,
         voices: list[dict | str] | list[list[dict | str]] = [[{}]],
         time=16,
         division: int = None,
@@ -514,7 +517,16 @@ class Composition(list[list[Voice]]):
         sustain=False,
         sustainDynamic: int | str | list[list[int | str]] = None,
     ):
-        self._path = _path
+        if _path is not None:
+            path_to_composition = Path(_path)
+            try:
+                composition = load_file(path_to_composition, expected_type=dict)
+            except UserError:
+                raise
+            except Exception as e:
+                raise UserError(f"{path_to_composition}\n{type(e).__name__}: {e}")
+            self._path = path_to_composition
+            return self.__init__(**composition)
 
         # all voices need to follow the same delay map
         self.delay_map: dict[int, list[int]] = {}
@@ -581,9 +593,9 @@ class Composition(list[list[Voice]]):
             path_to_voice = self._path / Path(voice_or_path_to_voice)
             try:
                 voice = load_file(path_to_voice, expected_type=dict, strict=False)
+            except UserError:
+                raise
             except Exception as e:
-                if isinstance(e, UserError):
-                    raise
                 raise UserError(f"{path_to_voice}\n" f"{type(e).__name__}: {e}")
             if "name" not in voice:
                 voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
@@ -630,14 +642,3 @@ class Composition(list[list[Voice]]):
 
         str_complexity = f"{(count/ticks):.1f} noteblocks/tick" if ticks > 0 else "N/A"
         logger.debug(f"Complexity: {str_complexity}\n")
-
-
-def parse(path: str):
-    path_to_composition = Path(path)
-    try:
-        composition = load_file(path_to_composition, expected_type=dict)
-    except Exception as e:
-        if (error_type := type(e)) is UserError:
-            raise
-        raise UserError(f"{path}\n{error_type.__name__}: {e}")
-    return Composition(**composition, _path=path_to_composition)
