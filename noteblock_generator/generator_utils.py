@@ -15,7 +15,7 @@ from typing import Iterable, TypeVar
 
 import colorama
 
-from .main import logger
+from .cli import logger
 
 
 class Direction(tuple[int, int], Enum):

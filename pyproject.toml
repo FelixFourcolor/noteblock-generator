@@ -10,7 +10,7 @@ repository = "https://github.com/FelixFourcolor/noteblock-generator"
 keywords = ["minecraft", "noteblock"]
 
 [tool.poetry.scripts]
-noteblock-generator = "noteblock_generator.main:main"
+noteblock-generator = "noteblock_generator.__main__:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"

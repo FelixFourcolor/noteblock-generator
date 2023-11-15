@@ -5,6 +5,7 @@ from functools import cache, cached_property
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
+from .cli import Location, Orientation, UserError, logger
 from .generator_backend import (
     Block,
     BlockType,
@@ -23,8 +24,7 @@ from .generator_utils import (
     progress_bar,
     terminal_width,
 )
-from .main import Location, Orientation, logger
-from .parser import Composition, Note, UserError, Voice
+from .parser import Composition, Note, Voice
 
 PlacementType = (
     BlockType | Callable[[ChunkType, tuple[int, int, int]], Optional[BlockType]]
@@ -414,7 +414,9 @@ class Generator:
     ) -> Optional[BlockType]:
         """Return what should be placed to implement the blend feature."""
 
-        block, _, _ = self._translator.from_universal(chunk.get_block(*coordinates))
+        # no need to translate
+        block = chunk.get_block(*coordinates)
+        print(block)
         if (name := block.base_name) in REMOVE_LIST:
             return self.AIR
         if not isinstance(block, BlockType):
@@ -607,20 +609,6 @@ class Generator:
     def __hash__(self):
         return 0
 
-    def _modify_chunk(
-        self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]
-    ):
-        chunk_coords, modifications = args
-        chunk = self.world.get_chunk(*chunk_coords, self._dimension)
-        chunk.changed = True
-        chunk.block_entities = {}
-        for coordinates, placement in modifications.items():
-            if callable(placement):
-                if (block := placement(chunk, coordinates)) is not None:
-                    chunk.set_block(*coordinates, block)
-            else:
-                chunk.set_block(*coordinates, placement)
-
     def apply_modifications(self):
         """Actual block-setting happens here"""
 
@@ -640,6 +628,20 @@ class Generator:
             progress_bar(total * 3 + progress, total * 4, text="Generating")
 
         self.world.save(progress_callback=saving_progress_bar)
+
+    def _modify_chunk(
+        self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]
+    ):
+        chunk_coords, modifications = args
+        chunk = self.world.get_chunk(*chunk_coords, self._dimension)
+        chunk.changed = True
+        chunk.block_entities = {}
+        for coordinates, placement in modifications.items():
+            if callable(placement):
+                if (block := placement(chunk, coordinates)) is not None:
+                    chunk.set_block(*coordinates, block)
+            else:
+                chunk.set_block(*coordinates, placement)
 
     def save(self):
         # Check if World has been modified,

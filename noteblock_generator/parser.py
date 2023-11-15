@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Optional, Type, TypeVar, get_origin
 
-from .main import UserError, logger
+from .cli import UserError, logger
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]

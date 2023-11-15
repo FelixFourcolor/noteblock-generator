@@ -53,8 +53,6 @@ class Redstone(Block):
 
 
 class World(WorldType):
-    _VERSION = ("java", (1, 20))
-
     @classmethod
     def load(cls, path: str):
         return cls(path, AnvilFormat(path))
