@@ -1,9 +1,12 @@
+import itertools
 import math
 import shutil
 from dataclasses import dataclass
 from functools import cache, cached_property
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
+
+from amulet.api.errors import ChunkLoadError
 
 from .cli import Location, Orientation, UserError, logger
 from .generator_backend import (
@@ -29,8 +32,6 @@ from .parser import Composition, Note, Voice
 PlacementType = (
     BlockType | Callable[[ChunkType, tuple[int, int, int]], Optional[BlockType]]
 )
-
-_VERSION = ("java", (1, 20))
 
 # Blocks to be removed if using blend mode,
 # since they may interfere with redstones and/or noteblocks.
@@ -155,18 +156,17 @@ class Generator:
                 f"Path {self.world_path} is invalid\n{type(e).__name__}: {e}"
             )
 
-        self._modifications: dict[
+        self._chunk_mods: dict[
             tuple[int, int],  # chunk location
             dict[
                 tuple[int, int, int],  # location within chunk
                 PlacementType,  # what to do at that location
             ],
         ] = {}
+        self._chunk_cache: dict[tuple[int, int], ChunkType] = {}
         self.players = tuple(
             self.world.get_player(i) for i in self.world.all_player_ids()
         )
-        self._block_translator_cache = {}
-        self._translator = self.world.translation_manager.get_version(*_VERSION).block
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
@@ -282,6 +282,18 @@ class Generator:
                 f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
         logger.info("")
+
+        # save chunk coordinates
+        min_cx, max_cx, min_cz, max_cz = (
+            min_x // 16,
+            max_x // 16,
+            min_z // 16,
+            max_z // 16,
+        )
+        for cx, cz in itertools.product(
+            range(min_cx, max_cx + 1), range(min_cz, max_cz + 1)
+        ):
+            self._chunk_mods[cx, cz] = {}
 
     @cached_property
     def player_location(self) -> tuple[int, int, int]:
@@ -416,7 +428,6 @@ class Generator:
 
         # no need to translate
         block = chunk.get_block(*coordinates)
-        print(block)
         if (name := block.base_name) in REMOVE_LIST:
             return self.AIR
         if not isinstance(block, BlockType):
@@ -433,7 +444,7 @@ class Generator:
     def generate_noteblocks(self, x: int, y: int, z: int, note: Note):
         # redstone components
         self[x, y, z] = self.theme_block
-        self[x, y + 1, z] = self.Repeater(note.delay, self.z_dir)
+        self[x, y + 1, z] = self.Repeater(delay=note.delay, direction=self.z_dir)
         self[x, y + 1, z + self.z_i] = self.theme_block
         self[x, y + 2, z + self.z_i] = self.Redstone()
         self[x, y + 2, z + self.z_i * 2] = self.theme_block
@@ -442,7 +453,7 @@ class Generator:
         if not note.dynamic:
             return
 
-        noteblock = NoteBlock(self, note)
+        noteblock = self.NoteBlock(note=note.note, instrument=note.instrument)
         for i in range(note.dynamic):
             self[x + NOTEBLOCKS_ORDER[i], y + 2, z + self.z_i] = noteblock
             if self.blend:
@@ -582,18 +593,24 @@ class Generator:
 
     @cache
     def Block(self, *args, **kwargs):
-        return Block(self, *args, **kwargs)
+        return Block(self.world, *args, **kwargs)
 
     @cache
-    def Redstone(self, *connections: Direction):
-        return Redstone(self, *[self.rotation * c for c in connections])
+    def Redstone(self, *connections: Direction, **kwargs):
+        return Redstone(self.world, *[self.rotation * c for c in connections], **kwargs)
 
     @cache
-    def Repeater(self, delay: int, direction: Direction):
-        return Repeater(self, delay=delay, direction=self.rotation * direction)
+    def Repeater(self, direction: Direction, *args, **kwargs):
+        return Repeater(
+            self.world, direction=self.rotation * direction, *args, **kwargs
+        )
 
-    def Button(self, facing: Direction, **kwargs):
-        return self.Block("oak_button", facing=self.rotation * facing, **kwargs)
+    def Button(self, facing: Direction, *args, **kwargs):
+        return self.Block("oak_button", facing=self.rotation * facing, *args, **kwargs)
+
+    @cache
+    def NoteBlock(self, *args, **kwargs):
+        return NoteBlock(self.world, *args, **kwargs)
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         """Does not actually set blocks,
@@ -602,9 +619,7 @@ class Generator:
 
         x, y, z = self.rotate(coordinates)
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
-        if (cx, cz) not in self._modifications:
-            self._modifications[cx, cz] = {}
-        self._modifications[cx, cz][offset_x, y, offset_z] = block
+        self._chunk_mods[cx, cz][offset_x, y, offset_z] = block
 
     def __hash__(self):
         return 0
@@ -612,29 +627,27 @@ class Generator:
     def apply_modifications(self):
         """Actual block-setting happens here"""
 
-        if not self._modifications:
+        if not self._chunk_mods:
             return
 
-        total = len(self._modifications)
+        total = len(self._chunk_mods)
         with ThreadPool() as pool:
             for progress, _ in enumerate(
-                pool.imap_unordered(self._modify_chunk, self._modifications.items())
+                pool.imap_unordered(self._modify_chunk, self._chunk_mods.items())
             ):
+                ...
                 # so that setting blocks and saving uses the same progress bar,
                 # the latter is estimated to take 1/3 time of the former
                 progress_bar((progress + 1) * 3, total * 4, text="Generating")
 
-        def saving_progress_bar(progress: int, total: int):
-            progress_bar(total * 3 + progress, total * 4, text="Generating")
-
-        self.world.save(progress_callback=saving_progress_bar)
+        for progress in self.world.save(self._chunk_cache.values(), self._dimension):
+            progress_bar(total * 3 + progress + 1, total * 4, text="Generating")
 
     def _modify_chunk(
         self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]
     ):
         chunk_coords, modifications = args
-        chunk = self.world.get_chunk(*chunk_coords, self._dimension)
-        chunk.changed = True
+        chunk = self.get_chunk(chunk_coords)
         chunk.block_entities = {}
         for coordinates, placement in modifications.items():
             if callable(placement):
@@ -642,6 +655,20 @@ class Generator:
                     chunk.set_block(*coordinates, block)
             else:
                 chunk.set_block(*coordinates, placement)
+
+    def get_chunk(self, chunk_coords: tuple[int, int]) -> ChunkType:
+        try:
+            self._chunk_cache[chunk_coords] = chunk = self.world.get_chunk(
+                *chunk_coords, self._dimension
+            )
+        except ChunkLoadError:
+            self._chunk_cache[chunk_coords] = chunk = self.world.create_chunk(
+                *chunk_coords, self._dimension
+            )
+            message = f"WARNING - Missing chunk {chunk_coords}"
+            end_of_line = " " * max(0, terminal_width() - len(message))
+            logger.warning(f"\r{message}{end_of_line}")
+        return chunk
 
     def save(self):
         # Check if World has been modified,
@@ -673,11 +700,3 @@ class Generator:
             logger.warning(
                 "\nIf you are inside the world, exit and re-enter to see the result."
             )
-
-    def translate_block(self, block: BlockType, /):
-        try:
-            return self._block_translator_cache[block]
-        except KeyError:
-            universal_block, _, _ = self._translator.to_universal(block)
-            self._block_translator_cache[block] = universal_block
-            return universal_block

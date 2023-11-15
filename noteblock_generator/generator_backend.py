@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from functools import cache
-from typing import TYPE_CHECKING
+from typing import Iterable
 
 import amulet
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
 from .generator_utils import Direction
-from .parser import Note
-
-if TYPE_CHECKING:
-    from generator import Generator
 
 ChunkType = amulet.api.chunk.Chunk
 BlockType = amulet.api.Block
@@ -18,8 +13,7 @@ WorldType = amulet.api.level.World
 
 
 class _BlockMeta(type):
-    @cache
-    def __call__(self, generator: Generator, /, *args, **kwargs):
+    def __call__(self, generator: World, /, *args, **kwargs):
         return generator.translate_block(super().__call__(*args, **kwargs))
 
 
@@ -30,8 +24,8 @@ class Block(BlockType, metaclass=_BlockMeta):
 
 
 class NoteBlock(Block):
-    def __init__(self, _note: Note):
-        super().__init__("note_block", note=_note.note, instrument=_note.instrument)
+    def __init__(self, note: int, instrument: str):
+        super().__init__("note_block", note=note, instrument=instrument)
 
 
 class Repeater(Block):
@@ -56,3 +50,20 @@ class World(WorldType):
     @classmethod
     def load(cls, path: str):
         return cls(path, AnvilFormat(path))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._block_translator = self.translation_manager.get_version(
+            "java", (1, 20)
+        ).block
+
+    def save(self, chunks: Iterable[ChunkType], dimension: str):
+        wrapper = self.level_wrapper
+        for progress, chunk in enumerate(chunks):
+            wrapper.commit_chunk(chunk, dimension)
+            yield progress
+        self.history_manager.mark_saved()
+        wrapper.save()
+
+    def translate_block(self, block: BlockType, /) -> BlockType:
+        return self._block_translator.to_universal(block)[0]
