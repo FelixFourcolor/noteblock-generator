@@ -6,9 +6,11 @@ from functools import cache, cached_property
 from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
+import amulet
 from amulet.api.errors import ChunkLoadError
+from amulet.level.formats.anvil_world.format import AnvilFormat
 
-from .cli import Location, Orientation, UserError, logger
+from .cli import Error, Location, Orientation, UserError, logger
 from .generator_backend import (
     Block,
     BlockType,
@@ -143,18 +145,24 @@ class Generator:
             # make a copy of World to work on that one
             self._tmp_world = backup_directory(self.world_path)
             # load
-            self.world = World.load(self._tmp_world)
+            if not isinstance(
+                format_wrapper := amulet.load_format(self._tmp_world), AnvilFormat
+            ):
+                raise UserError(
+                    "Unsupported world format; expected Minecraft Java Edition"
+                )
+            self.world = World(self._tmp_world, format_wrapper)
             # to detect if user has entered the world while generating.
             self._hash = hash_directory(self.world_path)
             # see self.save() for when this is used
         except PermissionError as e:
-            raise UserError(
-                f"{e}.\nIf you are inside the world, exit it first and try again."
+            raise Error(
+                "Permission denied to read save files. "
+                "If you are inside the world, exit it first and try again.",
+                origin=e,
             )
         except Exception as e:
-            raise UserError(
-                f"Path {self.world_path} is invalid\n{type(e).__name__}: {e}"
-            )
+            raise UserError(f"Path {self.world_path} is invalid", origin=e)
 
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
@@ -170,7 +178,6 @@ class Generator:
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self.world.close()
         shutil.rmtree(self._tmp_world, ignore_errors=True)
 
     # ---------------------------------------------------------------------------------
@@ -665,8 +672,8 @@ class Generator:
             self._chunk_cache[chunk_coords] = chunk = self.world.create_chunk(
                 *chunk_coords, self._dimension
             )
-            message = f"WARNING - Missing chunk {chunk_coords}"
-            end_of_line = " " * max(0, terminal_width() - len(message))
+            message = f"\033[33mWARNING:\033[m Missing chunk {chunk_coords}"
+            end_of_line = " " * max(0, terminal_width() - len(message) + 8)
             logger.warning(f"\r{message}{end_of_line}")
         return chunk
 

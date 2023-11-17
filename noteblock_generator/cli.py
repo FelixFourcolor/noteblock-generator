@@ -4,6 +4,10 @@ import sys
 from argparse import ArgumentParser
 from typing import NamedTuple
 
+import colorama
+
+colorama.just_fix_windows_console()
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(message)s")
 
@@ -40,7 +44,17 @@ class Orientation(NamedTuple):
     vertical: Coordinate
 
 
-class UserError(Exception):
+class Error(Exception):
+    def __init__(self, _obj: object, /, *, origin: Exception = None):
+        super().__init__(_obj)
+        self.origin = origin
+
+
+class DeveloperError(Error):
+    pass
+
+
+class UserError(Error):
     pass
 
 
@@ -138,3 +152,25 @@ def parse_args():
         theme=args.theme,
         blend=args.blend,
     )
+
+
+def format_error(e: Exception):
+    return f"\033[31;1m{type(e).__name__}:\033[m {e}"
+
+
+def main():
+    try:
+        generator = parse_args()
+        generator()
+    except Exception as e:
+        dev_error = isinstance(e, DeveloperError)
+        logger.error(format_error(e))
+        while isinstance(e, Error) and (e := e.origin) is not None:
+            logger.debug(format_error(e))
+            dev_error = dev_error or isinstance(e, DeveloperError)
+        if dev_error:
+            logger.info(
+                "\033[33mPlease report this error to the developer "
+                "(Felix <felix.fourcolor@gmail.com).\033[m"
+            )
+        sys.exit(1)

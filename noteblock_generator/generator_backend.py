@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Iterable
 
 import amulet
-from amulet.level.formats.anvil_world.format import AnvilFormat
 
 from .generator_utils import Direction
 
@@ -47,10 +46,6 @@ class Redstone(Block):
 
 
 class World(WorldType):
-    @classmethod
-    def load(cls, path: str):
-        return cls(path, AnvilFormat(path))
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._block_translator = self.translation_manager.get_version(

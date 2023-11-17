@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import Optional, Type, TypeVar, get_origin
 
-from .cli import UserError, logger
+from .cli import DeveloperError, Error, UserError, logger
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -74,6 +74,7 @@ def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
                 path = Path(cwd)
         elif match_name is None or match_name == path.stem:
             return path
+        raise DeveloperError(f"Path {path} is invalid")
 
     def create_empty_file(expected_type: Type[T]):
         os.makedirs(path.parent, exist_ok=True)
@@ -85,13 +86,13 @@ def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
             elif expected_type is list:
                 f.write("[\n\n]")
             else:
-                raise Exception(f"{expected_type=} is not supported")
+                raise DeveloperError(f"{expected_type=} is not supported")
 
     if found := find(Path(path)):
         with open(found, "r") as f:
             return json.load(f)
 
-    error_message = f"Path {path} is invalid, or does not exist"
+    error_message = f"Path {path} does not exist"
     if strict:
         raise UserError(error_message)
     logger.warning(error_message)
@@ -121,7 +122,7 @@ class Note:
         if delay is None:
             delay = _voice.delay
         if delay not in DELAY_RANGE:
-            raise UserError(f"Delay must be in {DELAY_RANGE}")
+            raise DeveloperError(f"Delay must be in {DELAY_RANGE}")
         self.delay = delay
 
         if instrument is None:
@@ -131,19 +132,19 @@ class Note:
         if dynamic is None:
             dynamic = _voice.dynamic
         if dynamic not in DYNAMIC_RANGE:
-            raise UserError(f"Dynamic must be in {DYNAMIC_RANGE}")
+            raise DeveloperError(f"Dynamic must be in {DYNAMIC_RANGE}")
         self.dynamic = dynamic
 
         try:
             pitch_value = PITCHES[pitch] + transpose
         except KeyError:
-            raise UserError(f"{pitch} is not a valid note name")
+            raise DeveloperError(f"{pitch} is not a valid note name")
         try:
             instrument_range = INSTRUMENTS[instrument]
         except KeyError:
-            raise UserError(f"{instrument} is not a valid instrument")
+            raise DeveloperError(f"{instrument} is not a valid instrument")
         if pitch_value not in instrument_range:
-            raise UserError(f"{self} is out of range for {instrument}")
+            raise DeveloperError(f"{self} is out of range for {instrument}")
         self.note = instrument_range.index(pitch_value)
 
     def __repr__(self):
@@ -155,7 +156,7 @@ class Rest(Note):
         if delay is None:
             delay = _voice.delay
         if delay not in DELAY_RANGE:
-            raise UserError(f"Delay must be in {DELAY_RANGE}")
+            raise DeveloperError(f"Delay must be in {DELAY_RANGE}")
         self.delay = delay
         self.dynamic = 0
         self._name = "r"
@@ -206,7 +207,7 @@ class Voice(list[list[Note]]):
         try:
             self._octave = (INSTRUMENTS[instrument].start - 6) // 12 + 2
         except KeyError:
-            raise UserError(f"{self}: {instrument} is not a valid instrument")
+            raise DeveloperError(f"{self}: {instrument} is not a valid instrument")
         self._delay = delay
 
         self.time = time
@@ -223,10 +224,8 @@ class Voice(list[list[Note]]):
         self.append([])
         try:
             self._process_notes(notes)
-        except UserError:
-            raise
         except Exception as e:
-            raise UserError(f"{self}\n{type(e).__name__}: {e}")
+            raise DeveloperError(f"Syntax error at {self}", origin=e)
 
     def __repr__(self):
         if self._name:
@@ -261,7 +260,7 @@ class Voice(list[list[Note]]):
                 strict=False,
             )
         except Exception as e:
-            raise UserError(f"{self}\n{type(e).__name__}: {e}")
+            raise DeveloperError(f"Unable to parse {self}", origin=e)
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
         if "notes" not in notes_or_another_voice:
@@ -276,8 +275,8 @@ class Voice(list[list[Note]]):
             if "name" in kwargs:
                 try:
                     self._add_note(**(self._note_config | kwargs))
-                except UserError as e:
-                    raise UserError(
+                except Error as e:
+                    raise DeveloperError(
                         f"{self} at {(self._bar_number, self._beat_number)}: {e}"
                     )
             else:
@@ -335,7 +334,7 @@ class Voice(list[list[Note]]):
             else:
                 return int(value)
         except ValueError:
-            raise UserError(f"{value} is not a valid duration")
+            raise DeveloperError(f"{value} is not a valid duration")
 
     def _Note(
         self,
@@ -403,7 +402,7 @@ class Voice(list[list[Note]]):
             if (step := self._parse_duration(step, beat=beat)) < 0:
                 step += sustain
             if step < 0:
-                raise UserError(
+                raise DeveloperError(
                     f"Sustain duration must not be negative; received {step}"
                 )
             if isinstance(dynamic, str):
@@ -414,7 +413,7 @@ class Voice(list[list[Note]]):
 
     def _Rest(self, duration: int, *, delay: int = None, **kwargs) -> list[Note]:
         if duration < 0:
-            raise UserError(f"Duration must not be negative; received {duration}")
+            raise DeveloperError(f"Duration must not be negative; received {duration}")
         return [Rest(self, delay=delay)] * duration
 
     def _add_note(self, *, name: str, time: int = None, beat: int = None, **kwargs):
@@ -448,15 +447,15 @@ class Voice(list[list[Note]]):
             try:
                 asserted_bar_number = int(name)
             except ValueError:
-                raise UserError(f"Bar number must be an int, found {name}")
+                raise DeveloperError(f"Bar number must be an int, found {name}")
             # force or assert
             if force:
                 self._beat_number = 1
                 self._bar_number = asserted_bar_number
             elif self._beat_number != 1:
-                raise UserError("Wrong barline location")
+                raise DeveloperError("Wrong barline location")
             elif self._bar_number != asserted_bar_number:
-                raise UserError(
+                raise DeveloperError(
                     f"Expected bar {self._bar_number}, found {asserted_bar_number}"
                 )
             # rest
@@ -467,7 +466,7 @@ class Voice(list[list[Note]]):
         # actual note
         pitch, duration = self._parse_note(name, beat)
         if duration < 1:
-            raise UserError("Note duration must be at least 1")
+            raise DeveloperError("Note duration must be at least 1")
         # organize into divisions
         for note in self._Note(pitch, duration, beat=beat, **kwargs):
             # add note
@@ -481,7 +480,7 @@ class Voice(list[list[Note]]):
             try:
                 reference_delay = self.delay_map[len(self) - 1][len(self[-1]) - 1]
                 if note.delay != reference_delay:
-                    raise UserError(
+                    raise DeveloperError(
                         f"Expected delay {reference_delay}, found {note.delay}"
                     )
             except KeyError:
@@ -521,10 +520,10 @@ class Composition(list[list[Voice]]):
             path_to_composition = Path(_path)
             try:
                 composition = load_file(path_to_composition, expected_type=dict)
-            except UserError:
+            except Error:
                 raise
             except Exception as e:
-                raise UserError(f"{path_to_composition}\n{type(e).__name__}: {e}")
+                raise DeveloperError(f"Unable to parse {path_to_composition}", origin=e)
             self._path = path_to_composition
             return self.__init__(**composition)
 
@@ -548,11 +547,7 @@ class Composition(list[list[Voice]]):
             else:
                 division = time
         elif division <= 0:
-            raise UserError("Division must be posititve")
-        if division not in range(12, 17):
-            logger.warning(
-                f"Division {division} is not ideal, a value from 12 to 16 is recommended"
-            )
+            raise DeveloperError("Division must be positive")
         self.division = division
 
         self._noteblocks_count = 0
@@ -576,27 +571,29 @@ class Composition(list[list[Voice]]):
 
     def _add_orchestra(self, voices):
         if not isinstance(voices, list):
-            raise UserError(f"Expected a list of voices, found {type(voices).__name__}")
+            raise DeveloperError(
+                f"Expected a list of voices, found {type(voices).__name__}"
+            )
         if len(self) >= 2:
-            raise UserError(f"Expected at most 2 orchestras, found {len(self)}")
+            raise DeveloperError(f"Expected at most 2 orchestras, found {len(self)}")
         self.append([])
         for voice in voices:
             self._add_voice(voice)
 
     def _add_voice(self, voice_or_path_to_voice):
         if not (isinstance(voice_or_path_to_voice, (str, dict))):
-            raise UserError(
-                "Expected a voice, " f"found {type(voice_or_path_to_voice).__name__}"
+            raise DeveloperError(
+                f"Expected a voice, found {type(voice_or_path_to_voice).__name__}"
             )
 
         if isinstance(voice_or_path_to_voice, str):
             path_to_voice = self._path / Path(voice_or_path_to_voice)
             try:
                 voice = load_file(path_to_voice, expected_type=dict, strict=False)
-            except UserError:
+            except Error:
                 raise
             except Exception as e:
-                raise UserError(f"{path_to_voice}\n" f"{type(e).__name__}: {e}")
+                raise DeveloperError(f"Unable to parse {path_to_voice}", origin=e)
             if "name" not in voice:
                 voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
         else:

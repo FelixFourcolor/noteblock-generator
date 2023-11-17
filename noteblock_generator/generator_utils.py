@@ -13,8 +13,6 @@ from pathlib import Path
 from threading import Thread
 from typing import Iterable, TypeVar
 
-import colorama
-
 from .cli import logger
 
 
@@ -50,10 +48,6 @@ DirectionType = TypeVar("DirectionType", Direction, tuple[int, int])
 
 def terminal_width():
     return min(80, os.get_terminal_size()[0] - 1)
-
-
-# Enable ANSI escape code on Windows PowerShell for the progress bar
-colorama.just_fix_windows_console()
 
 
 def progress_bar(progress: int, total: int, *, text: str):
