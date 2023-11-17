@@ -81,7 +81,7 @@ class UserPrompt:
             format="%(message)s", stream=(buffer := StringIO()), force=True
         )
         # prompt
-        result = input(self._prompt).lower().strip() in self._yes
+        result = input(f"\033[33m{self._prompt}\033[m").lower().strip() in self._yes
         # stop capturing
         logging.basicConfig(format="%(message)s", force=True)
 

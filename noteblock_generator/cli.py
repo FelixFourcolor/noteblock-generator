@@ -68,7 +68,7 @@ def get_args():
         "--location",
         nargs="*",
         default=["~", "~", "~"],
-        help="build location (in '<x> <y> <z>'); default is player's location",
+        help="build location (in <x> <y> <z>); default is player's location",
     )
     parser.add_argument(
         "--dimension",
@@ -79,7 +79,7 @@ def get_args():
         "--orientation",
         nargs="*",
         default=["~", "~"],
-        help="build orientation (in '<horizontal> <vertical>'); default is player's orientation",
+        help="build orientation (in <horizontal> <vertical>); default is player's orientation",
     )
     parser.add_argument(
         "--theme",
@@ -169,8 +169,5 @@ def main():
             logger.debug(format_error(e))
             dev_error = dev_error or isinstance(e, DeveloperError)
         if dev_error:
-            logger.info(
-                "\033[33mPlease report this error to the developer "
-                "(Felix <felix.fourcolor@gmail.com).\033[m"
-            )
+            logger.info("\033[33mPlease report this error to the developer(s).\033[m")
         sys.exit(1)
