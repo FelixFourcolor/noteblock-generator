@@ -14,9 +14,9 @@ See my projects:
 ## Requirements
 * Minecraft java 1.19+
 * Python 3.10-3.12
-* Only tested to work on Linux and Windows. I hope it works on Mac too (I don't see why it wouldn't), but I have no way to test.
+* Linux / Windows / ? (see [Platform support](#Platform-support))
 
-## Installation:
+## Installation
 ```pip install --upgrade noteblock-generator```
 
 ## Usage
@@ -65,3 +65,10 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
+
+## Platform support
+Most parts of the program work cross-platform (Linux/Mac/Windows/anything else as long as it satisfies the other requirements), *except one feature*: the ability to edit the world while the game is running.
+
+On Linux, it just works, the OS doesn't care, while Windows raises an error if you try to do that. So I have put in place some hacks to make it work on Windows. But I have no idea what other operating systems would do, i.e. whether it would just work like Linux, or the hack for Windows would work for it too, or it would raise a different kind of error that I haven't anticipated.
+
+For that reason, this program only officially supports Linux and Windows. For other platforms, everything should still work *as long* as you do not run the program while the game is running; doing so may crash the program and corrupt your save data.
