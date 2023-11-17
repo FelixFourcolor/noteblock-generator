@@ -162,7 +162,7 @@ class Generator:
                 origin=e,
             )
         except Exception as e:
-            raise UserError(f"Path {self.world_path} is invalid", origin=e)
+            raise UserError(f"Path '{self.world_path}' is invalid", origin=e)
 
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
@@ -672,7 +672,7 @@ class Generator:
             self._chunk_cache[chunk_coords] = chunk = self.world.create_chunk(
                 *chunk_coords, self._dimension
             )
-            message = f"\033[33mWARNING:\033[m Missing chunk {chunk_coords}"
+            message = f"\033[33mWARNING: Missing chunk {chunk_coords}\033[m"
             end_of_line = " " * max(0, terminal_width() - len(message) + 8)
             logger.warning(f"\r{message}{end_of_line}")
         return chunk

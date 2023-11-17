@@ -45,8 +45,8 @@ class Orientation(NamedTuple):
 
 
 class Error(Exception):
-    def __init__(self, _obj: object, /, *, origin: Exception = None):
-        super().__init__(_obj)
+    def __init__(self, __obj: object, /, *, origin: Exception = None):
+        super().__init__(f"\033[1mERROR\033[22m - {__obj}")
         self.origin = origin
 
 
@@ -154,20 +154,16 @@ def parse_args():
     )
 
 
-def format_error(e: Exception):
-    return f"\033[31;1m{type(e).__name__}:\033[m {e}"
-
-
 def main():
     try:
         generator = parse_args()
         generator()
     except Exception as e:
         dev_error = isinstance(e, DeveloperError)
-        logger.error(format_error(e))
+        logger.error(f"\033[31m{e}\033[m")
         while isinstance(e, Error) and (e := e.origin) is not None:
-            logger.debug(format_error(e))
+            logger.debug(f"\n\033[31m{e}\033[m")
             dev_error = dev_error or isinstance(e, DeveloperError)
         if dev_error:
-            logger.info("\033[33mPlease report this error to the developer(s).\033[m")
+            logger.info("\033[33m\nPlease report this error to the developer(s).\033[m")
         sys.exit(1)

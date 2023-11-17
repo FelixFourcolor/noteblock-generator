@@ -58,7 +58,7 @@ DYNAMIC_RANGE = range(0, 5)
 T = TypeVar("T")
 
 
-def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
+def load_file(__path: Path, /, *, expected_type: Type[T], strict=True) -> T:
     def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
@@ -74,11 +74,11 @@ def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
                 path = Path(cwd)
         elif match_name is None or match_name == path.stem:
             return path
-        raise DeveloperError(f"Path {path} is invalid")
+        raise (UserError if strict else DeveloperError)(f"Path '{__path}' is invalid")
 
     def create_empty_file(expected_type: Type[T]):
-        os.makedirs(path.parent, exist_ok=True)
-        with open(path, "w") as f:
+        os.makedirs(__path.parent, exist_ok=True)
+        with open(__path, "w") as f:
             if origin := get_origin(expected_type):
                 return create_empty_file(expected_type=origin)
             if expected_type is dict:
@@ -88,11 +88,11 @@ def load_file(path: Path, /, *, expected_type: Type[T], strict=True) -> T:
             else:
                 raise DeveloperError(f"{expected_type=} is not supported")
 
-    if found := find(Path(path)):
+    if found := find(__path):
         with open(found, "r") as f:
             return json.load(f)
 
-    error_message = f"Path {path} does not exist"
+    error_message = f"Path '{__path}' does not exist"
     if strict:
         raise UserError(error_message)
     logger.warning(error_message)
