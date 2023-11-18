@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 import amulet
 
 from .generator_utils import Direction
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 ChunkType = amulet.api.chunk.Chunk
 BlockType = amulet.api.Block

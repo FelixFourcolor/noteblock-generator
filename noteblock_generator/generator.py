@@ -7,7 +7,7 @@ from multiprocessing.pool import ThreadPool
 from typing import Callable, Optional
 
 import amulet
-from amulet.api.errors import ChunkLoadError
+from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
 from .cli import Error, Location, Orientation, UserError, logger
@@ -24,8 +24,8 @@ from .generator_utils import (
     Direction,
     PreventKeyboardInterrupt,
     UserPrompt,
-    backup_directory,
-    hash_directory,
+    backup,
+    get_hash,
     progress_bar,
     terminal_width,
 )
@@ -141,29 +141,35 @@ class Generator:
     # exit: delete the clone
 
     def __enter__(self):
+        # Hash the save files to detect if user has entered the world while generating.
+        # See self.save() for when this is used
         try:
-            # make a copy of World to work on that one
-            self._tmp_world = backup_directory(self.world_path)
-            # load
-            if not isinstance(
-                format_wrapper := amulet.load_format(self._tmp_world), AnvilFormat
-            ):
-                raise UserError(
-                    "Unsupported world format; expected Minecraft Java Edition"
-                )
-            self.world = World(self._tmp_world, format_wrapper)
-            # to detect if user has entered the world while generating.
-            self._hash = hash_directory(self.world_path)
-            # see self.save() for when this is used
+            self._hash = get_hash(self.world_path)
+        except FileNotFoundError:
+            raise UserError(f"Path '{self.world_path}' does not exist")
+        # make a copy of World to work on that one
+        try:
+            self._tmp_world = backup(self.world_path)
         except PermissionError as e:
             raise Error(
                 "Permission denied to read save files. "
-                "If you are inside the world, exit it first and try again.",
-                origin=e,
-            )
-        except Exception as e:
-            raise UserError(f"Path '{self.world_path}' is invalid", origin=e)
+                "If you are inside the world, exit it first and try again."
+            ) from e
 
+        # load World
+        try:
+            if not isinstance(
+                format_wrapper := amulet.load_format(self._tmp_world), AnvilFormat
+            ):
+                raise LoaderNoneMatched
+        except LoaderNoneMatched:
+            raise UserError(
+                f"Unrecognized Minecraft format for '{self.world_path}'; "
+                "expected Java Edition"
+            )
+        self.world = World(self._tmp_world, format_wrapper)
+
+        # initialize world-related attributes
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
             dict[
@@ -178,6 +184,7 @@ class Generator:
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
+        self.world.close()
         shutil.rmtree(self._tmp_world, ignore_errors=True)
 
     # ---------------------------------------------------------------------------------
@@ -311,7 +318,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. Relative location is not supported."
+                "There are more than 1 player in the world. "
+                "Relative location is not supported."
             )
         out = tuple(map(math.floor, results.pop()))
         logger.debug(f"Player's location: {out}")
@@ -326,7 +334,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. Relative dimension is not supported."
+                "There are more than 1 player in the world. "
+                "Relative dimension is not supported."
             )
         out = results.pop()
         if out.startswith("minecraft:"):
@@ -343,7 +352,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. Relative orientation is not supported."
+                "There are more than 1 player in the world. "
+                "Relative orientation is not supported."
             )
         out = results.pop()
         logger.debug(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
@@ -613,7 +623,7 @@ class Generator:
         )
 
     def Button(self, facing: Direction, *args, **kwargs):
-        return self.Block("oak_button", facing=self.rotation * facing, *args, **kwargs)
+        return self.Block("oak_button", *args, facing=self.rotation * facing, **kwargs)
 
     @cache
     def NoteBlock(self, *args, **kwargs):
@@ -623,7 +633,6 @@ class Generator:
         """Does not actually set blocks,
         but saves what blocks to be set and where into a hashmap organized by chunks
         """
-
         x, y, z = self.rotate(coordinates)
         (cx, offset_x), (cz, offset_z) = divmod(x, 16), divmod(z, 16)
         self._chunk_mods[cx, cz][offset_x, y, offset_z] = block
@@ -681,8 +690,8 @@ class Generator:
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
         try:
-            modified_by_another_process = (
-                self._hash is None or self._hash != hash_directory(self.world_path)
+            modified_by_another_process = self._hash is None or self._hash != get_hash(
+                self.world_path
             )
         except FileNotFoundError:
             modified_by_another_process = False

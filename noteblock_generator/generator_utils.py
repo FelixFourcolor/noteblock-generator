@@ -11,9 +11,12 @@ from enum import Enum
 from io import StringIO
 from pathlib import Path
 from threading import Thread
-from typing import Iterable, TypeVar
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from .cli import logger
+
+if TYPE_CHECKING:
+    from hashlib import _Hash as Hash
 
 
 class Direction(tuple[int, int], Enum):
@@ -66,7 +69,7 @@ def progress_bar(progress: int, total: int, *, text: str):
 
 
 class UserPrompt:
-    def __init__(self, prompt: str, yes: Iterable[str], *, blocking: bool):
+    def __init__(self, prompt: str, yes: tuple[str], *, blocking: bool):
         self._prompt = prompt
         self._yes = yes
         if blocking:
@@ -120,27 +123,33 @@ class UserPrompt:
             return cls(*args, **kwargs)
 
 
-def hash_directory(directory: str | Path):
-    def update(directory: str | Path, _hash: hashlib._Hash) -> hashlib._Hash:
-        for path in sorted(Path(directory).iterdir(), key=lambda p: str(p)):
-            _hash.update(path.name.encode())
-            if path.is_file():
-                with open(path, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        _hash.update(chunk)
-            elif path.is_dir():
-                _hash = update(path, _hash)
+def get_hash(src: str | Path) -> Optional[bytes]:
+    """Hash src (file or directory), return None if unable to."""
+
+    def update(src: Path, _hash: Hash) -> Hash:
+        _hash.update(src.name.encode())
+        return update_file(src, _hash) if src.is_file() else update_dir(src, _hash)
+
+    def update_file(src: Path, _hash: Hash) -> Hash:
+        with src.open("rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                _hash.update(chunk)
+        return _hash
+
+    def update_dir(src: Path, _hash: Hash) -> Hash:
+        for path in sorted(src.iterdir(), key=lambda p: str(p)):
+            _hash = update(path, _hash)
         return _hash
 
     try:
-        return update(directory, hashlib.blake2b()).digest()
+        return update(Path(src), hashlib.blake2b()).digest()
     except PermissionError:
         return
 
 
-def backup_directory(src: str) -> str:
-    """Copy src directory to a temp directory,
-    automatically resolve name if directory already exists by appending (1), (2), etc. to the end.
+def backup(src: str) -> str:
+    """Copy src (file or directory) to a temp directory.
+    Automatically resolve name by appending (1), (2), etc.
     Return the chosen name.
     """
 
@@ -150,32 +159,37 @@ def backup_directory(src: str) -> str:
         So raise this instead.
         """
 
-    def safe_copy(src: str, dst: str):
+    def copyfile(src: str, dst: str):
         try:
             return shutil.copy2(src, dst)
         except PermissionError as e:
-            # This isn't a problem for linux,
-            # but windows raises PermissionError if we try to read the save folder while the game is running.
-            # The only file I know that does this is "session.lock",
-            # and it's also the only file I know that can be deleted without losing data.
+            # This isn't a problem for linux, but windows raises PermissionError
+            # if we try to read the save folder while the game is running.
+            # The only file I know that does this is "session.lock", and
+            # it's also the only file I know that can be deleted without losing data.
             # Therefore, if "session.lock" raises PermissionError, ignore it,
             # otherwise propagate the error to the user.
             if Path(src).name != "session.lock":
                 raise PermissionDenied(f"{src}: {e}")
 
+    def copy(src: str, dst: str):
+        if Path(src).is_file():
+            copyfile(src, dst)
+        else:
+            shutil.copytree(src, dst, copy_function=copyfile)
+
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
-    name = Path(src).stem
+    name = Path(src).name
     i = 0
     while True:
         try:
-            shutil.copytree(src, (dst := temp_dir / name), copy_function=safe_copy)
+            copy(src, str(dst := temp_dir / name))
         except FileExistsError:
             if name.endswith(suffix := f" ({i})"):
                 name = name[: -len(suffix)]
             name += f" ({(i := i + 1)})"
         except PermissionDenied as e:
             raise PermissionError(e)
-
         else:
             return str(dst)
 

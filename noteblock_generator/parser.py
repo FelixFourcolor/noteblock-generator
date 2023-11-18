@@ -4,7 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Optional, Type, TypeVar, get_origin
+from typing import Optional, TypeVar, get_origin
 
 from .cli import DeveloperError, Error, UserError, logger
 
@@ -58,7 +58,7 @@ DYNAMIC_RANGE = range(0, 5)
 T = TypeVar("T")
 
 
-def load_file(__path: Path, /, *, expected_type: Type[T], strict=True) -> T:
+def load_file(_path: Path, /, *, expected_type: type[T], blame: type[Error]) -> T:
     def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
@@ -74,11 +74,11 @@ def load_file(__path: Path, /, *, expected_type: Type[T], strict=True) -> T:
                 path = Path(cwd)
         elif match_name is None or match_name == path.stem:
             return path
-        raise (UserError if strict else DeveloperError)(f"Path '{__path}' is invalid")
+        raise blame(f"Unrecognized music format for '{_path}'")
 
-    def create_empty_file(expected_type: Type[T]):
-        os.makedirs(__path.parent, exist_ok=True)
-        with open(__path, "w") as f:
+    def create_empty_file(expected_type: type[T]):
+        _path.parent.mkdir(parents=True)
+        with _path.open("w") as f:
             if origin := get_origin(expected_type):
                 return create_empty_file(expected_type=origin)
             if expected_type is dict:
@@ -88,14 +88,14 @@ def load_file(__path: Path, /, *, expected_type: Type[T], strict=True) -> T:
             else:
                 raise DeveloperError(f"{expected_type=} is not supported")
 
-    if found := find(__path):
-        with open(found, "r") as f:
+    if found := find(_path):
+        with found.open("r") as f:
             return json.load(f)
 
-    error_message = f"Path '{__path}' does not exist"
-    if strict:
+    error_message = f"Path '{_path}' does not exist"
+    if blame is UserError:
         raise UserError(error_message)
-    logger.warning(error_message)
+    logger.warning(f"WARNING - {error_message}")
     create_empty_file(expected_type)
     return expected_type()
 
@@ -225,7 +225,7 @@ class Voice(list[list[Note]]):
         try:
             self._process_notes(notes)
         except Exception as e:
-            raise DeveloperError(f"Syntax error at {self}", origin=e)
+            raise DeveloperError(f"Syntax error at {self}") from e
 
     def __repr__(self):
         if self._name:
@@ -255,12 +255,12 @@ class Voice(list[list[Note]]):
             self._name = str(Path(notes_or_path_to_notes).with_suffix(""))
         try:
             notes_or_another_voice = load_file(
-                self._composition._path / Path(notes_or_path_to_notes),
+                self._composition.path / Path(notes_or_path_to_notes),
                 expected_type=list[str | dict],
-                strict=False,
+                blame=DeveloperError,
             )
         except Exception as e:
-            raise DeveloperError(f"Unable to parse {self}", origin=e)
+            raise DeveloperError(f"Unable to parse {self}") from e
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
         if "notes" not in notes_or_another_voice:
@@ -502,7 +502,7 @@ class Composition(list[list[Voice]]):
 
     def __init__(
         self,
-        _path: str = None,
+        path: str = None,
         /,
         *,
         voices: list[dict | str] | list[list[dict | str]] = [[{}]],
@@ -516,15 +516,17 @@ class Composition(list[list[Voice]]):
         sustain=False,
         sustainDynamic: int | str | list[list[int | str]] = None,
     ):
-        if _path is not None:
-            path_to_composition = Path(_path)
+        if path is not None:
+            path_to_composition = Path(path)
             try:
-                composition = load_file(path_to_composition, expected_type=dict)
+                composition = load_file(
+                    path_to_composition, expected_type=dict, blame=UserError
+                )
             except Error:
                 raise
             except Exception as e:
-                raise DeveloperError(f"Unable to parse {path_to_composition}", origin=e)
-            self._path = path_to_composition
+                raise DeveloperError(f"Unable to parse {path_to_composition}") from e
+            self.path = path_to_composition
             return self.__init__(**composition)
 
         # all voices need to follow the same delay map
@@ -581,19 +583,21 @@ class Composition(list[list[Voice]]):
             self._add_voice(voice)
 
     def _add_voice(self, voice_or_path_to_voice):
-        if not (isinstance(voice_or_path_to_voice, (str, dict))):
+        if not (isinstance(voice_or_path_to_voice, str | dict)):
             raise DeveloperError(
                 f"Expected a voice, found {type(voice_or_path_to_voice).__name__}"
             )
 
         if isinstance(voice_or_path_to_voice, str):
-            path_to_voice = self._path / Path(voice_or_path_to_voice)
+            path_to_voice = self.path / Path(voice_or_path_to_voice)
             try:
-                voice = load_file(path_to_voice, expected_type=dict, strict=False)
+                voice = load_file(
+                    path_to_voice, expected_type=dict, blame=DeveloperError
+                )
             except Error:
                 raise
             except Exception as e:
-                raise DeveloperError(f"Unable to parse {path_to_voice}", origin=e)
+                raise DeveloperError(f"Unable to parse {path_to_voice}") from e
             if "name" not in voice:
                 voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
         else:

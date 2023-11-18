@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(message)s")
 
 
-_HOME = os.path.expanduser("~")
+_HOME = os.path.expanduser("~")  # noqa: PTH111
 
 
 class Coordinate(int):
@@ -45,9 +45,7 @@ class Orientation(NamedTuple):
 
 
 class Error(Exception):
-    def __init__(self, __obj: object, /, *, origin: Exception = None):
-        super().__init__(f"\033[1mERROR\033[22m - {__obj}")
-        self.origin = origin
+    pass
 
 
 class DeveloperError(Error):
@@ -79,7 +77,10 @@ def get_args():
         "--orientation",
         nargs="*",
         default=["~", "~"],
-        help="build orientation (in <horizontal> <vertical>); default is player's orientation",
+        help=(
+            "build orientation (in <horizontal> <vertical>); "
+            "default is player's orientation"
+        ),
     )
     parser.add_argument(
         "--theme",
@@ -154,16 +155,26 @@ def parse_args():
     )
 
 
+def format_error(e: BaseException):
+    return (
+        "\033[31;1m"  # red, bold
+        + ("ERROR" if isinstance(e, Error) else type(e).__name__)  # error type
+        + "\033[22m"  # stop bold
+        + f": {e}"  # error message
+        + "\033[m"  # stop red
+    )
+
+
 def main():
     try:
         generator = parse_args()
         generator()
     except Exception as e:
         dev_error = isinstance(e, DeveloperError)
-        logger.error(f"\033[31m{e}\033[m")
-        while isinstance(e, Error) and (e := e.origin) is not None:
-            logger.debug(f"\n\033[31m{e}\033[m")
+        logger.error(format_error(e))
+        while (e := e.__cause__) is not None:
+            logger.debug(format_error(e))
             dev_error = dev_error or isinstance(e, DeveloperError)
         if dev_error:
-            logger.info("\033[33m\nPlease report this error to the developer(s).\033[m")
+            logger.info("\033[33mPlease report this error to the developer(s).\033[m")
         sys.exit(1)
