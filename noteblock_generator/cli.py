@@ -158,7 +158,7 @@ def parse_args():
 def format_error(e: BaseException):
     return (
         "\033[31;1m"  # red, bold
-        + ("ERROR" if isinstance(e, Error) else type(e).__name__)  # error type
+        + ("ERROR" if isinstance(e, UserError) else type(e).__name__)  # error type
         + "\033[22m"  # stop bold
         + f": {e}"  # error message
         + "\033[m"  # stop red
@@ -170,11 +170,15 @@ def main():
         generator = parse_args()
         generator()
     except Exception as e:
-        dev_error = isinstance(e, DeveloperError)
+        dev_error = not isinstance(e, UserError)
         logger.error(format_error(e))
         while (e := e.__cause__) is not None:
             logger.debug(format_error(e))
-            dev_error = dev_error or isinstance(e, DeveloperError)
+            dev_error = dev_error or not isinstance(e, UserError)
         if dev_error:
-            logger.info("\033[33mPlease report this error to the developer(s).\033[m")
+            logger.info(
+                "\033[33m"
+                "If you could kindly report this error, I'd appreciate it. -- Felix"
+                "\033[m"
+            )
         sys.exit(1)
