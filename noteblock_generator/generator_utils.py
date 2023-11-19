@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import _thread
+import contextlib
 import hashlib
 import logging
 import os
@@ -69,7 +70,7 @@ def progress_bar(progress: int, total: int, *, text: str):
 
 
 class UserPrompt:
-    def __init__(self, prompt: str, yes: tuple[str], *, blocking: bool):
+    def __init__(self, prompt: str, yes: tuple[str, ...], *, blocking: bool):
         self._prompt = prompt
         self._yes = yes
         if blocking:
@@ -84,46 +85,33 @@ class UserPrompt:
             format="%(message)s", stream=(buffer := StringIO()), force=True
         )
         # prompt
-        result = input(f"\033[33m{self._prompt}\033[m").lower().strip() in self._yes
+        response = input(f"\033[33m{self._prompt} \033[m").lower().strip()
+        yes = response in self._yes or not self._yes
         # stop capturing
         logging.basicConfig(format="%(message)s", force=True)
 
-        if result:
+        if yes:
             # release captured logs
             print(f"\n{buffer.getvalue()}", end="")
         else:
             _thread.interrupt_main()
 
     def wait(self):
-        self._thread.join()
+        with contextlib.suppress(AttributeError):
+            self._thread.join()
 
     @classmethod
-    def debug(cls, *args, **kwargs):
-        if logger.isEnabledFor(logging.DEBUG):
-            return cls(*args, **kwargs)
-
-    @classmethod
-    def info(cls, *args, **kwargs):
+    def info(cls, prompt: str, yes: tuple[str, ...], *, blocking: bool):
         if logger.isEnabledFor(logging.INFO):
-            return cls(*args, **kwargs)
+            return cls(prompt=prompt, yes=yes, blocking=blocking)
 
     @classmethod
-    def warning(cls, *args, **kwargs):
+    def warning(cls, prompt: str, yes: tuple[str, ...], *, blocking: bool):
         if logger.isEnabledFor(logging.WARNING):
-            return cls(*args, **kwargs)
-
-    @classmethod
-    def error(cls, *args, **kwargs):
-        if logger.isEnabledFor(logging.ERROR):
-            return cls(*args, **kwargs)
-
-    @classmethod
-    def critical(cls, *args, **kwargs):
-        if logger.isEnabledFor(logging.CRITICAL):
-            return cls(*args, **kwargs)
+            return cls(prompt=prompt, yes=yes, blocking=blocking)
 
 
-def get_hash(src: str | Path) -> Optional[bytes]:
+def hash_files(src: str | Path) -> Optional[bytes]:
     """Hash src (file or directory), return None if unable to."""
 
     def update(src: Path, _hash: Hash) -> Hash:
@@ -141,13 +129,11 @@ def get_hash(src: str | Path) -> Optional[bytes]:
             _hash = update(path, _hash)
         return _hash
 
-    try:
+    with contextlib.suppress(PermissionError):
         return update(Path(src), hashlib.blake2b()).digest()
-    except PermissionError:
-        return
 
 
-def backup(src: str) -> str:
+def backup_files(src: str) -> str:
     """Copy src (file or directory) to a temp directory.
     Automatically resolve name by appending (1), (2), etc.
     Return the chosen name.
@@ -195,7 +181,7 @@ def backup(src: str) -> str:
 
 
 class PreventKeyboardInterrupt:
-    """Place any code inside "wibth PreventKeyboardInterrupt(): ..."
+    """Place any code inside "with PreventKeyboardInterrupt(): ..."
     to prevent keyboard interrupt
     """
 

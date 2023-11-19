@@ -1,5 +1,6 @@
 import itertools
 import math
+import platform
 import shutil
 from dataclasses import dataclass
 from functools import cache, cached_property
@@ -10,7 +11,7 @@ import amulet
 from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
-from .cli import Error, Location, Orientation, UserError, logger
+from .cli import DeveloperError, Location, Orientation, UserError, logger
 from .generator_backend import (
     Block,
     BlockType,
@@ -24,8 +25,8 @@ from .generator_utils import (
     Direction,
     PreventKeyboardInterrupt,
     UserPrompt,
-    backup,
-    get_hash,
+    backup_files,
+    hash_files,
     progress_bar,
     terminal_width,
 )
@@ -113,9 +114,7 @@ class Generator:
         with self:
             self.parse_args()
             user_prompt = UserPrompt.info(
-                "Confirm to proceed? [Y/n] ",
-                yes=("", "y", "yes"),
-                blocking=False,
+                "Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
             )
             # Start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
@@ -141,35 +140,64 @@ class Generator:
     # exit: delete the clone
 
     def __enter__(self):
-        # Hash the save files to detect if user has entered the world while generating.
-        # See self.save() for when this is used
+        self._platform_warning = self._issue_platform_warning()
+        self._hash_world()
+        self._clone_world()
+        self._load_world()  # the clone one
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.world.close()
+        shutil.rmtree(self._world_clone_path, ignore_errors=True)
+
+    def _issue_platform_warning(self):
+        """I don't know what would happen on platforms other than Linux and Windows
+        if the user stays inside the world while the generator is running.
+        So, issue a warning telling them to exit first.
+
+        Make the prompt non-blocking to hash the world while waiting.
+        Hashing costs negligible time, but why not.
+        """
+
+        if platform.system() not in ("Linux", "Windows"):
+            logger.warning("If you are inside the world, exit it now.")
+            logger.warning("And do not re-enter until the program terminates.")
+            return UserPrompt.warning(
+                "Press Enter when you are ready.", yes=(), blocking=False
+            )
+
+    def _hash_world(self):
+        """Hash the save files to detect if user enters the world while generating.
+        See self.save() for when this is used.
+        """
         try:
-            self._hash = get_hash(self.world_path)
+            self._hash = hash_files(self.world_path)
         except FileNotFoundError:
             raise UserError(f"Path '{self.world_path}' does not exist")
-        # make a copy of World to work on that one
-        try:
-            self._tmp_world = backup(self.world_path)
-        except PermissionError as e:
-            raise Error(
-                "Permission denied to read save files. "
-                "If you are inside the world, exit it first and try again."
-            ) from e
+        finally:
+            if self._platform_warning is not None:
+                self._platform_warning.wait()
 
-        # load World
+    def _clone_world(self):
+        """Clone the original world to work on that one.
+        This prevents the program from crasing if user enters the world it's running.
+        """
         try:
-            if not isinstance(
-                format_wrapper := amulet.load_format(self._tmp_world), AnvilFormat
-            ):
+            self._world_clone_path = backup_files(self.world_path)
+        except PermissionError as e:
+            raise DeveloperError("Permission denied to read save files.") from e
+
+    def _load_world(self):
+        try:
+            format_wrapper = amulet.load_format(self._world_clone_path)
+            if not isinstance(format_wrapper, AnvilFormat):
                 raise LoaderNoneMatched
         except LoaderNoneMatched:
             raise UserError(
                 f"Unrecognized Minecraft format for '{self.world_path}'; "
                 "expected Java Edition"
             )
-        self.world = World(self._tmp_world, format_wrapper)
-
-        # initialize world-related attributes
+        self.world = World(self._world_clone_path, format_wrapper)
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
             dict[
@@ -181,11 +209,6 @@ class Generator:
         self.players = tuple(
             self.world.get_player(i) for i in self.world.all_player_ids()
         )
-        return self
-
-    def __exit__(self, exc_type, exc_value, tb):
-        self.world.close()
-        shutil.rmtree(self._tmp_world, ignore_errors=True)
 
     # ---------------------------------------------------------------------------------
     # Generator subroutines
@@ -295,7 +318,6 @@ class Generator:
             raise UserError(
                 f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
-        logger.info("")
 
         # save chunk coordinates
         min_cx, max_cx, min_cz, max_cz = (
@@ -690,8 +712,8 @@ class Generator:
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
         try:
-            modified_by_another_process = self._hash is None or self._hash != get_hash(
-                self.world_path
+            modified_by_another_process = (
+                self._hash is None or self._hash != hash_files(self.world_path)
             )
         except FileNotFoundError:
             modified_by_another_process = False
@@ -701,9 +723,7 @@ class Generator:
                 "\nTo keep this generation, all other changes must be discarded"
             )
             UserPrompt.warning(
-                "Confirm to proceed? [y/N] ",
-                yes=("y", "yes"),
-                blocking=True,
+                "Confirm to proceed? [y/N]", yes=("y", "yes"), blocking=True
             )
         # Move the copy World back to its original location,
         # disable keyboard interrupt to prevent corrupting files
@@ -711,7 +731,7 @@ class Generator:
             # Windows fix: need to close world before moving its folder
             self.world.close()
             shutil.rmtree(self.world_path, ignore_errors=True)
-            shutil.move(self._tmp_world, self.world_path)
+            shutil.move(self._world_clone_path, self.world_path)
         if modified_by_another_process:
             logger.warning(
                 "\nIf you are inside the world, exit and re-enter to see the result."

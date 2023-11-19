@@ -12,9 +12,8 @@ See my projects:
 * [Mozart's Sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
 
 ## Requirements
-* Minecraft java 1.19+
+* Minecraft Java 1.19-1.20
 * Python 3.10-3.12
-* Linux / Windows / ? (see [Platform support](#Platform-support))
 
 ## Installation
 ```pip install --upgrade noteblock-generator```
@@ -34,12 +33,12 @@ Options:
 ```
 
 ### Music source
-Path to the music source. This program is only intended for my own use, so there is no documentation for writing music files. Follow my `Build from source` instructions to replicate my builds.
+Path to the music source. It should be provided to you in all of my projects.
 
 ### Minecraft world
 Path to an existing minecraft world. Only Java Edition is supported.
 
-On Linux the save folder is probably at `~/.minecraft/saves`. On Windows it's probably at `C:\Users\<username>\AppData\Roaming\.minecraft\saves`.
+Consult Minecraft's documentation (or your custom launcher's documentation if you use one) for where the save folder is.
 
 ### Location
 The location where the structure will be generated.
@@ -61,14 +60,7 @@ Similarly to location, either value of the pair (or both) can be substituted wit
 ### Theme
 Choose a block that can conduct redstones. Default is `stone`
 
-Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (java version).
+Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (Java Edition).
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
-
-## Platform support
-Most parts of the program work cross-platform (Linux/Mac/Windows/anything else as long as it satisfies the other requirements), *except one feature*: the ability to edit the world while the game is running.
-
-On Linux, it just works, the OS doesn't care, while Windows raises an error if you try to do that. So I have put in place some hacks to make it work on Windows. But I have no idea what other operating systems would do, i.e. whether it would just work like Linux, or the hack for Windows would work for it too, or it would raise a different kind of error that I haven't anticipated.
-
-For that reason, this program only officially supports Linux and Windows. For other platforms, everything should still work *as long* as you do not run the program while the game is running; doing so may crash the program and corrupt your save data.
