@@ -719,7 +719,7 @@ class Generator:
             modified_by_another_process = False
         if modified_by_another_process:
             logger.warning(
-                "Your save files have been modified by another process."
+                "\nYour save files have been modified by another process."
                 "\nTo keep this generation, all other changes must be discarded"
             )
             UserPrompt.warning(
@@ -734,5 +734,5 @@ class Generator:
             shutil.move(self._world_clone_path, self.world_path)
         if modified_by_another_process:
             logger.warning(
-                "\nIf you are inside the world, exit and re-enter to see the result."
+                "If you are inside the world, exit and re-enter to see the result."
             )
