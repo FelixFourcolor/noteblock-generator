@@ -19,17 +19,22 @@ See my projects:
 ```pip install --upgrade noteblock-generator```
 
 ## Usage
-
 ```
-noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
+usage: noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
 
-Options:
-  --location [LOCATION ...]       build location (in <x> <y> <z>); default is player's location
-  --dimension DIMENSION           build dimension; default is player's dimension
-  --orientation [ORIENTATION ...] build orientation (in <horizontal> <vertical>); default is player's orientation
-  --theme THEME                   redstone-conductive block; default is stone
-  --blend                         blend the structure with its environment
-  [--verbose | --quiet]           increase/decrease output verbosity
+build options:
+  -l, --location X Y Z                  build location; default is player's location
+  -d, --dimension DIMENSION             build dimension; default is player's dimension
+  -o, --orientation HORIZONTAL VERTICAL build orientation; default is player's orientation
+  -t, --theme THEME                     redstone-conductive block; default is stone
+  --blend                               blend the structure with its environment
+
+output options:
+  -q, --quiet                           decrease output verbosity; can be used up to 3 times
+  --debug                               show full exception traceback if an error occurs
+
+help:
+  -h, --help                            show this help message and exit
 ```
 
 ### Music source
@@ -64,3 +69,13 @@ Consult Minecraft's documentation for what blocks can conduct redstone and their
 
 ### Blend
 By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
+
+### Verbosity
+There are 4 verbosity levels, from least to most verbose is:
+
+* `-qqq`: No output at all, even if an error occurs, only an exit status to indicate success.
+* `-qq`: Above, plus critical warnings, and a brief error message if one occurs.
+* `-q`: Above, plus a generating progress bar, and longer error message if one occurs.
+* *Default*: Above, plus information about the music and the world, and a confirmation prompt before generating
+
+`--debug` can be used in conjuction with any verbosity level.

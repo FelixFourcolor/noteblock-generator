@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import traceback
 from argparse import ArgumentParser
 from typing import NamedTuple
 
@@ -56,60 +57,56 @@ class UserError(Error):
     pass
 
 
+class Parser(ArgumentParser):
+    def format_help(self):
+        return """usage: noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
+
+build options:
+  -l, --location X Y Z                  build location; default is player's location
+  -d, --dimension DIMENSION             build dimension; default is player's dimension
+  -o, --orientation HORIZONTAL VERTICAL build orientation; default is player's orientation
+  -t, --theme THEME                     redstone-conductive block; default is stone
+  --blend                               blend the structure with its environment
+
+output options:
+  -q, --quiet                           decrease output verbosity; can be used up to 3 times
+  --debug                               show full exception traceback if an error occurs
+
+help:
+  -h, --help                            show this help message and exit
+"""  # noqa: E501
+
+    def error(self, message):
+        self.print_help()
+        raise UserError(message)
+
+
 def get_args():
-    parser = ArgumentParser()
-    parser.add_argument("music_source", help="path to music source")
+    parser = Parser()
+    parser.add_argument("path/to/music/source")
+    parser.add_argument("path/to/minecraft/world")
     parser.add_argument(
-        "world_path", help="path to Minecraft world (Java Edition only)"
+        "-l", "--location", action="store", nargs=3, default=["~", "~", "~"]
     )
+    parser.add_argument("-d", "--dimension", default=None)
     parser.add_argument(
-        "--location",
-        nargs="*",
-        default=["~", "~", "~"],
-        help="build location (in <x> <y> <z>); default is player's location",
+        "-o", "--orientation", action="store", nargs=2, default=["~", "~"]
     )
-    parser.add_argument(
-        "--dimension",
-        default=None,
-        help="build dimension; default is player's dimension",
-    )
-    parser.add_argument(
-        "--orientation",
-        nargs="*",
-        default=["~", "~"],
-        help=(
-            "build orientation (in <horizontal> <vertical>); "
-            "default is player's orientation"
-        ),
-    )
-    parser.add_argument(
-        "--theme",
-        default="stone",
-        help="redstone-conductive block; default is stone",
-    )
-    parser.add_argument(
-        "--blend",
-        action="store_true",
-        help="blend the structure with its environment",
-    )
-    log_level = parser.add_mutually_exclusive_group()
-    log_level.add_argument(
-        "--verbose", action="store_true", help="increase output verbosity"
-    )
-    log_level.add_argument(
-        "--quiet",
-        action="store_true",
-        help="decrease output verbosity",
-    )
+    parser.add_argument("-t", "--theme", default="stone")
+    parser.add_argument("--blend", action="store_true")
+    parser.add_argument("-q", "--quiet", action="count", default=0)
+    parser.add_argument("--debug", action="store_true")
     return parser.parse_args(None if sys.argv[1:] else ["-h"])
+
+
+_error_logger = logger.getChild("")
+_error_logger.setLevel(logging.CRITICAL)
 
 
 def parse_args():
     args = get_args()
 
     # location
-    if len(args.location) != 3:
-        raise UserError("Location requires 3 values")
     location = Location(*map(Coordinate, args.location))
 
     # dimension
@@ -120,17 +117,20 @@ def parse_args():
             raise UserError(f"Invalid dimension; expected one of {valid_choices}")
 
     # orientation
-    if len(args.orientation) != 2:
-        raise UserError("Orientation requires 2 values")
     orientation = Orientation(*map(Coordinate, args.orientation))
 
     # verbosity
-    if args.quiet:
-        logger.setLevel(logging.WARNING)
-    elif args.verbose:
-        logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.INFO)
+    match args.quiet:
+        case 3:
+            logger.setLevel(logging.CRITICAL)
+        case 2:
+            logger.setLevel(logging.WARNING)
+        case 1:
+            logger.setLevel(logging.INFO)
+        case _:
+            logger.setLevel(logging.DEBUG)
+    if args.debug:
+        _error_logger.setLevel(logging.DEBUG)
 
     # parse Composition and load Generator last,
     # because because they take the most time,
@@ -138,14 +138,14 @@ def parse_args():
 
     from .parser import Composition
 
-    composition = Composition(args.music_source)
+    composition = Composition(getattr(args, "path/to/music/source"))
 
     # Load Generator after, so that we catch writing errors quickly
 
     from .generator import Generator
 
     return Generator(
-        world_path=args.world_path,
+        world_path=getattr(args, "path/to/minecraft/world"),
         composition=composition,
         location=location,
         dimension=dimension,
@@ -170,13 +170,18 @@ def main():
         generator = parse_args()
         generator()
     except Exception as e:
-        dev_error = not isinstance(e, UserError)
+        dev_error = False
         logger.error(format_error(e))
+        if not isinstance(e, UserError):
+            dev_error = True
+            _error_logger.debug("".join(traceback.format_exception(e)))
         while (e := e.__cause__) is not None:
-            logger.debug(format_error(e))
-            dev_error = dev_error or not isinstance(e, UserError)
+            logger.info(format_error(e))
+            if not isinstance(e, UserError):
+                dev_error = True
+                _error_logger.debug("".join(traceback.format_exception(e)))
         if dev_error:
-            logger.info(
+            logger.debug(
                 "\033[33m"
                 "If you could kindly report this error, I'd appreciate it. -- Felix"
                 "\033[m"

@@ -224,6 +224,8 @@ class Voice(list[list[Note]]):
         self.append([])
         try:
             self._process_notes(notes)
+        except Error:
+            raise
         except Exception as e:
             raise DeveloperError(f"Syntax error at {self}") from e
 
@@ -277,8 +279,8 @@ class Voice(list[list[Note]]):
                     self._add_note(**(self._note_config | kwargs))
                 except Error as e:
                     raise DeveloperError(
-                        f"{self} at {(self._bar_number, self._beat_number)}: {e}"
-                    )
+                        f"{self} at {(self._bar_number, self._beat_number)}"
+                    ) from e
             else:
                 self._note_config |= kwargs
 
@@ -522,12 +524,11 @@ class Composition(list[list[Voice]]):
                 composition = load_file(
                     path_to_composition, expected_type=dict, blame=UserError
                 )
-            except Error:
-                raise
+                self.path = path_to_composition
+                return self.__init__(**composition)
             except Exception as e:
-                raise DeveloperError(f"Unable to parse {path_to_composition}") from e
-            self.path = path_to_composition
-            return self.__init__(**composition)
+                blame = UserError if isinstance(e, UserError) else DeveloperError
+                raise blame(f"Unable to parse '{path_to_composition}'") from e
 
         # all voices need to follow the same delay map
         self.delay_map: dict[int, list[int]] = {}
@@ -594,10 +595,8 @@ class Composition(list[list[Voice]]):
                 voice = load_file(
                     path_to_voice, expected_type=dict, blame=DeveloperError
                 )
-            except Error:
-                raise
             except Exception as e:
-                raise DeveloperError(f"Unable to parse {path_to_voice}") from e
+                raise DeveloperError(f"Unable to parse '{path_to_voice}'") from e
             if "name" not in voice:
                 voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
         else:

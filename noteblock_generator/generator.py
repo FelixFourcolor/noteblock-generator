@@ -2,6 +2,7 @@ import itertools
 import math
 import platform
 import shutil
+import sys
 from dataclasses import dataclass
 from functools import cache, cached_property
 from multiprocessing.pool import ThreadPool
@@ -113,8 +114,8 @@ class Generator:
     def __call__(self):
         with self:
             self.parse_args()
-            user_prompt = UserPrompt.info(
-                "Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
+            user_prompt = UserPrompt.debug(
+                "\nConfirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
             )
             # Start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
@@ -131,7 +132,7 @@ class Generator:
                 message = "Aborted."
                 end_of_line = " " * max(0, terminal_width() - len(message))
                 logger.info(f"\r{message}{end_of_line}")
-                logger.disabled = True
+                sys.exit(130)
 
     # ---------------------------------------------------------------------------------
     # Context manager:
@@ -140,8 +141,12 @@ class Generator:
     # exit: delete the clone
 
     def __enter__(self):
-        self._platform_warning = self._issue_platform_warning()
-        self._hash_world()
+        platform_warning = self._issue_platform_warning()
+        try:
+            self._hash_world()
+        finally:
+            if platform_warning is not None:
+                platform_warning.wait()
         self._clone_world()
         self._load_world()  # the clone one
         return self
@@ -160,8 +165,10 @@ class Generator:
         """
 
         if platform.system() not in ("Linux", "Windows"):
-            logger.warning("If you are inside the world, exit it now.")
-            logger.warning("And do not re-enter until the program terminates.")
+            logger.warning(
+                "If you are inside the world, exit it now."
+                "\nAnd do not re-enter until the program terminates."
+            )
             return UserPrompt.warning(
                 "Press Enter when you are ready.", yes=(), blocking=False
             )
@@ -174,9 +181,6 @@ class Generator:
             self._hash = hash_files(self.world_path)
         except FileNotFoundError:
             raise UserError(f"Path '{self.world_path}' does not exist")
-        finally:
-            if self._platform_warning is not None:
-                self._platform_warning.wait()
 
     def _clone_world(self):
         """Clone the original world to work on that one.
@@ -288,7 +292,7 @@ class Generator:
         max_x, max_y, max_z = self.rotate((self.max_x, self.max_y, self.max_z))
         min_x, max_x = min(min_x, max_x), max(min_x, max_x)
         min_z, max_z = min(min_z, max_z), max(min_z, max_z)
-        logger.info(
+        logger.debug(
             "The structure will occupy the space "
             f"{(min_x, self.min_y, min_z)} "
             f"to {max_x, max_y, max_z} "
@@ -336,7 +340,7 @@ class Generator:
         results = {p.location for p in self.players}
         if not results:
             out = (0, 63, 0)
-            logger.warning(f"No players detected. Default location {out} is used.")
+            logger.info(f"No players detected. Default location {out} is used.")
             return out
         if len(results) > 1:
             raise UserError(
@@ -352,7 +356,7 @@ class Generator:
         results = {p.dimension for p in self.players}
         if not results:
             out = "overworld"
-            logger.warning(f"No players detected. Default dimension {out} is used.")
+            logger.info(f"No players detected. Default dimension {out} is used.")
             return out
         if len(results) > 1:
             raise UserError(
@@ -370,7 +374,7 @@ class Generator:
         results = {p.rotation for p in self.players}
         if not results:
             out = (0.0, 45.0)
-            logger.warning(f"No players detected. Default orientation {out} is used.")
+            logger.info(f"No players detected. Default orientation {out} is used.")
             return out
         if len(results) > 1:
             raise UserError(
@@ -673,7 +677,6 @@ class Generator:
             for progress, _ in enumerate(
                 pool.imap_unordered(self._modify_chunk, self._chunk_mods.items())
             ):
-                ...
                 # so that setting blocks and saving uses the same progress bar,
                 # the latter is estimated to take 1/3 time of the former
                 progress_bar((progress + 1) * 3, total * 4, text="Generating")
@@ -685,7 +688,7 @@ class Generator:
         self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]
     ):
         chunk_coords, modifications = args
-        chunk = self.get_chunk(chunk_coords)
+        chunk = self._get_chunk(chunk_coords)
         chunk.block_entities = {}
         for coordinates, placement in modifications.items():
             if callable(placement):
@@ -694,7 +697,7 @@ class Generator:
             else:
                 chunk.set_block(*coordinates, placement)
 
-    def get_chunk(self, chunk_coords: tuple[int, int]) -> ChunkType:
+    def _get_chunk(self, chunk_coords: tuple[int, int]) -> ChunkType:
         try:
             self._chunk_cache[chunk_coords] = chunk = self.world.get_chunk(
                 *chunk_coords, self._dimension
@@ -733,6 +736,6 @@ class Generator:
             shutil.rmtree(self.world_path, ignore_errors=True)
             shutil.move(self._world_clone_path, self.world_path)
         if modified_by_another_process:
-            logger.warning(
+            logger.info(
                 "If you are inside the world, exit and re-enter to see the result."
             )
