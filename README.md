@@ -1,6 +1,4 @@
 # Noteblock generator
-Generate music in Minecraft noteblocks.
-
 This program is only intended for my own use, and shared only for others to replicate my builds.
 
 See my projects:
