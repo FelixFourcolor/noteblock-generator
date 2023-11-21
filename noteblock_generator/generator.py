@@ -1,4 +1,5 @@
 import itertools
+import logging
 import math
 import platform
 import shutil
@@ -129,10 +130,13 @@ class Generator:
                     user_prompt.wait()
                 self.save()
             except KeyboardInterrupt:
-                message = "Aborted."
+                if logger.level == logging.CRITICAL:
+                    # no message, so exit with a non-zero code
+                    # to indicate that the generator did not finish
+                    sys.exit(130)
+                message = "Aborted. No changes were made."
                 end_of_line = " " * max(0, terminal_width() - len(message))
-                logger.info(f"\r{message}{end_of_line}")
-                sys.exit(130)
+                logger.warning(f"\r{message}{end_of_line}")
 
     # ---------------------------------------------------------------------------------
     # Context manager:
