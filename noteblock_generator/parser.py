@@ -90,7 +90,10 @@ def load_file(_path: Path, /, *, expected_type: type[T], blame: type[Error]) -> 
 
     if found := find(_path):
         with found.open("r") as f:
-            return json.load(f)
+            try:
+                return json.load(f)
+            except Exception as e:
+                raise DeveloperError(f"Unable to parse '{found}'") from e
 
     error_message = f"Path '{_path}' does not exist"
     if blame is UserError:
@@ -255,14 +258,11 @@ class Voice(list[list[Note]]):
 
         if self._name is None:
             self._name = str(Path(notes_or_path_to_notes).with_suffix(""))
-        try:
-            notes_or_another_voice = load_file(
-                self._composition.path / Path(notes_or_path_to_notes),
-                expected_type=list[str | dict],
-                blame=DeveloperError,
-            )
-        except Exception as e:
-            raise DeveloperError(f"Unable to parse {self}") from e
+        notes_or_another_voice = load_file(
+            self._composition.path / Path(notes_or_path_to_notes),
+            expected_type=list[str | dict],
+            blame=DeveloperError,
+        )
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
         if "notes" not in notes_or_another_voice:
@@ -277,7 +277,7 @@ class Voice(list[list[Note]]):
             if "name" in kwargs:
                 try:
                     self._add_note(**(self._note_config | kwargs))
-                except Error as e:
+                except DeveloperError as e:
                     raise DeveloperError(
                         f"{self} at {(self._bar_number, self._beat_number)}"
                     ) from e
@@ -519,16 +519,9 @@ class Composition(list[list[Voice]]):
         sustainDynamic: int | str | list[list[int | str]] = None,
     ):
         if path is not None:
-            path_to_composition = Path(path)
-            try:
-                composition = load_file(
-                    path_to_composition, expected_type=dict, blame=UserError
-                )
-                self.path = path_to_composition
-                return self.__init__(**composition)
-            except Exception as e:
-                blame = UserError if isinstance(e, UserError) else DeveloperError
-                raise blame(f"Unable to parse '{path_to_composition}'") from e
+            self.path = Path(path)
+            composition = load_file(self.path, expected_type=dict, blame=UserError)
+            return self.__init__(**composition)
 
         # all voices need to follow the same delay map
         self.delay_map: dict[int, list[int]] = {}
@@ -591,12 +584,7 @@ class Composition(list[list[Voice]]):
 
         if isinstance(voice_or_path_to_voice, str):
             path_to_voice = self.path / Path(voice_or_path_to_voice)
-            try:
-                voice = load_file(
-                    path_to_voice, expected_type=dict, blame=DeveloperError
-                )
-            except Exception as e:
-                raise DeveloperError(f"Unable to parse '{path_to_voice}'") from e
+            voice = load_file(path_to_voice, expected_type=dict, blame=DeveloperError)
             if "name" not in voice:
                 voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
         else:

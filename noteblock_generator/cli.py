@@ -173,16 +173,12 @@ def main():
         generator = parse_args()
         generator()
     except Exception as e:
-        dev_error = False
+        dev_error = not isinstance(e, UserError)
         logger.error(format_error(e))
-        if not isinstance(e, UserError):
-            dev_error = True
-            _error_logger.debug("".join(traceback.format_exception(e)))
+        _error_logger.debug("".join(traceback.format_exception(e)))
         while (e := e.__cause__) is not None:
             logger.info(format_error(e))
-            if not isinstance(e, UserError):
-                dev_error = True
-                _error_logger.debug("".join(traceback.format_exception(e)))
+            _error_logger.debug("".join(traceback.format_exception(e)))
         if dev_error:
             logger.debug(
                 "\033[33m"
