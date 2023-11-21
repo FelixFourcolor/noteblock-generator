@@ -6,6 +6,7 @@ authors = ["Felix Fourcolor <felix.fourcolor@gmail.com>"]
 readme = "README.md"
 license = "CC0-1.0"
 packages = [{include = "noteblock_generator"}]
+homepage = "https://www.youtube.com/@felixfourcolor"
 repository = "https://github.com/FelixFourcolor/noteblock-generator"
 keywords = ["minecraft", "noteblock"]
 
@@ -15,7 +16,7 @@ noteblock-generator = "noteblock_generator.__main__:main"
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
 amulet-core = { git = "https://github.com/Amulet-Team/Amulet-Core", branch = "1.0", rev = "db94a3a" }
-colorama = "^0.4"
+colorama = ">=0.4.6"
 
 [build-system]
 requires = ["poetry-core"]
