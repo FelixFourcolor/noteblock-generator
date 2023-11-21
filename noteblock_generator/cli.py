@@ -28,7 +28,7 @@ class Coordinate(int):
             try:
                 value = int(_value)
             except ValueError:
-                raise UserError(f"Expected integer values; received {_value}")
+                raise ValueError(_value)
         self = super().__new__(cls, value)
         self.relative = relative
         return self
@@ -88,15 +88,20 @@ def get_args():
     parser.add_argument(
         "-l", "--location", action="store", nargs=3, default=["~", "~", "~"]
     )
-    parser.add_argument("-d", "--dimension", default=None)
     parser.add_argument(
         "-o", "--orientation", action="store", nargs=2, default=["~", "~"]
+    )
+    parser.add_argument(
+        "-d",
+        "--dimension",
+        choices=("overworld", "the_nether", "the_end"),
+        default=None,
     )
     parser.add_argument("-t", "--theme", default="stone")
     parser.add_argument("--blend", action="store_true")
     parser.add_argument("-q", "--quiet", action="count", default=0)
     parser.add_argument("--debug", action="store_true")
-    return parser.parse_args(None if sys.argv[1:] else ["-h"])
+    return parser.parse_args()
 
 
 _error_logger = logger.getChild("")
@@ -104,37 +109,35 @@ _error_logger.setLevel(logging.CRITICAL)
 
 
 def parse_args():
+    # parse cli arguments
     args = get_args()
-
-    # location
-    location = Location(*map(Coordinate, args.location))
-
-    # dimension
-    if (dimension := args.dimension) is not None:
-        valid_choices = ("overworld", "the_nether", "the_end")
-        dimension = dimension.lower().strip()
-        if dimension not in valid_choices:
-            raise UserError(f"Invalid dimension; expected one of {valid_choices}")
-
-    # orientation
-    orientation = Orientation(*map(Coordinate, args.orientation))
 
     # verbosity
     match args.quiet:
-        case 3:
-            logger.setLevel(logging.CRITICAL)
-        case 2:
-            logger.setLevel(logging.WARNING)
+        case 0:
+            logger.setLevel(logging.DEBUG)
         case 1:
             logger.setLevel(logging.INFO)
+        case 2:
+            logger.setLevel(logging.WARNING)
         case _:
-            logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.CRITICAL)
     if args.debug:
         _error_logger.setLevel(logging.DEBUG)
 
-    # parse Composition and load Generator last,
-    # because because they take the most time,
-    # so that we catch command-line errors quickly
+    # location
+    try:
+        location = Location(*map(Coordinate, args.location))
+    except ValueError as e:
+        raise UserError(f"argument -l/--location: invalid int value: {e}")
+
+    # orientation
+    try:
+        orientation = Orientation(*map(Coordinate, args.orientation))
+    except ValueError as e:
+        raise UserError(f"argument -o/--orientation: invalid int value: {e}")
+
+    # parse Composition and load Generator last so that we catch cli errors quickly
 
     from .parser import Composition
 
@@ -148,8 +151,8 @@ def parse_args():
         world_path=getattr(args, "path/to/minecraft/world"),
         composition=composition,
         location=location,
-        dimension=dimension,
         orientation=orientation,
+        dimension=args.dimension,
         theme=args.theme,
         blend=args.blend,
     )
@@ -183,7 +186,7 @@ def main():
         if dev_error:
             logger.debug(
                 "\033[33m"
-                "If you could kindly report this error, I'd appreciate it. -- Felix"
+                "If you could kindly report this error, I would appreciate it. -- Felix"
                 "\033[m"
             )
         sys.exit(1)

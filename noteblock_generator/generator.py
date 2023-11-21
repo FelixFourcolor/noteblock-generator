@@ -107,8 +107,8 @@ class Generator:
     world_path: str
     composition: Composition
     location: Location
-    dimension: Optional[str]
     orientation: Orientation
+    dimension: Optional[str]
     theme: str
     blend: bool
 
