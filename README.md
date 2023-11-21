@@ -23,18 +23,18 @@ See my projects:
 usage: noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
 
 build options:
-  -l, --location X Y Z                  build location; default is player's location
-  -d, --dimension DIMENSION             build dimension; default is player's dimension
-  -o, --orientation HORIZONTAL VERTICAL build orientation; default is player's orientation
-  -t, --theme THEME                     redstone-conductive block; default is stone
-  --blend                               blend the structure with its environment
+  -l/--location X Y Z                  build location; default is player's location
+  -d/--dimension DIMENSION             build dimension; default is player's dimension
+  -o/--orientation HORIZONTAL VERTICAL build orientation; default is player's orientation
+  -t/--theme BLOCK                     redstone-conductive block; default is stone
+  --blend                              blend the structure with its environment
 
 output options:
-  -q, --quiet                           decrease output verbosity; can be used up to 3 times
-  --debug                               show full exception traceback if an error occurs
+  -q/--quiet                           decrease output verbosity; can be used up to 3 times
+  --debug                              show full exception traceback if an error occurs
 
 help:
-  -h, --help                            show this help message and exit
+  -h/--help                            show this help message and exit
 ```
 
 ### Music source
