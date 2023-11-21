@@ -115,7 +115,7 @@ class Generator:
         with self:
             self.parse_args()
             user_prompt = UserPrompt.debug(
-                "\nConfirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
+                "Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
             )
             # Start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
@@ -292,7 +292,7 @@ class Generator:
         max_x, max_y, max_z = self.rotate((self.max_x, self.max_y, self.max_z))
         min_x, max_x = min(min_x, max_x), max(min_x, max_x)
         min_z, max_z = min(min_z, max_z), max(min_z, max_z)
-        logger.debug(
+        logger.info(
             "The structure will occupy the space "
             f"{(min_x, self.min_y, min_z)} "
             f"to {max_x, max_y, max_z} "
@@ -322,6 +322,7 @@ class Generator:
             raise UserError(
                 f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
             )
+        logger.info("")
 
         # save chunk coordinates
         min_cx, max_cx, min_cz, max_cz = (
