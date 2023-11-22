@@ -284,7 +284,7 @@ class Generator:
         elif len(self.composition) == 1:
             self.min_z = self.Z - self.z_i * math.ceil(self.Z_BOUNDARY / 2)
         else:
-            self.min_z = self.Z - self.Z_BOUNDARY
+            self.min_z = self.Z - self.z_i * self.Z_BOUNDARY
         if len(self.composition) == 1:
             self.max_z = self.min_z + self.z_i * self.Z_BOUNDARY
         else:
