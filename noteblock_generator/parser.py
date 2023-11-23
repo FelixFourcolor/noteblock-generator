@@ -122,7 +122,7 @@ class Note:
         if delay is None:
             delay = _voice.delay
         if delay not in DELAY_RANGE:
-            raise DeveloperError(f"delay must be in {DELAY_RANGE}")
+            raise DeveloperError(f"delay must be in {DELAY_RANGE}; received {delay}")
         self.delay = delay
 
         if instrument is None:
@@ -132,7 +132,9 @@ class Note:
         if dynamic is None:
             dynamic = _voice.dynamic
         if dynamic not in DYNAMIC_RANGE:
-            raise DeveloperError(f"dynamic must be in {DYNAMIC_RANGE}")
+            raise DeveloperError(
+                f"dynamic must be in {DYNAMIC_RANGE}; received {dynamic}"
+            )
         self.dynamic = dynamic
 
         try:
@@ -222,12 +224,7 @@ class Voice(list[list[Note]]):
         self.noteblocks_count = 0
         self._note_config = {}
         self.append([])
-        try:
-            self._process_notes(notes)
-        except Error:
-            raise
-        except Exception as e:
-            raise DeveloperError(f"Syntax error at {self}") from e
+        self._process_notes(notes)
 
     def __repr__(self):
         if self._name:
@@ -274,7 +271,7 @@ class Voice(list[list[Note]]):
             if "name" in kwargs:
                 try:
                     self._add_note(**(self._note_config | kwargs))
-                except DeveloperError as e:
+                except Exception as e:
                     raise DeveloperError(
                         f"{self} at {(self._bar_number, self._beat_number)}"
                     ) from e
