@@ -74,6 +74,6 @@ There are 4 verbosity levels, from least to most verbose is:
 * `-qqq`: No output at all, even if an error occurs, only an exit status to indicate success.
 * `-qq`: Above, plus critical warnings, and a brief error message if one occurs.
 * `-q`: Above, plus brief information about the structure, a generating progress bar, and longer error message if one occurs.
-* Default: Above, plus full information about the structure and a confirmation prompt before generating.
+* Default: Above, plus full information about the structure, and a confirmation prompt before generating.
 
-`--debug` can be used in conjuction with any verbosity level.
+Note: with `-q` option, without a confirmation prompt, you can still press `CTRL + C` before the progress bar reaches 100% to safely quit the program. No changes will be made to the world.
