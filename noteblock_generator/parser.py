@@ -58,7 +58,9 @@ DYNAMIC_RANGE = range(0, 5)
 _T = TypeVar("_T", dict, list)
 
 
-def load_file(_path: Path, /, *, expected_type: type[_T], blame: type[Error]) -> _T:
+def load_file(
+    _path: Path, /, *, expected_type: type[_T], blame: type[Error]
+) -> tuple[_T, Path]:
     def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
@@ -77,7 +79,7 @@ def load_file(_path: Path, /, *, expected_type: type[_T], blame: type[Error]) ->
         raise blame(f"unrecognized music format for '{_path}'")
 
     def create_empty_file(expected_type: type[_T]):
-        _path.parent.mkdir(parents=True)
+        _path.parent.mkdir(parents=True, exist_ok=True)
         with _path.open("w") as f:
             if origin := get_origin(expected_type):
                 return create_empty_file(expected_type=origin)
@@ -89,15 +91,17 @@ def load_file(_path: Path, /, *, expected_type: type[_T], blame: type[Error]) ->
     if found := find(_path):
         with found.open("r") as f:
             try:
-                return json.load(f)
+                return json.load(f), found
             except Exception as e:
+                if blame is DeveloperError or found != _path:
+                    raise DeveloperError(f"error parsing '{found}'") from e
                 raise UserError(f"unrecognized music format for '{_path}'") from e
 
     if blame is UserError:
-        raise UserError(f"'{_path}' does not exist")
+        raise UserError(f"'{_path}' does not. exist")
     logger.warning(f"WARNING - '{_path}' does not exist")
     create_empty_file(expected_type)
-    return expected_type()
+    return expected_type(), _path
 
 
 class Note:
@@ -250,13 +254,15 @@ class Voice(list[list[Note]]):
         if isinstance(notes_or_path_to_notes, list):
             return notes_or_path_to_notes
 
-        if self._name is None:
-            self._name = str(Path(notes_or_path_to_notes).with_suffix(""))
-        notes_or_another_voice = load_file(
+        notes_or_another_voice, real_path = load_file(
             self._composition.path / Path(notes_or_path_to_notes),
             expected_type=list[str | dict],
             blame=DeveloperError,
         )
+        if self._name is None:
+            self._name = str(
+                real_path.relative_to(self._composition.path).with_suffix("")
+            )
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
         if "notes" not in notes_or_another_voice:
@@ -273,7 +279,7 @@ class Voice(list[list[Note]]):
                     self._add_note(**(self._note_config | kwargs))
                 except Exception as e:
                     raise DeveloperError(
-                        f"{self} at {(self._bar_number, self._beat_number)}"
+                        f"'{self}' at {(self._bar_number, self._beat_number)}"
                     ) from e
             else:
                 self._note_config |= kwargs
@@ -516,9 +522,16 @@ class Composition(list[list[Voice]]):
     ):
         if path is not None:
             self.path = Path(path)
-            composition = load_file(self.path, expected_type=dict, blame=UserError)
-            return self.__init__(**composition)
-
+            composition, real_path = load_file(
+                self.path, expected_type=dict, blame=UserError
+            )
+            self._name = str(real_path.relative_to(self.path).with_suffix(""))
+            try:
+                return self.__init__(**composition)
+            except Error:
+                raise
+            except Exception as e:
+                raise DeveloperError(f"error parsing '{self}'") from e
         # all voices need to follow the same delay map
         self.delay_map: dict[int, list[int]] = {}
 
@@ -553,6 +566,12 @@ class Composition(list[list[Voice]]):
 
         self.log_info()
 
+    def __repr__(self):
+        try:
+            return self._name
+        except AttributeError:
+            return str(self.path)
+
     @property
     def size(self):
         return len(self[0])
@@ -580,9 +599,11 @@ class Composition(list[list[Voice]]):
 
         if isinstance(voice_or_path_to_voice, str):
             path_to_voice = self.path / Path(voice_or_path_to_voice)
-            voice = load_file(path_to_voice, expected_type=dict, blame=DeveloperError)
+            voice, real_path = load_file(
+                path_to_voice, expected_type=dict, blame=DeveloperError
+            )
             if "name" not in voice:
-                voice["name"] = str(Path(voice_or_path_to_voice).with_suffix(""))
+                voice["name"] = str(real_path.relative_to(self.path).with_suffix(""))
         else:
             voice = voice_or_path_to_voice
 
