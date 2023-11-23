@@ -398,7 +398,9 @@ class Voice(list[list[Note]]):
 
         out = [note]
         for step, dynamic in sustainDynamic:
-            if (step := self._parse_duration(step, beat=beat)) < 0:
+            if isinstance(step, str):
+                step = self._parse_duration(*step.split(), beat=beat)
+            if step < 0:
                 step += sustain
             if step < 0:
                 raise DeveloperError(
