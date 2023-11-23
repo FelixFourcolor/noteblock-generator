@@ -13,7 +13,7 @@ import amulet
 from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
-from .cli import DeveloperError, Location, Orientation, UserError, logger
+from .cli import Location, Orientation, UserError, logger
 from .generator_backend import (
     Block,
     BlockType,
@@ -25,9 +25,11 @@ from .generator_backend import (
 )
 from .generator_utils import (
     Direction,
+    FunctionTimeout,
     PreventKeyboardInterrupt,
     UserPrompt,
     backup_files,
+    function_timeout,
     hash_files,
     progress_bar,
     terminal_width,
@@ -145,12 +147,8 @@ class Generator:
     # exit: delete the clone
 
     def __enter__(self):
-        platform_warning = self._issue_platform_warning()
-        try:
-            self._hash_world()
-        finally:
-            if platform_warning is not None:
-                platform_warning.wait()
+        self._raise_platform_warning()
+        self._hash_world()
         self._clone_world()
         self._load_world()  # the clone one
         return self
@@ -159,41 +157,41 @@ class Generator:
         self.world.close()
         shutil.rmtree(self._world_clone_path, ignore_errors=True)
 
-    def _issue_platform_warning(self):
+    def _raise_platform_warning(self):
         """I don't know what would happen on platforms other than Linux and Windows
         if the user stays inside the world while the generator is running.
-        So, issue a warning telling them to exit first.
-
-        Make the prompt non-blocking to hash the world while waiting.
-        Hashing costs negligible time, but why not.
         """
-
         if platform.system() not in ("Linux", "Windows"):
             logger.warning(
                 "If you are inside the world, exit it now."
                 "\nAnd do not re-enter until the program terminates."
             )
-            return UserPrompt.warning(
-                "Press Enter when you are ready.", yes=(), blocking=False
-            )
+            UserPrompt.warning("Press Enter when you are ready.", yes=(), blocking=True)
 
     def _hash_world(self):
         """Hash the save files to detect if user enters the world while generating.
         See self.save() for when this is used.
         """
         try:
-            self._hash = hash_files(self.world_path)
+            self._hash = function_timeout(
+                hash_files, args=(self.world_path,), timeout=5
+            )
+        except FunctionTimeout:
+            raise FunctionTimeout(
+                f"'{self.world_path}' takes too long to load. Aborted."
+            )
         except FileNotFoundError:
-            raise UserError(f"Path '{self.world_path}' does not exist")
+            raise UserError(f"'{self.world_path}' does not exist")
 
     def _clone_world(self):
         """Clone the original world to work on that one.
-        This prevents the program from crasing if user enters the world it's running.
+        This prevents the program from crasing
+        if user enters the world while it's running.
         """
         try:
             self._world_clone_path = backup_files(self.world_path)
         except PermissionError as e:
-            raise DeveloperError("Permission denied to read save files.") from e
+            raise PermissionError("Permission denied to read save files.") from e
 
     def _load_world(self):
         try:

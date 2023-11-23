@@ -10,9 +10,10 @@ import signal
 import tempfile
 from enum import Enum
 from io import StringIO
+from multiprocessing import Process, Queue
 from pathlib import Path
 from threading import Thread
-from typing import TYPE_CHECKING, Optional, TypeVar
+from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar
 
 from .cli import logger
 
@@ -121,7 +122,11 @@ def hash_files(src: str | Path) -> Optional[bytes]:
 
     def update(src: Path, _hash: Hash) -> Hash:
         _hash.update(src.name.encode())
-        return update_file(src, _hash) if src.is_file() else update_dir(src, _hash)
+        if src.is_file():
+            return update_file(src, _hash)
+        if src.is_dir():
+            return update_dir(src, _hash)
+        return _hash
 
     def update_file(src: Path, _hash: Hash) -> Hash:
         with src.open("rb") as f:
@@ -135,7 +140,9 @@ def hash_files(src: str | Path) -> Optional[bytes]:
         return _hash
 
     with contextlib.suppress(PermissionError):
-        return update(Path(src), hashlib.blake2b()).digest()
+        if not (src := Path(src)).exists():
+            raise FileNotFoundError()
+        return update(src, hashlib.blake2b()).digest()
 
 
 def backup_files(src: str) -> str:
@@ -164,10 +171,11 @@ def backup_files(src: str) -> str:
                 raise PermissionDenied(f"{src}: {e}")
 
     def copy(src: str, dst: str):
-        if Path(src).is_file():
-            copyfile(src, dst)
-        else:
+        _src = Path(src)
+        if _src.is_dir():
             shutil.copytree(src, dst, copy_function=copyfile)
+        elif _src.is_file():
+            copyfile(src, dst)
 
     temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
     name = Path(src).name
@@ -183,6 +191,42 @@ def backup_files(src: str) -> str:
             raise PermissionError(e)
         else:
             return str(dst)
+
+
+_T = TypeVar("_T")
+
+
+class _Result(Generic[_T]):
+    ok: _T
+    err: Optional[Exception] = None
+
+
+class FunctionTimeout(Exception):
+    pass
+
+
+def function_timeout(
+    target: Callable[..., _T], args: tuple = (), kwargs: dict = {}, *, timeout: int
+) -> _T:
+    def func_wrapper(queue: Queue):
+        result = queue.get()
+        try:
+            result.ok = target(*args, **kwargs)
+        except Exception as e:
+            result.err = e
+        queue.put(result)
+
+    (queue := Queue()).put(_Result[_T]())
+    (process := Process(target=func_wrapper, args=[queue])).start()
+    process.join(timeout=5)
+
+    if process.is_alive():
+        process.kill()
+        raise FunctionTimeout(f"{timeout} seconds")
+
+    if (err := (result := queue.get()).err) is not None:
+        raise err
+    return result.ok
 
 
 class PreventKeyboardInterrupt:
