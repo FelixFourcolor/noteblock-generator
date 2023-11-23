@@ -205,20 +205,21 @@ class FunctionTimeout(Exception):
     pass
 
 
+def _timeout(target: Callable, args: tuple, kwargs: dict, queue: Queue):
+    result = queue.get()
+    try:
+        result.ok = target(*args, **kwargs)
+    except Exception as e:
+        result.err = e
+    queue.put(result)
+
+
 def function_timeout(
     target: Callable[..., _T], args: tuple = (), kwargs: dict = {}, *, timeout: int
 ) -> _T:
-    def func_wrapper(queue: Queue):
-        result = queue.get()
-        try:
-            result.ok = target(*args, **kwargs)
-        except Exception as e:
-            result.err = e
-        queue.put(result)
-
     (queue := Queue()).put(_Result[_T]())
-    (process := Process(target=func_wrapper, args=[queue])).start()
-    process.join(timeout=5)
+    (process := Process(target=_timeout, args=[target, args, kwargs, queue])).start()
+    process.join(timeout=timeout)
 
     if process.is_alive():
         process.kill()

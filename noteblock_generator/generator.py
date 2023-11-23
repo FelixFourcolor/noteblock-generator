@@ -177,8 +177,9 @@ class Generator:
                 hash_files, args=(self.world_path,), timeout=5
             )
         except FunctionTimeout:
-            raise FunctionTimeout(
-                f"'{self.world_path}' takes too long to load. Aborted."
+            raise UserError(
+                f"'{self.world_path}' takes too long to load. "
+                "It's almost definitely not a valid Minecraft world save."
             )
         except FileNotFoundError:
             raise UserError(f"'{self.world_path}' does not exist")
@@ -189,9 +190,19 @@ class Generator:
         if user enters the world while it's running.
         """
         try:
-            self._world_clone_path = backup_files(self.world_path)
+            self._world_clone_path = function_timeout(
+                backup_files, args=(self.world_path,), timeout=5
+            )
+        except FunctionTimeout:
+            raise UserError(
+                f"'{self.world_path}' takes too long to load. "
+                "It's almost definitely not a valid Minecraft world save."
+            )
         except PermissionError as e:
-            raise PermissionError("permission denied to read save files.") from e
+            raise UserError(
+                "Permission denied to read save files. "
+                "If the game is running, close it and try again."
+            ) from e
 
     def _load_world(self):
         try:
