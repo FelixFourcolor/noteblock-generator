@@ -191,7 +191,7 @@ class Generator:
         try:
             self._world_clone_path = backup_files(self.world_path)
         except PermissionError as e:
-            raise PermissionError("Permission denied to read save files.") from e
+            raise PermissionError("permission denied to read save files.") from e
 
     def _load_world(self):
         try:
@@ -200,7 +200,7 @@ class Generator:
                 raise LoaderNoneMatched
         except LoaderNoneMatched:
             raise UserError(
-                f"Unrecognized Minecraft format for '{self.world_path}'; "
+                f"unrecognized Minecraft format for '{self.world_path}'; "
                 "expected Java Edition"
             )
         self.world = World(self._world_clone_path, format_wrapper)
@@ -250,9 +250,9 @@ class Generator:
         if v_rotation.relative:
             v_rotation += self.player_orientation[1]
         if not (-180 <= h_rotation <= 180):
-            raise UserError("Horizontal orientation must be between -180 and 180")
+            raise UserError("horizontal orientation must be between -180 and 180")
         if not (-90 <= v_rotation <= 90):
-            raise UserError("Vertical orientation must be between -90 and 90")
+            raise UserError("vertical orientation must be between -90 and 90")
         matched_h_rotation = min(
             ROTATION_TO_DIRECTION_MAP.keys(), key=lambda x: abs(x - h_rotation)
         )
@@ -302,27 +302,27 @@ class Generator:
         )
         if min_x < BOUNDS.min_x:
             raise UserError(
-                f"Location is out of bound: x cannot go below {BOUNDS.min_x}"
+                f"location is out of bound; x cannot go below {BOUNDS.min_x}"
             )
         if max_x > BOUNDS.max_x:
             raise UserError(
-                f"Location is out of bound: x cannot go above {BOUNDS.max_x}"
+                f"location is out of bound; x cannot go above {BOUNDS.max_x}"
             )
         if min_z < BOUNDS.min_z:
             raise UserError(
-                f"Location is out of bound: z cannot go below {BOUNDS.min_z}"
+                f"location is out of bound; z cannot go below {BOUNDS.min_z}"
             )
         if max_z > BOUNDS.max_z:
             raise UserError(
-                f"Location is out of bound: z cannot go above {BOUNDS.max_z}"
+                f"location is out of bound; z cannot go above {BOUNDS.max_z}"
             )
         if min_y < BOUNDS.min_y:
             raise UserError(
-                f"Location is out of bound: y cannot go below {BOUNDS.min_y}"
+                f"location is out of bound; y cannot go below {BOUNDS.min_y}"
             )
         if max_y > BOUNDS.max_y:
             raise UserError(
-                f"Location is out of bound: y cannot go above {BOUNDS.max_y}"
+                f"location is out of bound; y cannot go above {BOUNDS.max_y}"
             )
         logger.info("")
 
@@ -347,8 +347,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. "
-                "Relative location is not supported."
+                "there are more than 1 player in the world; "
+                "relative location is not supported."
             )
         out = tuple(map(math.floor, results.pop()))
         logger.debug(f"Player's location: {out}")
@@ -363,8 +363,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. "
-                "Relative dimension is not supported."
+                "there are more than 1 player in the world; "
+                "relative dimension is not supported."
             )
         out = results.pop()
         if out.startswith("minecraft:"):
@@ -381,8 +381,8 @@ class Generator:
             return out
         if len(results) > 1:
             raise UserError(
-                "There are more than 1 player in the world. "
-                "Relative orientation is not supported."
+                "there are more than 1 player in the world;"
+                "relative orientation is not supported."
             )
         out = results.pop()
         logger.debug(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
