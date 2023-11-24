@@ -9,6 +9,7 @@ import shutil
 import signal
 import tempfile
 from enum import Enum
+from functools import partial
 from io import StringIO
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -35,7 +36,6 @@ class Direction(tuple[int, int], Enum):
 
     def __mul__(self, other: DirectionType) -> DirectionType:
         """Complex multiplication, withy (x, z) representing xi + z"""
-
         return type(other)(
             (
                 self[0] * other[1] + self[1] * other[0],
@@ -71,6 +71,8 @@ def progress_bar(progress: int, total: int, *, text: str):
 
 
 class UserPrompt:
+    """Run a user prompt, optionally in a non-blocking thread."""
+
     def __init__(self, prompt: str, yes: tuple[str, ...], *, blocking: bool):
         self._prompt = prompt
         self._yes = yes
@@ -117,9 +119,7 @@ class UserPrompt:
             return cls(prompt=prompt, yes=yes, blocking=blocking)
 
 
-def hash_files(src: str | Path) -> Optional[bytes]:
-    """Hash src (file or directory), return None if unable to."""
-
+def _hash_files(src: str | Path):
     def update(src: Path, _hash: Hash) -> Hash:
         _hash.update(src.name.encode())
         if src.is_file():
@@ -145,12 +145,13 @@ def hash_files(src: str | Path) -> Optional[bytes]:
         return update(src, hashlib.blake2b()).digest()
 
 
-def backup_files(src: str) -> str:
-    """Copy src (file or directory) to a temp directory.
-    Automatically resolve name by appending (1), (2), etc.
-    Return the chosen name.
-    """
+def hash_files(src: str | Path) -> Optional[bytes]:
+    """Hash src (file or directory), return None if unable to."""
+    with contextlib.suppress(_TimeoutError):
+        return _timeout(partial(_hash_files, src), timeout=1)
 
+
+def _backup_files(src: str):
     class PermissionDenied(Exception):
         """PermissionError raised inside safe_copy
         will be propagated by shutil.copytree as OSError, which is not helpful.
@@ -193,41 +194,13 @@ def backup_files(src: str) -> str:
             return str(dst)
 
 
-_T = TypeVar("_T")
-
-
-class _Result(Generic[_T]):
-    ok: _T
-    err: Optional[Exception] = None
-
-
-class FunctionTimeout(Exception):
-    pass
-
-
-def _timeout(target: Callable, args: tuple, kwargs: dict, queue: Queue):
-    result = queue.get()
-    try:
-        result.ok = target(*args, **kwargs)
-    except Exception as e:
-        result.err = e
-    queue.put(result)
-
-
-def function_timeout(
-    target: Callable[..., _T], args: tuple = (), kwargs: dict = {}, *, timeout: int
-) -> _T:
-    (queue := Queue()).put(_Result[_T]())
-    (process := Process(target=_timeout, args=[target, args, kwargs, queue])).start()
-    process.join(timeout=timeout)
-
-    if process.is_alive():
-        process.kill()
-        raise FunctionTimeout(f"{timeout} seconds")
-
-    if (err := (result := queue.get()).err) is not None:
-        raise err
-    return result.ok
+def backup_files(src: str) -> Optional[str]:
+    """Copy src (file or directory) to a temp directory.
+    Automatically resolve name by appending (1), (2), etc.
+    Return the chosen name; or None if unable to.
+    """
+    with contextlib.suppress(_TimeoutError):
+        return _timeout(partial(_backup_files, src), timeout=1)
 
 
 class PreventKeyboardInterrupt:
@@ -240,3 +213,38 @@ class PreventKeyboardInterrupt:
 
     def __exit__(self, exc_type, exc_value, tb):
         signal.signal(signal.SIGINT, self.handler)
+
+
+_T = TypeVar("_T")
+
+
+class _Result(Generic[_T]):
+    ok: _T
+    err: Optional[Exception] = None
+
+
+class _TimeoutError(Exception):
+    pass
+
+
+def _timeout_func_wrapper(target: Callable, queue: Queue):
+    result = queue.get()
+    try:
+        result.ok = target()
+    except Exception as e:
+        result.err = e
+    queue.put(result)
+
+
+def _timeout(target: Callable[[], _T], *, timeout: float) -> _T:
+    (queue := Queue()).put(_Result[_T]())
+    (process := Process(target=_timeout_func_wrapper, args=[target, queue])).start()
+    process.join(timeout=timeout)
+
+    if process.is_alive():
+        process.kill()
+        raise _TimeoutError
+
+    if (err := (result := queue.get()).err) is not None:
+        raise err
+    return result.ok

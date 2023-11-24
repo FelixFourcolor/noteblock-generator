@@ -25,11 +25,9 @@ from .generator_backend import (
 )
 from .generator_utils import (
     Direction,
-    FunctionTimeout,
     PreventKeyboardInterrupt,
     UserPrompt,
     backup_files,
-    function_timeout,
     hash_files,
     progress_bar,
     terminal_width,
@@ -150,12 +148,13 @@ class Generator:
         self._raise_platform_warning()
         self._hash_world()
         self._clone_world()
-        self._load_world()  # the clone one
+        self._load_world()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
         self.world.close()
-        shutil.rmtree(self._world_clone_path, ignore_errors=True)
+        if self._world_clone_path is not None:
+            shutil.rmtree(self._world_clone_path, ignore_errors=True)
 
     def _raise_platform_warning(self):
         """I don't know what would happen on platforms other than Linux and Windows
@@ -173,14 +172,7 @@ class Generator:
         See self.save() for when this is used.
         """
         try:
-            self._hash = function_timeout(
-                hash_files, args=(self.world_path,), timeout=5
-            )
-        except FunctionTimeout:
-            raise UserError(
-                f"'{self.world_path}' takes too long to load. "
-                "It's almost definitely not a valid Minecraft world save."
-            )
+            self._hash = hash_files(self.world_path)
         except FileNotFoundError:
             raise UserError(f"'{self.world_path}' does not exist")
 
@@ -190,14 +182,7 @@ class Generator:
         if user enters the world while it's running.
         """
         try:
-            self._world_clone_path = function_timeout(
-                backup_files, args=(self.world_path,), timeout=5
-            )
-        except FunctionTimeout:
-            raise UserError(
-                f"'{self.world_path}' takes too long to load. "
-                "It's almost definitely not a valid Minecraft world save."
-            )
+            self._world_clone_path = backup_files(self.world_path)
         except PermissionError as e:
             raise UserError(
                 "Permission denied to read save files. "
@@ -205,8 +190,14 @@ class Generator:
             ) from e
 
     def _load_world(self):
+        path = (
+            self._world_clone_path
+            if self._world_clone_path is not None
+            # clone path is None if clone is unsuccessful
+            else self.world_path
+        )
         try:
-            format_wrapper = amulet.load_format(self._world_clone_path)
+            format_wrapper = amulet.load_format(path)
             if not isinstance(format_wrapper, AnvilFormat):
                 raise LoaderNoneMatched
         except LoaderNoneMatched:
@@ -214,7 +205,7 @@ class Generator:
                 f"unrecognized Minecraft format for '{self.world_path}'; "
                 "expected Java Edition"
             )
-        self.world = World(self._world_clone_path, format_wrapper)
+        self.world = World(path, format_wrapper)
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
             dict[
@@ -747,8 +738,9 @@ class Generator:
         with PreventKeyboardInterrupt():
             # Windows fix: need to close world before moving its folder
             self.world.close()
-            shutil.rmtree(self.world_path, ignore_errors=True)
-            shutil.move(self._world_clone_path, self.world_path)
+            if self._world_clone_path is not None:
+                shutil.rmtree(self.world_path, ignore_errors=True)
+                shutil.move(self._world_clone_path, self.world_path)
         if modified_by_another_process:
             logger.info(
                 "If you are inside the world, exit and re-enter to see the result."
