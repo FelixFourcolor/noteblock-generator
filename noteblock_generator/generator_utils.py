@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 
 
 class Direction(tuple[int, int], Enum):
-    """Minecraft's cardinal direction"""
-
     # coordinates in (x, z)
     north = (0, -1)
     south = (0, 1)
@@ -34,21 +32,16 @@ class Direction(tuple[int, int], Enum):
     def __str__(self):
         return self.name
 
-    def __mul__(self, other: DirectionType) -> DirectionType:
-        """Complex multiplication, withy (x, z) representing xi + z"""
-        return type(other)(
-            (
-                self[0] * other[1] + self[1] * other[0],
-                self[1] * other[1] - self[0] * other[0],
-            )
+    def __mul__(self, other: tuple[int, int]) -> tuple[int, int]:
+        """Complex multiplication, with (x, z) representing x + zi"""
+        return (
+            self[0] * other[0] - self[1] * other[1],
+            self[0] * other[1] + self[1] * other[0],
         )
 
     def __neg__(self):
-        # negation is multiplying with 0i - 1, which is north
-        return self * Direction.north
-
-
-DirectionType = TypeVar("DirectionType", Direction, tuple[int, int])
+        # negation is multiplying with 0i - 1, which is west
+        return Direction(self * Direction.west)
 
 
 def terminal_width():

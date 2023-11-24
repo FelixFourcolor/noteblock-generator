@@ -258,9 +258,7 @@ class Generator:
         matched_h_rotation = min(
             ROTATION_TO_DIRECTION_MAP.keys(), key=lambda x: abs(x - h_rotation)
         )
-        self.rotation = (
-            Direction((-1, 0)) * ROTATION_TO_DIRECTION_MAP[matched_h_rotation]
-        )
+        self.rotation = ROTATION_TO_DIRECTION_MAP[matched_h_rotation]
         if v_rotation >= 0:
             self.y_glass = self.Y - 1
         else:
@@ -644,21 +642,23 @@ class Generator:
         return Block(self.world, *args, **kwargs)
 
     @cache
-    def Redstone(self, *connections: Direction, **kwargs):
-        return Redstone(self.world, *[self.rotation * c for c in connections], **kwargs)
-
-    @cache
-    def Repeater(self, direction: Direction, *args, **kwargs):
-        return Repeater(
-            self.world, direction=self.rotation * direction, *args, **kwargs
+    def Redstone(self, *connections: Direction):
+        return Redstone(
+            self.world, *[Direction(self.rotation * c) for c in connections]
         )
 
-    def Button(self, facing: Direction, *args, **kwargs):
-        return self.Block("oak_button", *args, facing=self.rotation * facing, **kwargs)
+    @cache
+    def Repeater(self, delay: int, direction: Direction):
+        return Repeater(self.world, delay, Direction(self.rotation * direction))
+
+    def Button(self, face: str, facing: Direction):
+        return self.Block(
+            "oak_button", face=face, facing=Direction(self.rotation * facing)
+        )
 
     @cache
-    def NoteBlock(self, *args, **kwargs):
-        return NoteBlock(self.world, *args, **kwargs)
+    def NoteBlock(self, note: int, instrument: str):
+        return NoteBlock(self.world, note, instrument)
 
     def __setitem__(self, coordinates: tuple[int, int, int], block: PlacementType):
         """Does not actually set blocks,
