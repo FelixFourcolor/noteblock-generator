@@ -149,7 +149,7 @@ def _hash_files(src: str | Path):
 def hash_files(src: str | Path) -> Optional[bytes]:
     """Hash src (file or directory), return None if unable to."""
     with contextlib.suppress(_TimeoutError):
-        return _timeout(partial(_hash_files, src), timeout=1)
+        return _timeout(partial(_hash_files, src), timeout=2)
 
 
 def _backup_files(src: str):
@@ -201,7 +201,7 @@ def backup_files(src: str) -> Optional[str]:
     Return the chosen name; or None if unable to.
     """
     with contextlib.suppress(_TimeoutError):
-        return _timeout(partial(_backup_files, src), timeout=1)
+        return _timeout(partial(_backup_files, src), timeout=2)
 
 
 class PreventKeyboardInterrupt:
