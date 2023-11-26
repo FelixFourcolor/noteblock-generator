@@ -134,7 +134,7 @@ class Generator:
                     # no message, so exit with a non-zero code
                     # to indicate that the generator did not finish
                     sys.exit(130)
-                message = "Aborted. No changes were made."
+                message = "Aborted."
                 end_of_line = " " * max(0, terminal_width() - len(message))
                 logger.warning(f"\r{message}{end_of_line}")
 
@@ -728,7 +728,7 @@ class Generator:
         if modified_by_another_process:
             logger.warning(
                 "\nYour save files have been modified by another process."
-                "\nTo keep this generation, all other changes must be discarded"
+                "\nTo keep this generation, all other changes must be discarded."
             )
             UserPrompt.warning(
                 "Confirm to proceed? [y/N]", yes=("y", "yes"), blocking=True

@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 import signal
+import sys
 import tempfile
 from enum import Enum
 from functools import partial
@@ -20,6 +21,15 @@ from .cli import logger
 
 if TYPE_CHECKING:
     from hashlib import _Hash as Hash
+
+
+# make output consistent for pipes vs tty inputs
+if not sys.stdin.isatty():
+    _input = input
+
+    def input(__prompt="", /):  # noqa: A001
+        print(out := _input(__prompt))
+        return out
 
 
 class Direction(tuple[int, int], Enum):
@@ -77,9 +87,7 @@ class UserPrompt:
 
     def _run(self):
         # capture logs to not interrupt the user prompt
-        logging.basicConfig(
-            format="%(message)s", stream=(buffer := StringIO()), force=True
-        )
+        logging.basicConfig(format="%(message)s", stream=(bf := StringIO()), force=True)
         # prompt
         response = input(f"\033[33m{self._prompt} \033[m").lower().strip()
         yes = response in self._yes or not self._yes
@@ -88,7 +96,7 @@ class UserPrompt:
 
         if yes:
             # release captured logs
-            print(f"\n{buffer.getvalue()}", end="")
+            print(bf.getvalue(), end="")
         else:
             _thread.interrupt_main()
 
