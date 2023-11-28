@@ -2,26 +2,22 @@ from __future__ import annotations
 
 import _thread
 import contextlib
-import hashlib
 import logging
 import os
 import shutil
 import signal
 import sys
 import tempfile
+import zlib
 from enum import Enum
 from functools import partial
 from io import StringIO
 from multiprocessing import Process, Queue
 from pathlib import Path
 from threading import Thread
-from typing import TYPE_CHECKING, Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 
 from .cli import logger
-
-if TYPE_CHECKING:
-    from hashlib import _Hash as Hash
-
 
 # make output consistent for pipes vs tty inputs
 if not sys.stdin.isatty():
@@ -120,22 +116,22 @@ class UserPrompt:
             return cls(prompt=prompt, yes=yes, blocking=blocking)
 
 
-def _hash_files(src: str | Path):
-    def update(src: Path, _hash: Hash) -> Hash:
-        _hash.update(src.name.encode())
+def _hash_files(src: str | Path) -> Optional[int]:
+    def update(src: Path, _hash) -> int:
+        _hash = zlib.crc32(src.name.encode(), _hash)
         if src.is_file():
             return update_file(src, _hash)
         if src.is_dir():
             return update_dir(src, _hash)
         return _hash
 
-    def update_file(src: Path, _hash: Hash) -> Hash:
+    def update_file(src: Path, _hash) -> int:
         with src.open("rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
-                _hash.update(chunk)
+                _hash = zlib.crc32(chunk, _hash)
         return _hash
 
-    def update_dir(src: Path, _hash: Hash) -> Hash:
+    def update_dir(src: Path, _hash) -> int:
         for path in sorted(src.iterdir(), key=lambda p: str(p)):
             _hash = update(path, _hash)
         return _hash
@@ -143,10 +139,10 @@ def _hash_files(src: str | Path):
     with contextlib.suppress(PermissionError):
         if not (src := Path(src)).exists():
             raise FileNotFoundError()
-        return update(src, hashlib.blake2b()).digest()
+        return update(src, 0)
 
 
-def hash_files(src: str | Path) -> Optional[bytes]:
+def hash_files(src: str | Path) -> Optional[int]:
     """Hash src (file or directory), return None if unable to."""
     with contextlib.suppress(_TimeoutError):
         return _timeout(partial(_hash_files, src), timeout=2)
