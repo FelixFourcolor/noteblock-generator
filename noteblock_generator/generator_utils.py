@@ -106,11 +106,6 @@ class UserPrompt:
             return cls(prompt=prompt, yes=yes, blocking=blocking)
 
     @classmethod
-    def info(cls, prompt: str, yes: tuple[str, ...], *, blocking: bool):
-        if logger.isEnabledFor(logging.INFO):
-            return cls(prompt=prompt, yes=yes, blocking=blocking)
-
-    @classmethod
     def warning(cls, prompt: str, yes: tuple[str, ...], *, blocking: bool):
         if logger.isEnabledFor(logging.WARNING):
             return cls(prompt=prompt, yes=yes, blocking=blocking)
