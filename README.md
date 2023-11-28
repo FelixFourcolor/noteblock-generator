@@ -8,9 +8,10 @@ See my projects:
 * [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
 * [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
 * [Mozart's Sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
+* [Handel's And the glory of the Lord](https://github.com/FelixFourcolor/And-the-glory-of-the-Lord)
 
 ## Requirements
-* Minecraft Java 1.19-1.20
+* Minecraft Java 1.19+
 * Python 3.10-3.12
 
 ## Installation
@@ -49,9 +50,7 @@ The location where the structure will be generated.
 This uses Minecraft's relative coordinates syntax, where `~` stands for the player's location. For example, `--location ~ ~ ~` (default) is the player's current location, `--location ~ ~10 ~` is 10 blocks above the player, etc.
 
 ### Dimension
-The dimension where the structure will be generated. Valid choices are `overworld`, `the_nether`, `the_end`.
-
-If not given, it will be the player's current dimension.
+The dimension where the structure will be generated. If not given, it will be the player's current dimension.
 
 ### Orientation
 The orientation towards which the structure will be generated.
@@ -76,4 +75,4 @@ There are 4 verbosity levels, from least to most verbose is:
 * `-q`: Above, plus brief information about the structure, a generating progress bar, and longer error message if one occurs.
 * Default: Above, plus full information about the structure, and a confirmation prompt before generating.
 
-Note: with `-q` option, without a confirmation prompt, you can still press `CTRL + C` before the progress bar reaches 100% to safely quit the program. No changes will be made to the world.
+Note: with `-q` option, without a confirmation prompt, you can still press `CTRL + C` before the progress bar reaches 100% to safely quit the program; no changes would be made to the world.
