@@ -371,8 +371,6 @@ class Voice(list[list[Note]]):
             sustain = duration
         if sustainDynamic is None:
             sustainDynamic = self.sustainDynamic
-        else:
-            sustainDynamic = deepcopy(sustainDynamic)
 
         if trill:
             trill_pitch, trill_duration = self._parse_note(trill, beat)
@@ -398,7 +396,9 @@ class Voice(list[list[Note]]):
         delay = kwargs["delay"] if "delay" in kwargs else self.delay
         if sustainDynamic is None:
             sustainDynamic = "+0" if instrument == "flute" and delay == 1 else "-2"
-        if not isinstance(sustainDynamic, list):
+        if isinstance(sustainDynamic, list):
+            sustainDynamic = deepcopy(sustainDynamic)
+        else:
             sustainDynamic = [[sustain, sustainDynamic]]
         sustainDynamic[0][0] = self._parse_duration(sustainDynamic[0][0], beat=beat) - 1
 
