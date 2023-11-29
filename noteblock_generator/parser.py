@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import os
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional, TypeVar, get_origin
 
@@ -370,6 +371,8 @@ class Voice(list[list[Note]]):
             sustain = duration
         if sustainDynamic is None:
             sustainDynamic = self.sustainDynamic
+        else:
+            sustainDynamic = deepcopy(sustainDynamic)
 
         if trill:
             trill_pitch, trill_duration = self._parse_note(trill, beat)
