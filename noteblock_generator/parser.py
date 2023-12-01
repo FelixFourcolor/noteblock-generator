@@ -403,18 +403,24 @@ class Voice(list[list[Note]]):
         sustainDynamic[0][0] = self._parse_duration(sustainDynamic[0][0], beat=beat) - 1
 
         out = [note]
+        borrowed = 0
         for step, dynamic in sustainDynamic:
             if isinstance(step, str):
                 step = self._parse_duration(*step.split(), beat=beat)
+            step -= borrowed
             if step < 0:
                 step += sustain
             if step < 0:
-                raise DeveloperError(
-                    f"sustain duration must not be negative; received {step}"
-                )
+                borrowed -= step
+                continue
             if isinstance(dynamic, str):
                 dynamic = max(min(1, note.dynamic), note.dynamic + int(dynamic))
             out += [Note(self, pitch=pitch, **kwargs | {"dynamic": dynamic})] * step
+        if len(out) != sustain:
+            raise DeveloperError(
+                "mismatched sustain duration vs sustainDynamic duration; "
+                f"expected {sustain}, received {len(out)}"
+            )
         out += self._Rest(duration - len(out), **kwargs)
         return out
 
