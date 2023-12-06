@@ -23,12 +23,12 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
+reportIncompatibleMethodOverride = false
 strictParameterNoneValue = false
 
 [tool.ruff]
 target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
-
 select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "TCH", "UP", "W"]
 ignore = ["RUF013", "UP007", "UP035"]
