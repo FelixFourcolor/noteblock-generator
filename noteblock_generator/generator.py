@@ -13,7 +13,6 @@ import amulet
 from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
-from .amulet_fix import FixedAnvilFormat
 from .cli import Location, Orientation, UserError, logger
 from .generator_backend import (
     Block,
@@ -198,14 +197,14 @@ class Generator:
             else self.world_path
         )
         try:
-            if not isinstance(amulet.load_format(path), AnvilFormat):
+            if not isinstance(format_wrapper := amulet.load_format(path), AnvilFormat):
                 raise LoaderNoneMatched
         except LoaderNoneMatched:
             raise UserError(
                 f"unrecognized Minecraft format for '{self.world_path}'; "
                 "expected Java Edition"
             )
-        self.world = World(path, FixedAnvilFormat(path))
+        self.world = World(path, format_wrapper)
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
             dict[
