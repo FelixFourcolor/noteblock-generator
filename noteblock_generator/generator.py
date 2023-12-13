@@ -524,26 +524,21 @@ class Generator:
 
     # 3. generate_init_system():
     # "Init system" is the thing that allow you to push a buton and start the music.
-    # Has two modes: for single orchestra and double orchestra
-    # An init system is placed every 2 divisions (10-block distance)
-    # so that we can start playing from any point within a composition,
-    # rather than only from the beginning.
+    # Has two implementations: for single orchestra and double orchestra.
+    # One is placed every division (5-block distance)
+    # so that we can start playing from any point within a composition.
 
     def generate_init_system(self):
         if len(self.composition) == 1:
-            for i in range(self.composition.length // 2):
-                self.generate_init_system_for_single_orchestra(2 * DIVISION_WIDTH * i)
+            for i in range(self.composition.length - 1):  # -1 to exclude the last bar
+                self.generate_init_system_for_single_orchestra(i)
         else:
-            for i in range(self.composition.length // 2):
-                self.generate_init_system_for_double_orchestras(2 * DIVISION_WIDTH * i)
+            for i in range(self.composition.length - 1):
+                self.generate_init_system_for_double_orchestras(i)
 
-    def generate_init_system_for_single_orchestra(self, X: int):
+    def generate_init_system_for_single_orchestra(self, step: int):
         button = self.Button(face="floor", facing=-self.x_dir)
         redstone = self.Redstone(self.z_dir, -self.z_dir)
-
-        x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
-        y = self.y_glass
-        z = self.min_z
 
         def the_first_one():
             def generate_button():
@@ -578,55 +573,68 @@ class Generator:
             generate_empty_bridge()
 
         def subsequent_ones():
-            self[x, y - 3, z + self.z_i] = self.theme_block
-            self[x, y - 2, z + self.z_i] = redstone
-            self[x, y - 1, z + self.z_i] = self.AIR
-            self[x, y - 1, z + self.z_i * 2] = redstone
-            self[x, y - 1, z + self.z_i * 3] = self.theme_block
-            self[x, y, z + self.z_i * 2] = self.theme_block
-            self[x, y + 1, z + self.z_i * 2] = button
+            self[x, y - 3, z + z_i] = self.theme_block
+            self[x, y - 2, z + z_i] = redstone
+            self[x, y - 1, z + z_i] = self.AIR
+            self[x, y - 1, z + z_i * 2] = redstone
+            self[x, y - 1, z + z_i * 3] = self.theme_block
+            self[x, y, z + z_i * 2] = self.theme_block
+            self[x, y + 1, z + z_i * 2] = button
 
-        if X == 0:
+        x = self.X + (DIVISION_WIDTH * step + math.ceil(DIVISION_WIDTH / 2))
+        y = self.y_glass
+        z = self.min_z
+        z_i = self.z_i
+
+        if step == 0:
             the_first_one()
         else:
+            if step % 2:
+                z += self.z_i * self.Z_BOUNDARY
+                z_i = -z_i
             subsequent_ones()
 
-    def generate_init_system_for_double_orchestras(self, X: int):
+    def generate_init_system_for_double_orchestras(self, step: int):
         def generate_bridge(z_dir: Direction):
-            z_inc = z_dir[1]
-
+            z_i = z_dir[1]
             repeater = self.Repeater(delay=1, direction=-z_dir)
-            self[x, y - 3, z + z_inc] = self.theme_block
-            self[x, y - 2, z + z_inc] = redstone
-            self[x, y - 1, z + z_inc] = self.AIR
-            self[x, y - 2, z + z_inc * 2] = self.theme_block
-            self[x, y - 1, z + z_inc * 2] = redstone
-            self[x, y - 1, z + z_inc * 3] = self.theme_block
-            self[x, y, z + z_inc * 3] = redstone
+            self[x, y - 3, z + z_i] = self.theme_block
+            self[x, y - 2, z + z_i] = redstone
+            self[x, y - 1, z + z_i] = self.AIR
+            self[x, y - 2, z + z_i * 2] = self.theme_block
+            self[x, y - 1, z + z_i * 2] = redstone
+            self[x, y - 1, z + z_i * 3] = self.theme_block
+            self[x, y, z + z_i * 3] = redstone
 
             for i in range(4, math.ceil(self.Z_BOUNDARY / 2) + 1):
-                if X == 0 or i == 4:
-                    self[x, y, z + z_inc * i] = self.theme_block
-                self[x, y + 1, z + z_inc * i] = redstone if i % 16 else repeater
+                if step == 0 or i == 4:
+                    self[x, y, z + z_i * i] = self.theme_block
+                self[x, y + 1, z + z_i * i] = redstone if i % 16 else repeater
 
         def generate_button():
-            z_button = z + self.z_i * (math.ceil(self.Z_BOUNDARY / 2) + 1)
+            z_button = z + z_dir[1] * (math.ceil(self.Z_BOUNDARY / 2) + 1)
             button = self.Button(face="floor", facing=-self.x_dir)
-            if X == 0 or self.composition.division == 1:
+            if step == 0 or self.composition.division == 1:
                 self[x, y, z_button] = self.theme_block
             self[x, y + 1, z_button] = button
 
         redstone = self.Redstone(self.z_dir, -self.z_dir)
-        x = self.X + (X + math.ceil(DIVISION_WIDTH / 2))
+        x = self.X + DIVISION_WIDTH * step + 3
         y = self.y_glass
         z = self.min_z
+        z_dir = self.z_dir
+        if step % 2:
+            z_dir = -z_dir
+            z += 2 * self.z_dir[1] * self.Z_BOUNDARY
+
         # button in the middle
         generate_button()
+
         # two redstone bridges going opposite directions,
         # connecting the button to each orchestra
-        generate_bridge(self.z_dir)
-        z += self.z_i * (self.Z_BOUNDARY + 2)
-        generate_bridge(-self.z_dir)
+        generate_bridge(z_dir)
+        z += z_dir[1] * (self.Z_BOUNDARY + 2)
+        generate_bridge(-z_dir)
 
     # ---------------------------------------------------------------------------------
     # Backend
