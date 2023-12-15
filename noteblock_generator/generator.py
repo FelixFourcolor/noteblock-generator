@@ -595,7 +595,7 @@ class Generator:
             subsequent_ones()
 
     def generate_init_system_for_double_orchestras(self, step: int):
-        def generate_bridge(z_dir: Direction):
+        def generate_bridge(z: int, z_dir: Direction):
             z_i = z_dir[1]
             repeater = self.Repeater(delay=1, direction=-z_dir)
             self[x, y - 3, z + z_i] = self.theme_block
@@ -607,16 +607,49 @@ class Generator:
             self[x, y, z + z_i * 3] = redstone
 
             for i in range(4, math.ceil(self.Z_BOUNDARY / 2) + 1):
-                if step == 0 or i == 4:
+                if i == 4:
                     self[x, y, z + z_i * i] = self.theme_block
                 self[x, y + 1, z + z_i * i] = redstone if i % 16 else repeater
 
-        def generate_button():
-            z_button = z + z_dir[1] * (math.ceil(self.Z_BOUNDARY / 2) + 1)
+        def generate_button(z_button: int):
+            def the_first_one():
+                # button in the middle
+                z_middle = self.min_z + self.z_i * self.Z_BOUNDARY
+                self[x - 2, y, z_middle] = self.theme_block
+                self[x - 2, y + 1, z_middle] = button
+
+                # redstone bridge connecting the button to the z-coordinate
+                if self.composition.division > 1:
+                    self[x, y + 1, z_button] = self.theme_block
+                    self[x - 1, y + 1, z_button] = self.Repeater(
+                        delay=1, direction=self.x_dir
+                    )
+                else:
+                    self[x, y, z_button] = self.theme_block
+                    self[x, y + 1, z_button] = redstone
+                    self[x - 1, y + 1, z_button] = redstone
+                repeater = self.Repeater(delay=1, direction=-z_dir)
+                z_i = z_dir[1]
+                i = 0
+                for i, z in enumerate(range(z_button, z_middle, z_i)):
+                    self[x - 2, y, z] = self.theme_block
+                    self[x - 2, y + 1, z] = redstone if (i + 1) % 16 else repeater
+
+                # a non-functional bridge on the other side, just for symmetry
+                for j in range(1, i + 2):
+                    self[x - 2, y, z_middle + z_i * j] = self.theme_block
+
+            def subsequent_ones():
+                # button at z
+                if self.composition.division == 1:
+                    self[x, y, z_button] = self.theme_block
+                self[x, y + 1, z_button] = button
+
             button = self.Button(face="floor", facing=-self.x_dir)
-            if step == 0 or self.composition.division == 1:
-                self[x, y, z_button] = self.theme_block
-            self[x, y + 1, z_button] = button
+            if step == 0:
+                the_first_one()
+            else:
+                subsequent_ones()
 
         redstone = self.Redstone(self.z_dir, -self.z_dir)
         x = self.X + DIVISION_WIDTH * step + 3
@@ -628,13 +661,12 @@ class Generator:
             z += 2 * self.z_dir[1] * self.Z_BOUNDARY
 
         # button in the middle
-        generate_button()
+        generate_button(z_button=z + z_dir[1] * (math.ceil(self.Z_BOUNDARY / 2) + 1))
 
         # two redstone bridges going opposite directions,
         # connecting the button to each orchestra
-        generate_bridge(z_dir)
-        z += z_dir[1] * (self.Z_BOUNDARY + 2)
-        generate_bridge(-z_dir)
+        generate_bridge(z, z_dir)
+        generate_bridge(z + z_dir[1] * (self.Z_BOUNDARY + 2), -z_dir)
 
     # ---------------------------------------------------------------------------------
     # Backend
