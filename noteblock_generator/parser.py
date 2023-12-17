@@ -113,7 +113,7 @@ class Note:
         *,
         pitch: str,
         delay: int = None,
-        dynamic: int = None,
+        dynamic: int | str = None,
         instrument: str = None,
         transpose=0,
     ):
@@ -136,6 +136,8 @@ class Note:
 
         if dynamic is None:
             dynamic = _voice.dynamic
+        if isinstance(dynamic, str):
+            dynamic = max(min(1, _voice.dynamic), min(4, _voice.dynamic + int(dynamic)))
         if dynamic not in DYNAMIC_RANGE:
             raise DeveloperError(
                 f"dynamic must be in {DYNAMIC_RANGE}; received {dynamic}"
@@ -184,7 +186,7 @@ class Voice(list[list[Note]]):
         delay: int = None,
         beat: int = None,
         instrument: str = None,
-        dynamic: int = None,
+        dynamic: int | str = None,
         transpose=0,
         sustain: bool | int | str = None,
         sustainDynamic: int | str | list[list[int | str]] = None,
@@ -207,6 +209,8 @@ class Voice(list[list[Note]]):
             instrument = _composition.instrument
         if dynamic is None:
             dynamic = _composition.dynamic
+        if isinstance(dynamic, str):
+            dynamic = _composition.dynamic + int(dynamic)
         if sustain is None:
             sustain = _composition.sustain
         if sustainDynamic is None:
