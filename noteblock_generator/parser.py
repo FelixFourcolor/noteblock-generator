@@ -545,7 +545,7 @@ class Composition(list[list[Voice]]):
                 raise
             except Exception as e:
                 raise DeveloperError(f"error parsing '{self}'") from e
-        # all voices need to follow the same delay map
+        # all voices must follow the same delay map
         self.delay_map: dict[int, list[int]] = {}
 
         # values out of range are handled by Voice/Note.__init__
@@ -557,15 +557,16 @@ class Composition(list[list[Voice]]):
         self.transpose = transpose
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
+        _division_range = range(16, 7, -1)
         if division is None:
-            for n in range(16, 11, -1):
-                if time % n == 0 or n % time == 0:
+            for n in _division_range:
+                if not (time % n and n % time):
                     division = n
                     break
             else:
                 division = time
-        elif division <= 0:
-            raise DeveloperError("division must be positive")
+        elif division not in _division_range:
+            raise DeveloperError(f"division must be from 8 to 16; found {division}")
         self.division = division
 
         self._noteblocks_count = 0
