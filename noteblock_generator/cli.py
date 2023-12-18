@@ -45,15 +45,11 @@ class Orientation(NamedTuple):
     vertical: Coordinate
 
 
-class Error(Exception):
+class BaseError(Exception):
     pass
 
 
-class DeveloperError(Error):
-    pass
-
-
-class UserError(Error):
+class UserError(BaseError):
     pass
 
 

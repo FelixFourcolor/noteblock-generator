@@ -7,7 +7,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Optional, TypeVar, get_origin
 
-from .cli import DeveloperError, Error, UserError, logger
+from .cli import BaseError, UserError, logger
 
 # MAPPING OF PITCH NAMES TO NUMERICAL VALUE
 _notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
@@ -56,11 +56,15 @@ DELAY_RANGE = range(1, 5)
 DYNAMIC_RANGE = range(0, 5)
 
 
+class DeveloperError(BaseError):
+    pass
+
+
 _T = TypeVar("_T", dict, list)
 
 
 def load_file(
-    _path: Path, /, *, expected_type: type[_T], blame: type[Error]
+    _path: Path, /, *, expected_type: type[_T], blame: type[BaseError]
 ) -> tuple[_T, Path]:
     def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
@@ -541,7 +545,7 @@ class Composition(list[list[Voice]]):
             self._name = str(real_path.relative_to(self.path).with_suffix(""))
             try:
                 return self.__init__(**composition)
-            except Error:
+            except BaseError:
                 raise
             except Exception as e:
                 raise DeveloperError(f"error parsing '{self}'") from e
