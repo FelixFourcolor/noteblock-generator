@@ -55,7 +55,7 @@ class UserError(BaseError):
 
 class Parser(ArgumentParser):
     def format_help(self):
-        return """usage: noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
+        return """usage: noteblock-generator path/to/music/source path/to/minecraft/world [OPTIONS]
 
 build options:
   -l/--location X Y Z                  build location; default is player's location

@@ -24,7 +24,7 @@ See my projects:
 ## Usage
 
 ```text
-usage: noteblock-generator path/to/music/source path/to/minecraft/world [--OPTIONS]
+usage: noteblock-generator path/to/music/source path/to/minecraft/world [OPTIONS]
 
 build options:
   -l/--location X Y Z                  build location; default is player's location
