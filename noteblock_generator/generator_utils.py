@@ -170,7 +170,8 @@ def _backup_files(src: str):
         elif _src.is_file():
             copyfile(src, dst)
 
-    temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
+    if not (temp_dir := Path(tempfile.gettempdir()) / "noteblock-generator").exists():
+        temp_dir.mkdir()
     name = Path(src).name
     i = 0
     while True:
