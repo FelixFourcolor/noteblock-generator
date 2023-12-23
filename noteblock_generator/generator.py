@@ -88,9 +88,9 @@ _REDSTONE_COMPONENTS = {
 REMOVE_LIST = _LIQUID | _GRAVITY_AFFECTED_BLOCKS | _REDSTONE_COMPONENTS
 
 NOTE_LENGTH = 2  # noteblock + repeater
-DIVISION_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
+ROW_WIDTH = 5  # 4 noteblocks (maximum dynamic range) + 1 stone
 VOICE_HEIGHT = 2  # noteblock + air above
-DIVISION_CHANGING_LENGTH = 2  # how many blocks it takes to wrap around each bar
+ROW_CHANGING_COST = 2  # how many blocks it takes to wrap around each row
 
 ROTATION_TO_DIRECTION_MAP = {
     -180: Direction.north,
@@ -277,10 +277,8 @@ class Generator:
         self.z_dir = Direction((0, self.z_i))
 
         # calculate bounds
-        self.X_BOUNDARY = self.composition.length * DIVISION_WIDTH + 1
-        self.Z_BOUNDARY = (
-            self.composition.division * NOTE_LENGTH + DIVISION_CHANGING_LENGTH + 2
-        )
+        self.X_BOUNDARY = self.composition.length * ROW_WIDTH + 1
+        self.Z_BOUNDARY = self.composition.width * NOTE_LENGTH + ROW_CHANGING_COST + 2
         Y_BOUNDARY = VOICE_HEIGHT * (self.composition.size + 1)
         BOUNDS = self.world.bounds(self._dimension)
         self.min_x, self.max_x = self.X, self.X + self.X_BOUNDARY
@@ -416,25 +414,24 @@ class Generator:
         self.prepare_space(Z)
         for i, voice in enumerate(voices[::-1]):
             y = self.y_glass - VOICE_HEIGHT * (i + 1) - 2
-            z = Z + self.z_i * (DIVISION_CHANGING_LENGTH + 2)
-            for j, division in enumerate(voice):
-                x = self.X + (j * DIVISION_WIDTH + 3)
-                z0 = z - self.z_i * DIVISION_CHANGING_LENGTH
+            z = Z + self.z_i * (ROW_CHANGING_COST + 2)
+            for j, row in enumerate(voice):
+                x = self.X + (j * ROW_WIDTH + 3)
+                z0 = z - self.z_i * ROW_CHANGING_COST
                 self[x, y + 2, z0] = self.theme_block
-                for k, note in enumerate(division):
+                for k, note in enumerate(row):
                     z = z0 + self.z_i * k * NOTE_LENGTH
                     self.generate_noteblocks(x, y, z, note)
-                # if there is a next division, generate bridge and flip direction
+                # if there is a next row, generate bridge and flip direction
                 try:
                     voice[j + 1]
                 except IndexError:
                     pass
                 else:
-                    self.generate_division_bridge(x, y, z)
+                    self.generate_row_bridge(x, y, z)
                     self.z_dir = -self.z_dir
                     self.z_i = -self.z_i
-            # if number of division is even,
-            # z_dir has been flipped, flip it again to reset
+            # if number of rows is even, z_dir has been flipped, flip it again to reset
             if len(voice) % 2 == 0:
                 self.z_dir = -self.z_dir
                 self.z_i = -self.z_i
@@ -513,19 +510,19 @@ class Generator:
                 self[x + NOTEBLOCKS_ORDER[i], y + 1, z + self.z_i] = self.AIR
                 self[x + NOTEBLOCKS_ORDER[i], y + 3, z + self.z_i] = self.AIR
 
-    def generate_division_bridge(self, x: int, y: int, z: int):
+    def generate_row_bridge(self, x: int, y: int, z: int):
         self[x, y, z + self.z_i * 2] = self.theme_block
         self[x, y + 1, z + self.z_i * 2] = self.Redstone(self.z_dir, -self.z_dir)
         self[x, y, z + self.z_i * 3] = self.theme_block
         self[x, y + 1, z + self.z_i * 3] = self.Redstone(self.x_dir, -self.z_dir)
-        for i in range(1, DIVISION_WIDTH):
+        for i in range(1, ROW_WIDTH):
             self[x + i, y, z + self.z_i * 3] = self.theme_block
             self[x + i, y + 1, z + self.z_i * 3] = self.Redstone(
                 self.x_dir, -self.x_dir
             )
-        self[x + DIVISION_WIDTH, y, z + self.z_i * 3] = self.theme_block
+        self[x + ROW_WIDTH, y, z + self.z_i * 3] = self.theme_block
         self[
-            x + DIVISION_WIDTH,
+            x + ROW_WIDTH,
             y + 1,
             z + self.z_i * 3,
         ] = self.Redstone(-self.z_dir, -self.x_dir)
@@ -533,7 +530,7 @@ class Generator:
     # 3. generate_init_system():
     # "Init system" is the thing that allow you to push a buton and start the music.
     # Has two implementations: for single orchestra and double orchestra.
-    # One is placed every division (5-block distance)
+    # One is placed every row (5-block distance)
     # so that we can start playing from any point within a composition.
 
     def generate_init_system(self):
@@ -589,7 +586,7 @@ class Generator:
             self[x, y, z + z_i * 2] = self.theme_block
             self[x, y + 1, z + z_i * 2] = button
 
-        x = self.X + 3 + DIVISION_WIDTH * step
+        x = self.X + 3 + ROW_WIDTH * step
         y = self.y_glass
         z = self.min_z
         z_i = self.z_i
@@ -646,7 +643,7 @@ class Generator:
                 self[x, y + 1, z_button] = button
 
         redstone = self.Redstone(self.z_dir, -self.z_dir)
-        x = self.X + DIVISION_WIDTH * step + 3
+        x = self.X + ROW_WIDTH * step + 3
         y = self.y_glass
         z = self.min_z
         z_dir = self.z_dir

@@ -226,7 +226,7 @@ class Voice(list[list[Note]]):
         self._delay = delay
 
         self.time = time
-        self.division = _composition.division
+        self.width = _composition.width
         self.beat = beat
         self.instrument = instrument
         self.dynamic = dynamic
@@ -251,7 +251,7 @@ class Voice(list[list[Note]]):
     @property
     def delay(self):
         try:
-            if len(self[-1]) == self.division:
+            if len(self[-1]) == self.width:
                 return self.delay_map[len(self)][0]
             return self.delay_map[len(self) - 1][len(self[-1])]
         except (KeyError, IndexError):
@@ -280,7 +280,7 @@ class Voice(list[list[Note]]):
 
     def _process_notes(self, notes: list[str | dict]):
         for note in notes:
-            if len(self[-1]) == self.division:
+            if len(self[-1]) == self.width:
                 self.append([])
             kwargs = note if isinstance(note, dict) else {"name": note}
             if "name" in kwargs:
@@ -488,10 +488,10 @@ class Voice(list[list[Note]]):
         pitch, duration = self._parse_note(name, beat)
         if duration < 1:
             raise DeveloperError("note duration must be at least 1")
-        # organize into divisions
+        # organize into widths
         for note in self._Note(pitch, duration, beat=beat, **kwargs):
             # add note
-            if len(self[-1]) < self.division:
+            if len(self[-1]) < self.width:
                 self[-1].append(note)
             else:
                 self.append([note])
@@ -528,7 +528,7 @@ class Composition(list[list[Voice]]):
         *,
         voices: list[dict | str] | list[list[dict | str]] = [[{}]],
         time=16,
-        division: int = None,
+        width: int = None,
         delay=1,
         beat=1,
         instrument="harp",
@@ -561,17 +561,17 @@ class Composition(list[list[Voice]]):
         self.transpose = transpose
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
-        _division_range = range(16, 7, -1)
-        if division is None:
-            for n in _division_range:
+        _width_range = range(16, 7, -1)
+        if width is None:
+            for n in _width_range:
                 if not (time % n and n % time):
-                    division = n
+                    width = n
                     break
             else:
-                division = time
-        elif division not in _division_range:
-            raise DeveloperError(f"division must be from 8 to 16; found {division}")
-        self.division = division
+                width = time
+        elif width not in _width_range:
+            raise DeveloperError(f"width must be from 8 to 16; found {width}")
+        self.width = width
 
         self._noteblocks_count = 0
         if isinstance(voices[0], list):
@@ -637,17 +637,17 @@ class Composition(list[list[Voice]]):
 
     def _equalize_voices_length(self):
         length = max(map(len, [v for orchestra in self for v in orchestra]))
-        init_length = math.ceil(self.size / self.division)
+        init_length = math.ceil(self.size / self.width)
         for orchestra in self:
             for voice in orchestra:
-                for _ in range(self.division - len(voice[-1])):
+                for _ in range(self.width - len(voice[-1])):
                     voice[-1].append(Rest(voice))
                 for _ in range(length - len(voice)):
                     voice.append([Rest(voice)])
-                    for _ in range(voice.division - 1):
+                    for _ in range(voice.width - 1):
                         voice[-1].append(Rest(voice))
                 for _ in range(init_length):
-                    voice.insert(0, [Rest(voice, delay=1)] * voice.division)
+                    voice.insert(0, [Rest(voice, delay=1)] * voice.width)
 
     def log_info(self):
         count = self._noteblocks_count
