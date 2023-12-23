@@ -178,7 +178,7 @@ def main():
         if dev_error:
             logger.debug(
                 "\033[33m"
-                "If you could kindly report this error, I would appreciate it. -- Felix"
+                "Please report this error, I would appreciate it. -- Felix"
                 "\033[m"
             )
         sys.exit(1)
