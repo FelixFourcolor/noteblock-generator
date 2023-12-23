@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from functools import cache, cached_property
 from multiprocessing.pool import ThreadPool
+from pathlib import Path
 from typing import Callable, Optional
 
 import amulet
@@ -112,8 +113,28 @@ class Generator:
     theme: str
     blend: bool
 
+    # ---------------------------------------------------------------------------------
+    # General strategy:
+    # 1) create a world clone, load the clone
+    # 2) edit the clone, then delete the original and copy the clone to original
+    # 3) delete the clone
+    # The whole thing is wrapped in a context manager
+    # so that the clone will be deleted even if an error occurs along the way
+
     def __call__(self):
+        if platform.system() not in ("Linux", "Windows"):
+            # I don't know what would happen on platforms other than Linux and Windows
+            # if the user stays inside the world while the generator is running.
+            logger.warning(
+                "If you are inside the world, exit it now."
+                "\nAnd do not re-enter until the program terminates."
+            )
+            UserPrompt.warning("Press Enter when you are ready.", yes=(), blocking=True)
+
         with self:
+            self.hash_world()
+            self.clone_world()
+            self.load_world()
             self.parse_args()
             user_prompt = UserPrompt.debug(
                 "Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
@@ -138,36 +159,23 @@ class Generator:
                 end_of_line = " " * max(0, terminal_width() - len(message))
                 logger.warning(f"\r{message}{end_of_line}")
 
-    # ---------------------------------------------------------------------------------
-    # Context manager:
-    # enter: create a world clone, load the clone
-    # body: edit the clone, then delete the original and copy the clone to original
-    # exit: delete the clone
-
     def __enter__(self):
-        self._raise_platform_warning()
-        self._hash_world()
-        self._clone_world()
-        self._load_world()
+        self._world_clone_path = None
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        self.world.close()
+        # Windows: must close world before deleting
+        if hasattr(self, "world"):
+            # self.world is only set if self.load_world() is successful
+            self.world.close()
+
         if self._world_clone_path is not None:
-            shutil.rmtree(self._world_clone_path, ignore_errors=True)
+            if (path := Path(self._world_clone_path)).is_dir():
+                shutil.rmtree(self._world_clone_path, ignore_errors=True)
+            elif path.is_file():
+                path.unlink()
 
-    def _raise_platform_warning(self):
-        """I don't know what would happen on platforms other than Linux and Windows
-        if the user stays inside the world while the generator is running.
-        """
-        if platform.system() not in ("Linux", "Windows"):
-            logger.warning(
-                "If you are inside the world, exit it now."
-                "\nAnd do not re-enter until the program terminates."
-            )
-            UserPrompt.warning("Press Enter when you are ready.", yes=(), blocking=True)
-
-    def _hash_world(self):
+    def hash_world(self):
         """Hash the save files to detect if user enters the world while generating.
         See self.save() for when this is used.
         """
@@ -176,7 +184,7 @@ class Generator:
         except FileNotFoundError:
             raise UserError(f"'{self.world_path}' does not exist")
 
-    def _clone_world(self):
+    def clone_world(self):
         """Clone the original world to work on that one.
         This prevents the program from crasing
         if user enters the world while it's running.
@@ -189,7 +197,7 @@ class Generator:
                 "If the game is running, close it and try again."
             ) from e
 
-    def _load_world(self):
+    def load_world(self):
         path = (
             self._world_clone_path
             if self._world_clone_path is not None
