@@ -531,6 +531,7 @@ class Composition(list[list[Voice]]):
         width: int = None,
         delay=1,
         beat=1,
+        tick=20,
         instrument="harp",
         dynamic=2,
         transpose=0,
@@ -556,6 +557,7 @@ class Composition(list[list[Voice]]):
         self.time = time
         self.delay = delay
         self.beat = beat
+        self.tick = tick
         self.instrument = instrument
         self.dynamic = dynamic
         self.transpose = transpose
@@ -654,7 +656,7 @@ class Composition(list[list[Voice]]):
         logger.debug(f"Noteblocks count: {count:,}")
 
         ticks = sum(map(sum, self.delay_map.values()))
-        minutes, seconds = divmod(ticks / 10, 60)
+        minutes, seconds = divmod(ticks * 2 / self.tick, 60)
         str_minutes = (
             f"{minutes:.0f} minute" + ("s" if minutes != 1 else "") + " "
             if minutes > 0
