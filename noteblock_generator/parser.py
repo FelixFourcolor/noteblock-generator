@@ -531,7 +531,7 @@ class Composition(list[list[Voice]]):
         width: int = None,
         delay=1,
         beat=1,
-        tick=20,
+        tick=20.0,
         instrument="harp",
         dynamic=2,
         transpose=0,
