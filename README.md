@@ -11,6 +11,7 @@ See my projects:
 * [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
 * [Mozart's Sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
 * [Handel's And the glory of the Lord](https://github.com/FelixFourcolor/And-the-glory-of-the-Lord)
+* [Handel's Hallelujah](https://github.com/FelixFourcolor/Hallelujah)
 
 ## Requirements
 
