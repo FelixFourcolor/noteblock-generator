@@ -33,7 +33,7 @@ from .generator_utils import (
     progress_bar,
     terminal_width,
 )
-from .parser import Composition, Note, Voice
+from .parser import Composition, Note
 
 PlacementType = (
     BlockType | Callable[[ChunkType, tuple[int, int, int]], Optional[BlockType]]
@@ -400,18 +400,16 @@ class Generator:
 
     def generate_composition(self):
         if len(self.composition) == 1:
-            self.generate_orchestra(self.composition[0], self.min_z)
+            self.generate_orchestra(self.min_z)
         else:
-            self.generate_orchestra(self.composition[0], self.min_z)
-            self.generate_orchestra(
-                self.composition[1], self.min_z + self.z_i * self.Z_BOUNDARY
-            )
+            self.generate_orchestra(self.min_z, 0)
+            self.generate_orchestra(self.min_z + self.z_i * self.Z_BOUNDARY, 1)
 
-    def generate_orchestra(self, voices: list[Voice], Z: int):
-        if not voices:
+    def generate_orchestra(self, Z: int, index=0):
+        if not (voices := self.composition[index]):
             return
 
-        self.prepare_space(Z)
+        self.prepare_space(Z, index)
         for i, voice in enumerate(voices[::-1]):
             y = self.y_glass - VOICE_HEIGHT * (i + 1) - 2
             z = Z + self.z_i * (ROW_CHANGING_COST + 2)
@@ -436,7 +434,7 @@ class Generator:
                 self.z_dir = -self.z_dir
                 self.z_i = -self.z_i
 
-    def prepare_space(self, Z: int):
+    def prepare_space(self, Z: int, index: int):
         def generate_walking_glass():
             self[
                 self.X + x,
@@ -452,7 +450,6 @@ class Generator:
 
         mandatory_clear_range = range(self.max_y, self.y_glass, -1)
         optional_clear_range = range(self.min_y, self.y_glass)
-
         for z in range(self.Z_BOUNDARY + 1):
             for x in range(self.X_BOUNDARY + 1):
                 generate_walking_glass()
@@ -465,13 +462,14 @@ class Generator:
                     if (
                         not self.blend
                         or x in (0, self.X_BOUNDARY)
-                        or z in (0, self.Z_BOUNDARY)
+                        or (z == 0 and index == 0)
+                        or (z == self.Z_BOUNDARY and index + 1 == len(self.composition))
                     ):
                         self[coordinates] = self.AIR
                     else:
-                        self[coordinates] = self._blend_filter
+                        self[coordinates] = self.blend_filter
 
-    def _blend_filter(
+    def blend_filter(
         self, chunk: ChunkType, coordinates: tuple[int, int, int]
     ) -> Optional[BlockType]:
         """Return what should be placed to implement the blend feature."""
