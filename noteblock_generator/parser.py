@@ -543,7 +543,11 @@ class Composition(list[list[Voice]]):
             composition, real_path = load_file(
                 self.path, expected_type=dict, blame=UserError
             )
-            self._name = str(real_path.relative_to(self.path).with_suffix(""))
+            if real_path != self.path:
+                _file_name = real_path.relative_to(self.path)
+            else:
+                _file_name = self.path
+            self._name = str(_file_name.with_suffix(""))
             try:
                 return self.__init__(**composition)
             except BaseError:
