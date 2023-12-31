@@ -535,7 +535,7 @@ class Composition(list[list[Voice]]):
         instrument="harp",
         dynamic=2,
         transpose=0,
-        sustain=False,
+        sustain: bool | int | str = False,
         sustainDynamic: int | str | list[list[int | str]] = None,
     ):
         if path is not None:
