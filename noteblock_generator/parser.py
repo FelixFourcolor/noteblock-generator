@@ -60,6 +60,10 @@ class DeveloperError(BaseError):
     pass
 
 
+class NoteOutOfRange(DeveloperError):
+    pass
+
+
 _T = TypeVar("_T", dict, list)
 
 
@@ -157,7 +161,7 @@ class Note:
         except KeyError:
             raise DeveloperError(f"{instrument} is not a valid instrument")
         if pitch_value not in instrument_range:
-            raise DeveloperError(f"{self} is out of range for {instrument}")
+            raise NoteOutOfRange(f"{self} is out of range for {instrument}")
         self.note = instrument_range.index(pitch_value)
 
     def __repr__(self):
@@ -190,6 +194,7 @@ class Voice(list[list[Note]]):
         delay: int = None,
         beat: int = None,
         instrument: str = None,
+        alternativeInstrument: str | list[str] = None,
         dynamic: int | str = None,
         transpose=0,
         sustain: bool | int | str = None,
@@ -211,6 +216,10 @@ class Voice(list[list[Note]]):
             beat = _composition.beat
         if instrument is None:
             instrument = _composition.instrument
+        if alternativeInstrument is None:
+            alternativeInstrument = _composition.alternativeInstrument
+        if isinstance(alternativeInstrument, str):
+            alternativeInstrument = [alternativeInstrument]
         if dynamic is None:
             dynamic = _composition.dynamic
         if isinstance(dynamic, str):
@@ -229,6 +238,7 @@ class Voice(list[list[Note]]):
         self.width = _composition.width
         self.beat = beat
         self.instrument = instrument
+        self.alternativeInstrument = alternativeInstrument
         self.dynamic = dynamic
         self.transpose = _composition.transpose + transpose
         self.sustain = sustain
@@ -437,7 +447,15 @@ class Voice(list[list[Note]]):
             raise DeveloperError(f"duration must not be negative; received {duration}")
         return [Rest(self, delay=delay)] * duration
 
-    def _add_note(self, *, name: str, time: int = None, beat: int = None, **kwargs):
+    def _add_note(
+        self,
+        *,
+        name: str,
+        time: int = None,
+        beat: int = None,
+        instrument: str = None,
+        **kwargs,
+    ):
         if time is None:
             time = self.time
         if beat is None:
@@ -488,8 +506,22 @@ class Voice(list[list[Note]]):
         pitch, duration = self._parse_note(name, beat)
         if duration < 1:
             raise DeveloperError("note duration must be at least 1")
-        # organize into widths
-        for note in self._Note(pitch, duration, beat=beat, **kwargs):
+        alternativeInstrument = deepcopy(self.alternativeInstrument)
+        while True:
+            try:
+                results = self._Note(
+                    pitch, duration, beat=beat, instrument=instrument, **kwargs
+                )
+            except NoteOutOfRange as e:
+                if alternativeInstrument:
+                    instrument = alternativeInstrument.pop(0)
+                else:
+                    raise DeveloperError(e)
+            else:
+                break
+
+        # organize into rows
+        for note in results:
             # add note
             if len(self[-1]) < self.width:
                 self[-1].append(note)
@@ -533,6 +565,7 @@ class Composition(list[list[Voice]]):
         beat=1,
         tick=20.0,
         instrument="harp",
+        alternativeInstrument: str | list[str] = [],
         dynamic=2,
         transpose=0,
         sustain: bool | int | str = False,
@@ -563,6 +596,7 @@ class Composition(list[list[Voice]]):
         self.beat = beat
         self.tick = tick
         self.instrument = instrument
+        self.alternativeInstrument = alternativeInstrument
         self.dynamic = dynamic
         self.transpose = transpose
         self.sustain = sustain
