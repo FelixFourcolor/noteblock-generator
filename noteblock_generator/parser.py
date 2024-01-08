@@ -465,7 +465,9 @@ class Voice(list[list[Note]]):
         # greatly reduce number of keystrokes when writing
         if len(names := name.split(",")) > 1:
             for name in names:
-                self._add_note(name=name, time=time, beat=beat, **kwargs)
+                self._add_note(
+                    name=name, time=time, beat=beat, instrument=instrument, **kwargs
+                )
             return
 
         # Bar helpers
