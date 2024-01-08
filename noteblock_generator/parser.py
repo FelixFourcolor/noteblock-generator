@@ -599,7 +599,7 @@ class Composition(list[list[Voice]]):
         self.tick = tick
         self.instrument = instrument
         self.alternativeInstrument = alternativeInstrument
-        self.dynamic = dynamic
+        self.dynamic = int(dynamic)
         self.transpose = transpose
         self.sustain = sustain
         self.sustainDynamic = sustainDynamic
