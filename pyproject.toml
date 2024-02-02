@@ -31,5 +31,5 @@ strictParameterNoneValue = false
 target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
-select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "TCH", "UP", "W"]
-ignore = ["RUF013", "UP007", "UP035"]
+lint.select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "TCH", "UP", "W"]
+lint.ignore = ["RUF013", "UP007", "UP035"]

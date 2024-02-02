@@ -410,8 +410,8 @@ class Voice(list[list[Note]]):
             )
             return out
 
-        instrument = kwargs["instrument"] if "instrument" in kwargs else self.instrument
-        delay = kwargs["delay"] if "delay" in kwargs else self.delay
+        instrument = kwargs.get("instrument", self.instrument)
+        delay = kwargs.get("delay", self.delay)
         if sustainDynamic is None:
             sustainDynamic = "+0" if instrument == "flute" and delay == 1 else "-2"
         if isinstance(sustainDynamic, list):
