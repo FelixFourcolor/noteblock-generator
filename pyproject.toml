@@ -24,6 +24,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
+pythonVersion = "3.10"
 reportIncompatibleMethodOverride = false
 strictParameterNoneValue = false
 
