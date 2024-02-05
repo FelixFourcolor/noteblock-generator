@@ -51,9 +51,7 @@ class Redstone(Block):
 class World(WorldType):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._block_translator = self.translation_manager.get_version(
-            "java", (1, 20)
-        ).block
+        self._block_translator = self.translation_manager.get_version("java", (1, 20)).block
 
     def save(self, chunks: Iterable[ChunkType], dimension: str):
         wrapper = self.level_wrapper

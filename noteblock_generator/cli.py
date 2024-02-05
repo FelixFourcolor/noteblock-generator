@@ -70,7 +70,7 @@ output options:
 
 help:
   -h/--help                            show this help message and exit
-"""  # noqa: E501
+"""
 
     def error(self, message):
         self.print_help()
@@ -81,12 +81,8 @@ def get_args():
     parser = Parser()
     parser.add_argument("path/to/music/source")
     parser.add_argument("path/to/minecraft/world")
-    parser.add_argument(
-        "-l", "--location", action="store", nargs=3, default=["~", "~", "~"]
-    )
-    parser.add_argument(
-        "-o", "--orientation", action="store", nargs=2, default=["~", "~"]
-    )
+    parser.add_argument("-l", "--location", action="store", nargs=3, default=["~", "~", "~"])
+    parser.add_argument("-o", "--orientation", action="store", nargs=2, default=["~", "~"])
     parser.add_argument(
         "-d",
         "--dimension",
@@ -176,9 +172,5 @@ def main():
             logger.info(format_error(e))
             _error_logger.debug("".join(traceback.format_exception(e)))
         if dev_error:
-            logger.debug(
-                "\033[33m"
-                "Please report this error, I would appreciate it. -- Felix"
-                "\033[m"
-            )
+            logger.debug("\033[33m" "Please report this error, I would appreciate it. -- Felix" "\033[m")
         sys.exit(1)

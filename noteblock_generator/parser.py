@@ -26,9 +26,7 @@ for i in range(1, 7):
     _octaves[i + 1] = {note: value + 12 for note, value in _octaves[i].items()}
 # flatten octaves to pitches
 PITCHES = {
-    note + str(octave_number): value
-    for octave_number, octave in _octaves.items()
-    for note, value in octave.items()
+    note + str(octave_number): value for octave_number, octave in _octaves.items() for note, value in octave.items()
 }
 
 
@@ -67,9 +65,7 @@ class NoteOutOfRange(DeveloperError):
 _T = TypeVar("_T", dict, list)
 
 
-def load_file(
-    _path: Path, /, *, expected_type: type[_T], blame: type[BaseError]
-) -> tuple[_T, Path]:
+def load_file(_path: Path, /, *, expected_type: type[_T], blame: type[BaseError]) -> tuple[_T, Path]:
     def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
         if not path.exists():
             return
@@ -147,9 +143,7 @@ class Note:
         if isinstance(dynamic, str):
             dynamic = max(min(1, _voice.dynamic), min(4, _voice.dynamic + int(dynamic)))
         if dynamic not in DYNAMIC_RANGE:
-            raise DeveloperError(
-                f"dynamic must be in {DYNAMIC_RANGE}; received {dynamic}"
-            )
+            raise DeveloperError(f"dynamic must be in {DYNAMIC_RANGE}; received {dynamic}")
         self.dynamic = dynamic
 
         try:
@@ -267,9 +261,7 @@ class Voice(list[list[Note]]):
         except (KeyError, IndexError):
             return self._delay
 
-    def _load_notes(
-        self, notes_or_path_to_notes: str | list[str | dict]
-    ) -> list[str | dict]:
+    def _load_notes(self, notes_or_path_to_notes: str | list[str | dict]) -> list[str | dict]:
         if isinstance(notes_or_path_to_notes, list):
             return notes_or_path_to_notes
 
@@ -279,9 +271,7 @@ class Voice(list[list[Note]]):
             blame=DeveloperError,
         )
         if self._name is None:
-            self._name = str(
-                real_path.relative_to(self._composition.path).with_suffix("")
-            )
+            self._name = str(real_path.relative_to(self._composition.path).with_suffix(""))
         if isinstance(notes_or_another_voice, list):
             return notes_or_another_voice
         if "notes" not in notes_or_another_voice:
@@ -297,9 +287,7 @@ class Voice(list[list[Note]]):
                 try:
                     self._add_note(**(self._note_config | kwargs))
                 except Exception as e:
-                    raise DeveloperError(
-                        f"'{self}' at {(self._bar_number, self._beat_number)}"
-                    ) from e
+                    raise DeveloperError(f"'{self}' at {(self._bar_number, self._beat_number)}") from e
             else:
                 self._note_config |= kwargs
 
@@ -414,10 +402,7 @@ class Voice(list[list[Note]]):
         delay = kwargs.get("delay", self.delay)
         if sustainDynamic is None:
             sustainDynamic = "+0" if instrument == "flute" and delay == 1 else "-2"
-        if isinstance(sustainDynamic, list):
-            sustainDynamic = deepcopy(sustainDynamic)
-        else:
-            sustainDynamic = [[sustain, sustainDynamic]]
+        sustainDynamic = deepcopy(sustainDynamic) if isinstance(sustainDynamic, list) else [[sustain, sustainDynamic]]
         sustainDynamic[0][0] = self._parse_duration(sustainDynamic[0][0], beat=beat) - 1
 
         out = [note]
@@ -436,8 +421,7 @@ class Voice(list[list[Note]]):
             out += [Note(self, pitch=pitch, **kwargs | {"dynamic": dynamic})] * step
         if len(out) != sustain:
             raise DeveloperError(
-                "mismatched sustain duration vs sustainDynamic duration; "
-                f"expected {sustain}, received {len(out)}"
+                "mismatched sustain duration vs sustainDynamic duration; " f"expected {sustain}, received {len(out)}"
             )
         out += self._Rest(duration - len(out), **kwargs)
         return out
@@ -465,9 +449,7 @@ class Voice(list[list[Note]]):
         # greatly reduce number of keystrokes when writing
         if len(names := name.split(",")) > 1:
             for name in names:
-                self._add_note(
-                    name=name, time=time, beat=beat, instrument=instrument, **kwargs
-                )
+                self._add_note(name=name, time=time, beat=beat, instrument=instrument, **kwargs)
             return
 
         # Bar helpers
@@ -496,9 +478,7 @@ class Voice(list[list[Note]]):
             elif self._beat_number != 1:
                 raise DeveloperError("wrong barline location")
             elif self._bar_number != asserted_bar_number:
-                raise DeveloperError(
-                    f"expected bar {self._bar_number}; found {asserted_bar_number}"
-                )
+                raise DeveloperError(f"expected bar {self._bar_number}; found {asserted_bar_number}")
             # rest
             if rest:
                 self._add_note(name=f"r {time}", time=time, **kwargs)
@@ -511,9 +491,7 @@ class Voice(list[list[Note]]):
         alternativeInstrument = deepcopy(self.alternativeInstrument)
         while True:
             try:
-                results = self._Note(
-                    pitch, duration, beat=beat, instrument=instrument, **kwargs
-                )
+                results = self._Note(pitch, duration, beat=beat, instrument=instrument, **kwargs)
             except NoteOutOfRange as e:
                 if alternativeInstrument:
                     instrument = alternativeInstrument.pop(0)
@@ -535,9 +513,7 @@ class Voice(list[list[Note]]):
             try:
                 reference_delay = self.delay_map[len(self) - 1][len(self[-1]) - 1]
                 if note.delay != reference_delay:
-                    raise DeveloperError(
-                        f"expected delay {reference_delay}; found {note.delay}"
-                    )
+                    raise DeveloperError(f"expected delay {reference_delay}; found {note.delay}")
             except KeyError:
                 self.delay_map[len(self) - 1] = [note.delay]
             except IndexError:
@@ -575,13 +551,8 @@ class Composition(list[list[Voice]]):
     ):
         if path is not None:
             self.path = Path(path)
-            composition, real_path = load_file(
-                self.path, expected_type=dict, blame=UserError
-            )
-            if real_path != self.path:
-                _file_name = real_path.relative_to(self.path)
-            else:
-                _file_name = self.path
+            composition, real_path = load_file(self.path, expected_type=dict, blame=UserError)
+            _file_name = real_path.relative_to(self.path) if real_path != self.path else self.path
             self._name = str(_file_name.with_suffix(""))
             try:
                 return self.__init__(**composition)
@@ -642,9 +613,7 @@ class Composition(list[list[Voice]]):
 
     def _add_orchestra(self, voices):
         if not isinstance(voices, list):
-            raise DeveloperError(
-                f"expected a list of voices; found {type(voices).__name__}"
-            )
+            raise DeveloperError(f"expected a list of voices; found {type(voices).__name__}")
         if len(self) >= 2:
             raise DeveloperError(f"expected at most 2 orchestras; found {len(self)}")
         self.append([])
@@ -653,15 +622,11 @@ class Composition(list[list[Voice]]):
 
     def _add_voice(self, voice_or_path_to_voice):
         if not (isinstance(voice_or_path_to_voice, str | dict)):
-            raise DeveloperError(
-                f"expected a voice; found {type(voice_or_path_to_voice).__name__}"
-            )
+            raise DeveloperError(f"expected a voice; found {type(voice_or_path_to_voice).__name__}")
 
         if isinstance(voice_or_path_to_voice, str):
             path_to_voice = self.path / Path(voice_or_path_to_voice)
-            voice, real_path = load_file(
-                path_to_voice, expected_type=dict, blame=DeveloperError
-            )
+            voice, real_path = load_file(path_to_voice, expected_type=dict, blame=DeveloperError)
             if "name" not in voice:
                 voice["name"] = str(real_path.relative_to(self.path).with_suffix(""))
         else:
@@ -697,11 +662,7 @@ class Composition(list[list[Voice]]):
 
         ticks = sum(map(sum, self.delay_map.values()))
         minutes, seconds = divmod(ticks * 2 / self.tick, 60)
-        str_minutes = (
-            f"{minutes:.0f} minute" + ("s" if minutes != 1 else "") + " "
-            if minutes > 0
-            else ""
-        )
+        str_minutes = f"{minutes:.0f} minute" + ("s" if minutes != 1 else "") + " " if minutes > 0 else ""
         str_seconds = f"{round(seconds)} second" + ("s" if seconds != 1 else "")
         logger.debug(f"Duration: {str_minutes}{str_seconds}")
 

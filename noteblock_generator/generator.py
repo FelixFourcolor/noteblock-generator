@@ -35,9 +35,7 @@ from .generator_utils import (
 )
 from .parser import Composition, Note
 
-PlacementType = (
-    BlockType | Callable[[ChunkType, tuple[int, int, int]], Optional[BlockType]]
-)
+PlacementType = BlockType | Callable[[ChunkType, tuple[int, int, int]], Optional[BlockType]]
 
 # Blocks to be removed if using blend mode,
 # since they may interfere with redstones and/or noteblocks.
@@ -126,8 +124,7 @@ class Generator:
             # I don't know what would happen on platforms other than Linux and Windows
             # if the user stays inside the world while the generator is running.
             logger.warning(
-                "If you are inside the world, exit it now."
-                "\nAnd do not re-enter until the program terminates."
+                "If you are inside the world, exit it now." "\nAnd do not re-enter until the program terminates."
             )
             UserPrompt.warning("Press Enter when you are ready.", yes=(), blocking=True)
 
@@ -136,9 +133,7 @@ class Generator:
             self.clone_world()
             self.load_world()
             self.parse_args()
-            user_prompt = UserPrompt.debug(
-                "Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False
-            )
+            user_prompt = UserPrompt.debug("Confirm to proceed? [Y/n]", yes=("", "y", "yes"), blocking=False)
             # Start generating while waiting for user input, just don't save yet.
             # If user denies, KeyboardInterrupt will be raised,
             # hence put the whole generator inside a try-catch block.
@@ -193,8 +188,7 @@ class Generator:
             self._world_clone_path = backup_files(self.world_path)
         except PermissionError as e:
             raise UserError(
-                "Permission denied to read save files. "
-                "If the game is running, close it and try again."
+                "Permission denied to read save files. " "If the game is running, close it and try again."
             ) from e
 
     def load_world(self):
@@ -208,10 +202,7 @@ class Generator:
             if not isinstance(format_wrapper := amulet.load_format(path), AnvilFormat):
                 raise LoaderNoneMatched
         except LoaderNoneMatched:
-            raise UserError(
-                f"unrecognized Minecraft format for '{self.world_path}'; "
-                "expected Java Edition"
-            )
+            raise UserError(f"unrecognized Minecraft format for '{self.world_path}'; " "expected Java Edition")
         self.world = World(path, format_wrapper)
         self._chunk_mods: dict[
             tuple[int, int],  # chunk location
@@ -221,9 +212,7 @@ class Generator:
             ],
         ] = {}
         self._chunk_cache: dict[tuple[int, int], ChunkType] = {}
-        self.players = tuple(
-            self.world.get_player(i) for i in self.world.all_player_ids()
-        )
+        self.players = tuple(self.world.get_player(i) for i in self.world.all_player_ids())
 
     # ---------------------------------------------------------------------------------
     # Generator subroutines
@@ -262,9 +251,7 @@ class Generator:
             raise UserError("horizontal orientation must be between -180 and 180")
         if not (-90 <= v_rotation <= 90):
             raise UserError("vertical orientation must be between -90 and 90")
-        matched_h_rotation = min(
-            ROTATION_TO_DIRECTION_MAP.keys(), key=lambda x: abs(x - h_rotation)
-        )
+        matched_h_rotation = min(ROTATION_TO_DIRECTION_MAP.keys(), key=lambda x: abs(x - h_rotation))
         self.rotation = ROTATION_TO_DIRECTION_MAP[matched_h_rotation]
         if v_rotation >= 0:
             self.y_glass = self.Y - 1
@@ -306,29 +293,17 @@ class Generator:
             f"in {self.dimension}."
         )
         if min_x < BOUNDS.min_x:
-            raise UserError(
-                f"location is out of bound; x cannot go below {BOUNDS.min_x}"
-            )
+            raise UserError(f"location is out of bound; x cannot go below {BOUNDS.min_x}")
         if max_x > BOUNDS.max_x:
-            raise UserError(
-                f"location is out of bound; x cannot go above {BOUNDS.max_x}"
-            )
+            raise UserError(f"location is out of bound; x cannot go above {BOUNDS.max_x}")
         if min_z < BOUNDS.min_z:
-            raise UserError(
-                f"location is out of bound; z cannot go below {BOUNDS.min_z}"
-            )
+            raise UserError(f"location is out of bound; z cannot go below {BOUNDS.min_z}")
         if max_z > BOUNDS.max_z:
-            raise UserError(
-                f"location is out of bound; z cannot go above {BOUNDS.max_z}"
-            )
+            raise UserError(f"location is out of bound; z cannot go above {BOUNDS.max_z}")
         if min_y < BOUNDS.min_y:
-            raise UserError(
-                f"location is out of bound; y cannot go below {BOUNDS.min_y}"
-            )
+            raise UserError(f"location is out of bound; y cannot go below {BOUNDS.min_y}")
         if max_y > BOUNDS.max_y:
-            raise UserError(
-                f"location is out of bound; y cannot go above {BOUNDS.max_y}"
-            )
+            raise UserError(f"location is out of bound; y cannot go above {BOUNDS.max_y}")
         logger.info("")
 
         # save chunk coordinates
@@ -338,9 +313,7 @@ class Generator:
             min_z // 16,
             max_z // 16,
         )
-        for cx, cz in itertools.product(
-            range(min_cx, max_cx + 1), range(min_cz, max_cz + 1)
-        ):
+        for cx, cz in itertools.product(range(min_cx, max_cx + 1), range(min_cz, max_cz + 1)):
             self._chunk_mods[cx, cz] = {}
 
     @cached_property
@@ -351,10 +324,7 @@ class Generator:
             logger.info(f"No players detected. Default location {out} is used.")
             return out
         if len(results) > 1:
-            raise UserError(
-                "there are more than 1 player in the world; "
-                "relative location is not supported."
-            )
+            raise UserError("there are more than 1 player in the world; " "relative location is not supported.")
         out = tuple(map(math.floor, results.pop()))
         logger.debug(f"Player's location: {out}")
         return out  # type: ignore
@@ -367,10 +337,7 @@ class Generator:
             logger.info(f"No players detected. Default dimension {out} is used.")
             return out
         if len(results) > 1:
-            raise UserError(
-                "there are more than 1 player in the world; "
-                "relative dimension is not supported."
-            )
+            raise UserError("there are more than 1 player in the world; " "relative dimension is not supported.")
         out = results.pop()
         if out.startswith("minecraft:"):
             out = out[10:]
@@ -385,10 +352,7 @@ class Generator:
             logger.info(f"No players detected. Default orientation {out} is used.")
             return out
         if len(results) > 1:
-            raise UserError(
-                "there are more than 1 player in the world;"
-                "relative orientation is not supported."
-            )
+            raise UserError("there are more than 1 player in the world;" "relative orientation is not supported.")
         out = results.pop()
         logger.debug(f"Player's orientation: ({out[0]:.1f}. {out[1]:.1f})")
         return out
@@ -469,9 +433,7 @@ class Generator:
                     else:
                         self[coordinates] = self.blend_filter
 
-    def blend_filter(
-        self, chunk: ChunkType, coordinates: tuple[int, int, int]
-    ) -> Optional[BlockType]:
+    def blend_filter(self, chunk: ChunkType, coordinates: tuple[int, int, int]) -> Optional[BlockType]:
         """Return what should be placed to implement the blend feature."""
 
         # no need to translate
@@ -515,9 +477,7 @@ class Generator:
         self[x, y + 1, z + self.z_i * 3] = self.Redstone(self.x_dir, -self.z_dir)
         for i in range(1, ROW_WIDTH):
             self[x + i, y, z + self.z_i * 3] = self.theme_block
-            self[x + i, y + 1, z + self.z_i * 3] = self.Redstone(
-                self.x_dir, -self.x_dir
-            )
+            self[x + i, y + 1, z + self.z_i * 3] = self.Redstone(self.x_dir, -self.x_dir)
         self[x + ROW_WIDTH, y, z + self.z_i * 3] = self.theme_block
         self[
             x + ROW_WIDTH,
@@ -624,9 +584,7 @@ class Generator:
 
                 # redstone bridge connecting the button to z_button
                 self[x, y + 1, z_button] = self.theme_block
-                self[x - 1, y + 1, z_button] = self.Repeater(
-                    delay=1, direction=self.x_dir
-                )
+                self[x - 1, y + 1, z_button] = self.Repeater(delay=1, direction=self.x_dir)
                 repeater = self.Repeater(delay=1, direction=-z_dir)
                 z_i = z_dir[1]
                 i = 0
@@ -671,18 +629,14 @@ class Generator:
 
     @cache
     def Redstone(self, *connections: Direction):
-        return Redstone(
-            self.world, *[Direction(self.rotation * c) for c in connections]
-        )
+        return Redstone(self.world, *[Direction(self.rotation * c) for c in connections])
 
     @cache
     def Repeater(self, delay: int, direction: Direction):
         return Repeater(self.world, delay, Direction(self.rotation * direction))
 
     def Button(self, face: str, facing: Direction):
-        return self.Block(
-            "oak_button", face=face, facing=Direction(self.rotation * facing)
-        )
+        return self.Block("oak_button", face=face, facing=Direction(self.rotation * facing))
 
     @cache
     def NoteBlock(self, note: int, instrument: str):
@@ -707,9 +661,7 @@ class Generator:
 
         total = len(self._chunk_mods)
         with ThreadPool() as pool:
-            for progress, _ in enumerate(
-                pool.imap_unordered(self._modify_chunk, self._chunk_mods.items())
-            ):
+            for progress, _ in enumerate(pool.imap_unordered(self._modify_chunk, self._chunk_mods.items())):
                 # so that setting blocks and saving uses the same progress bar,
                 # the latter is estimated to take 1/3 time of the former
                 progress_bar((progress + 1) * 3, total * 4, text="Generating")
@@ -717,9 +669,7 @@ class Generator:
         for progress in self.world.save(self._chunk_cache.values(), self._dimension):
             progress_bar(total * 3 + progress + 1, total * 4, text="Generating")
 
-    def _modify_chunk(
-        self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]
-    ):
+    def _modify_chunk(self, args: tuple[tuple[int, int], dict[tuple[int, int, int], PlacementType]]):
         chunk_coords, modifications = args
         chunk = self._get_chunk(chunk_coords)
         chunk.block_entities = {}
@@ -732,13 +682,9 @@ class Generator:
 
     def _get_chunk(self, chunk_coords: tuple[int, int]) -> ChunkType:
         try:
-            self._chunk_cache[chunk_coords] = chunk = self.world.get_chunk(
-                *chunk_coords, self._dimension
-            )
+            self._chunk_cache[chunk_coords] = chunk = self.world.get_chunk(*chunk_coords, self._dimension)
         except ChunkLoadError:
-            self._chunk_cache[chunk_coords] = chunk = self.world.create_chunk(
-                *chunk_coords, self._dimension
-            )
+            self._chunk_cache[chunk_coords] = chunk = self.world.create_chunk(*chunk_coords, self._dimension)
             message = f"\033[33mWARNING: Missing chunk {chunk_coords}\033[m"
             end_of_line = " " * max(0, terminal_width() - len(message) + 8)
             logger.warning(f"\r{message}{end_of_line}")
@@ -748,9 +694,7 @@ class Generator:
         # Check if World has been modified,
         # if so get user confirmation to discard all changes.
         try:
-            modified_by_another_process = (
-                self._hash is None or self._hash != hash_files(self.world_path)
-            )
+            modified_by_another_process = self._hash is None or self._hash != hash_files(self.world_path)
         except FileNotFoundError:
             modified_by_another_process = False
         if modified_by_another_process:
@@ -758,9 +702,7 @@ class Generator:
                 "\nYour save files have been modified by another process."
                 "\nTo keep this generation, all other changes must be discarded."
             )
-            UserPrompt.warning(
-                "Confirm to proceed? [y/N]", yes=("y", "yes"), blocking=True
-            )
+            UserPrompt.warning("Confirm to proceed? [y/N]", yes=("y", "yes"), blocking=True)
         # Move the copy World back to its original location,
         # disable keyboard interrupt to prevent corrupting files
         with PreventKeyboardInterrupt():
@@ -770,6 +712,4 @@ class Generator:
                 shutil.rmtree(self.world_path, ignore_errors=True)
                 shutil.move(self._world_clone_path, self.world_path)
         if modified_by_another_process:
-            logger.info(
-                "If you are inside the world, exit and re-enter to see the result."
-            )
+            logger.info("If you are inside the world, exit and re-enter to see the result.")
