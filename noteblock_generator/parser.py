@@ -25,9 +25,7 @@ for name, value in dict(_octaves[1]).items():
 for i in range(1, 7):
     _octaves[i + 1] = {note: value + 12 for note, value in _octaves[i].items()}
 # flatten octaves to pitches
-PITCHES = {
-    note + str(octave_number): value for octave_number, octave in _octaves.items() for note, value in octave.items()
-}
+PITCHES = {note + str(octave): value for octave, notes in _octaves.items() for note, value in notes.items()}
 
 
 # MAPPING OF INSTRUMENTS TO NUMERICAL RANGES

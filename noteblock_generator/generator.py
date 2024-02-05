@@ -15,15 +15,7 @@ from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.level.formats.anvil_world.format import AnvilFormat
 
 from .cli import Location, Orientation, UserError, logger
-from .generator_backend import (
-    Block,
-    BlockType,
-    ChunkType,
-    NoteBlock,
-    Redstone,
-    Repeater,
-    World,
-)
+from .generator_backend import Block, BlockType, ChunkType, NoteBlock, Redstone, Repeater, World
 from .generator_utils import (
     Direction,
     PreventKeyboardInterrupt,
