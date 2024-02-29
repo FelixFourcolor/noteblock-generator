@@ -1,0 +1,217 @@
+{
+    "allOf": [ { "$ref": "#/definitions/sequentialNotes" } ],
+    "definitions": {
+        "noteName": {
+            "title": "Note",
+            "description": "Format: [pitch] [duration]",
+            "type": "string",
+            "pattern": "^[a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*$"
+        },
+        "rest": {
+            "title": "Rest",
+            "description": "Format: R [duration]",
+            "type": "string",
+            "pattern": "^[rR]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*$"
+        },
+        "compoundNote": {
+            "title": "Compound note",
+            "type": "string",
+            "pattern": "^([a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*(\\s*,\\s*|$)){2,}$"
+        },
+        "barDelimiter": {
+            "title": "Bar delimiter",
+            "description": "| to assert bar line, another | to rest for the entire bar, optionally followed by a bar number, optionally followed by ! to disable runtime check.",
+            "type": "string",
+            "pattern": "^\\|{1,2}(\\s*\\d+)?\\!?$"
+        },
+        "singleNote": {
+            "oneOf": [
+                { "$ref": "#/definitions/singleNote/definitions/note" },
+                {
+                    "title": "Modified note",
+                    "type": "object",
+                    "required": [ "note" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "note": { "$ref": "#/definitions/singleNote/definitions/note" },
+                        "time": { "$ref": "#/definitions/notesModifier/properties/time" },
+                        "delay": { "$ref": "#/definitions/notesModifier/properties/delay" },
+                        "beat": { "$ref": "#/definitions/notesModifier/properties/beat" },
+                        "position": { "$ref": "#/definitions/notesModifier/properties/position" },
+                        "instrument": { "$ref": "#/definitions/notesModifier/properties/instrument" },
+                        "dynamic": { "$ref": "#/definitions/notesModifier/properties/dynamic" },
+                        "transpose": { "$ref": "#/definitions/notesModifier/properties/transpose" },
+                        "sustain": { "$ref": "#/definitions/notesModifier/properties/sustain" }
+                    }
+                },
+                {
+                    "title": "Modified note",
+                    "type": "object",
+                    "required": [ "note", "trill" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "note": { "$ref": "#/definitions/noteName" },
+                        "trill": { "$ref": "#/definitions/noteName" },
+                        "time": { "$ref": "#/definitions/notesModifier/properties/time" },
+                        "delay": { "$ref": "#/definitions/notesModifier/properties/delay" },
+                        "beat": { "$ref": "#/definitions/notesModifier/properties/beat" },
+                        "trillStartsOn": { "$ref": "#/definitions/notesModifier/properties/trillStartsOn" },
+                        "position": { "$ref": "#/definitions/notesModifier/properties/position" },
+                        "instrument": { "$ref": "#/definitions/notesModifier/properties/instrument" },
+                        "dynamic": { "$ref": "#/definitions/notesModifier/properties/dynamic" },
+                        "transpose": { "$ref": "#/definitions/notesModifier/properties/transpose" },
+                        "sustain": { "$ref": "#/definitions/notesModifier/properties/sustain" }
+                    }
+                }
+            ],
+            "definitions": {
+                "note": {
+                    "oneOf": [
+                        { "$ref": "#/definitions/barDelimiter" },
+                        { "$ref": "#/definitions/rest" },
+                        { "$ref": "#/definitions/noteName" },
+                        { "$ref": "#/definitions/compoundNote" }
+                    ]
+                }
+            }
+        },
+        "parallelNotes": {
+            "oneOf": [
+                { "$ref": "#/definitions/parallelNotes/definitions/note" },
+                {
+                    "title": "Modified parallel notes",
+                    "type": "object",
+                    "required": [ "note" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "note": { "$ref": "#/definitions/parallelNotes/definitions/note" },
+                        "time": { "$ref": "#/definitions/notesModifier/properties/time" },
+                        "delay": { "$ref": "#/definitions/notesModifier/properties/delay" },
+                        "beat": { "$ref": "#/definitions/notesModifier/properties/beat" },
+                        "trillStartsOn": { "$ref": "#/definitions/notesModifier/properties/trillStartsOn" },
+                        "position": { "$ref": "#/definitions/notesModifier/properties/position" },
+                        "instrument": { "$ref": "#/definitions/notesModifier/properties/instrument" },
+                        "dynamic": { "$ref": "#/definitions/notesModifier/properties/dynamic" },
+                        "transpose": { "$ref": "#/definitions/notesModifier/properties/transpose" },
+                        "sustain": { "$ref": "#/definitions/notesModifier/properties/sustain" }
+                    }
+                }
+            ],
+            "definitions": {
+                "note": {
+                    "title": "Parallel notes",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/definitions/singleNote" },
+                            { "$ref": "#/definitions/sequentialNotes" }
+                        ]
+                    }
+                }
+            }
+        },
+        "sequentialNotes": {
+            "oneOf": [
+                { "$ref": "#/definitions/sequentialNotes/definitions/note" },
+                {
+                    "title": "Modified sequential notes",
+                    "type": "object",
+                    "required": [ "note" ],
+                    "additionalProperties": false,
+                    "properties": {
+                        "note": { "$ref": "#/definitions/sequentialNotes/definitions/note" },
+                        "time": { "$ref": "#/definitions/notesModifier/properties/time" },
+                        "delay": { "$ref": "#/definitions/notesModifier/properties/delay" },
+                        "beat": { "$ref": "#/definitions/notesModifier/properties/beat" },
+                        "trillStartsOn": { "$ref": "#/definitions/notesModifier/properties/trillStartsOn" },
+                        "position": { "$ref": "#/definitions/notesModifier/properties/position" },
+                        "instrument": { "$ref": "#/definitions/notesModifier/properties/instrument" },
+                        "dynamic": { "$ref": "#/definitions/notesModifier/properties/dynamic" },
+                        "transpose": { "$ref": "#/definitions/notesModifier/properties/transpose" },
+                        "sustain": { "$ref": "#/definitions/notesModifier/properties/sustain" }
+                    }
+                }
+            ],
+            "definitions": {
+                "note": {
+                    "title": "Sequential notes",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/definitions/singleNote" },
+                            { "$ref": "#/definitions/parallelNotes" },
+                            { "$ref": "#/definitions/notesModifier" }
+                        ]
+                    }
+                }
+            }
+        },
+        "notesModifier": {
+            "description": "Apply this configuration to subsequent notes in this sequence.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "time": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/time" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "delay": {
+                    "oneOf": [
+                        { "$ref": "global.schema.json#/definitions/delay" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "beat": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/beat" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "trillStartsOn": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/trillStartsOn" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "position": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/position" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "instrument": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/instrument" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "dynamic": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/dynamic" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "transpose": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/transpose" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                },
+                "sustain": {
+                    "oneOf": [
+                        { "$ref": "voice.schema.json#/properties/sustain" },
+                        { "$ref": "#/definitions/reset" }
+                    ]
+                }
+            }
+        },
+        "reset": {
+            "description": "Reset value to voice's.",
+            "type": "null"
+        }
+    }
+}

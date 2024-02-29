@@ -1,0 +1,251 @@
+{
+    "oneOf": [
+        {
+            "title": "Single section",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "voices" ],
+            "properties": {
+                "name": { "$ref": "#/definitions/name" },
+                "voices": { "$ref": "#/definitions/voices" },
+                "time": { "$ref": "#/definitions/time" },
+                "width": { "$ref": "#/definitions/width" },
+                "delay": { "$ref": "#/definitions/delay" },
+                "beat": { "$ref": "#/definitions/beat" },
+                "tick": { "$ref": "#/definitions/tick" },
+                "trillStartsOn": { "$ref": "#/definitions/trillStartsOn" },
+                "instrument": { "$ref": "#/definitions/instrument" },
+                "dynamic": { "$ref": "#/definitions/dynamic" },
+                "transpose": { "$ref": "#/definitions/transpose" },
+                "sustain": { "$ref": "#/definitions/sustain" }
+            }
+        },
+        {
+            "title": "Compound section",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "sections" ],
+            "properties": {
+                "name": { "$ref": "#/definitions/name" },
+                "sections": { "$ref": "#/definitions/sections" },
+                "time": { "$ref": "#/definitions/time" },
+                "width": { "$ref": "#/definitions/width" },
+                "delay": { "$ref": "#/definitions/delay" },
+                "beat": { "$ref": "#/definitions/beat" },
+                "tick": { "$ref": "#/definitions/tick" },
+                "trillStartsOn": { "$ref": "#/definitions/trillStartsOn" },
+                "instrument": { "$ref": "#/definitions/instrument" },
+                "dynamic": { "$ref": "#/definitions/dynamic" },
+                "transpose": { "$ref": "#/definitions/transpose" },
+                "sustain": { "$ref": "#/definitions/sustain" }
+            }
+        },
+        {
+            "title": "Compound section",
+            "allOf": [ { "$ref": "#/definitions/sections" } ]
+        }
+    ],
+    "definitions": {
+        "default": {
+            "description": "Default value; inferred by the parser from context",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": { }
+        },
+        "filePath": {
+            "type": "string",
+            "format": "file-path"
+        },
+        "sections": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "oneOf": [
+                    { "$ref": "#" },
+                    {
+                        "title": "Path to section",
+                        "allOf": [ { "$ref": "#/definitions/filePath" } ]
+                    }
+                ]
+            }
+        },
+        "name": {
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9\\s]+$"
+                }
+            ]
+        },
+        "voices": {
+            "title": "Voices",
+            "oneOf": [
+                {
+                    "description": "Single-division build",
+                    "allOf": [ { "$ref": "#/definitions/voices/definitions/division" } ]
+                },
+                {
+                    "description": "Double-division build",
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "prefixItems": [
+                        {
+                            "title": "Left division",
+                            "allOf": [ { "$ref": "#/definitions/voices/definitions/division" } ]
+                        },
+                        {
+                            "title": "Right division",
+                            "allOf": [ { "$ref": "#/definitions/voices/definitions/division" } ]
+                        }
+                    ]
+                }
+            ],
+            "definitions": {
+                "division": {
+                    "type": "array",
+                    "items": {
+                        "anyOf": [
+                            { "$ref": "#/definitions/default" },
+                            { "$ref": "voice.schema.json#" },
+                            { "$ref": "voice.schema.json#/properties/notes" },
+                            {
+                                "title": "Path to voice",
+                                "allOf": [ { "$ref": "#/definitions/filePath" } ]
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "time": {
+            "title": "Time signature",
+            "description": "How many redstone signals in each bar.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                }
+            ]
+        },
+        "width": {
+            "description": "The horizontal span of each division.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "integer",
+                    "minimum": 8,
+                    "maximum": 16
+                }
+            ]
+        },
+        "delay": {
+            "description": "How many redstone ticks between each redstone signal.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                }
+            ]
+        },
+        "beat": {
+            "description": "How many redstone signals in each beat.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                }
+            ]
+        },
+        "tick": {
+            "title": "Game tick rate",
+            "description": "Finely adjust the music's tempo.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "number",
+                    "exclusiveMinimum": 0.0
+                }
+            ]
+        },
+        "trillStartsOn": {
+            "title": "Whether trils start on the main note or the trill",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                { "const": "main" },
+                { "const": "alt" }
+            ]
+        },
+        "instrument": {
+            "title": "Noteblock instrument",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "string",
+                    "pattern": "^(?!.*(.+)(\\s*/\\s*.+)*\\s*/\\s*\\1)((bass|didgeridoo|guitar|banjo|bit|harp|iron_xylophone|pling|cow_bell|flute|bell|chime|xylophone|basedrum|hat|snare)(\\s*/\\s*|$))+$"
+                }
+            ]
+        },
+        "dynamic": {
+            "title": "How many noteblocks to play each note.",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "type": "integer",
+                    "description": "Constant loudness during each note.",
+                    "minimum": 0,
+                    "maximum": 4
+                },
+                {
+                    "description": "Finely tune the loudness during each note.",
+                    "type": "string",
+                    "pattern": "^([0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                }
+            ]
+        },
+        "transpose": {
+            "title": "Transpose; in semitones",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                { "type": "integer" }
+            ]
+        },
+        "sustain": {
+            "title": "Sustain level",
+            "oneOf": [
+                { "$ref": "#/definitions/default" },
+                {
+                    "description": "Sustain notes for its full duration",
+                    "const": true
+                },
+                {
+                    "description": "No sustain",
+                    "const": false
+                },
+                {
+                    "description": "Sustain notes for this precise duration",
+                    "oneOf": [
+                        {
+                            "type": "integer",
+                            "exclusiveMinimum": 0
+                        },
+                        {
+                            "type": "string",
+                            "pattern": "^(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)$"
+                        }
+                    ]
+                },
+                {
+                    "description": "Sustain notes for its full duration, minus this.",
+                    "type": "integer",
+                    "exclusiveMaximum": 0
+                }
+            ]
+        }
+    }
+}

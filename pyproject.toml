@@ -18,6 +18,7 @@ python = ">=3.10, <3.13"
 amulet-core = "^1.9.21"
 PyMCTranslate = "^1.2.22"
 colorama = ">=0.4.6"
+pydantic = "^2.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -33,5 +34,5 @@ target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
 line-length = 120
-lint.select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "TCH", "UP", "W"]
-lint.ignore = ["RUF013", "UP007", "UP035"]
+lint.select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "UP", "W"]
+lint.ignore = ["RUF013", "TCH", "UP007", "UP035"]
