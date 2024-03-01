@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial, reduce
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Generic, Optional, Protocol, TypeVar, cast
+from typing import ClassVar, Generic, Protocol, TypeVar, cast
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -17,7 +17,6 @@ from .typedefs import (
     T_Beat,
     T_CompoundPosition,
     T_ConstantDynamic,
-    T_Default,
     T_Division,
     T_DivisionIndex,
     T_DoubleIndex,
@@ -35,7 +34,7 @@ from .typedefs import (
     T_MultiValue,
     T_Name,
     T_NoteValue,
-    T_Optional,
+    T_Null,
     T_Position,
     T_Positional,
     T_RelativeLevel,
@@ -52,17 +51,17 @@ S, T, U, V = TypeVar("S"), TypeVar("T"), TypeVar("U"), TypeVar("V")
 
 
 class SupportsName(Protocol):
-    name: T_Optional[T_Name]
-    path: T_Optional[Path]
+    name: T_Name | T_Null
+    path: Path | T_Null
 
 
 class Name:
     def _process(self, index: T_Index = 0, src: SupportsName = None):
         if src is None:
             return ""
-        if not isinstance(name := src.name, T_Default):
+        if not isinstance(name := src.name, T_Null):
             return name
-        if not isinstance(path := src.path, T_Default):
+        if not isinstance(path := src.path, T_Null):
             return str(path.with_suffix(""))
         return f"Unnamed {type(src).__name__} {index}"
 
@@ -71,7 +70,7 @@ class Name:
 
     def transform(self, index: T_Index, src: SupportsName) -> Name:
         self = shallowcopy(self)
-        if isinstance(name := src.name, T_Default):
+        if isinstance(name := src.name, T_Null):
             name = self._process(index, src)
         if self._value:
             self._value += "/"
@@ -83,13 +82,13 @@ class Name:
 
 
 class Width:
-    def __init__(self, value: Optional[T_Width] = None):
+    def __init__(self, value: T_Width = None):
         self._value = value
 
-    def transform(self, time: T_Time, value: T_Optional[T_Width]):
-        if not isinstance(value, T_Default):
+    def transform(self, time: T_Time, value: T_Width | T_Null):
+        if not isinstance(value, T_Null):
             return Width(value)
-        elif isinstance(self._value, T_Default):
+        elif isinstance(self._value, T_Null):
             return Width(self._resolve_time(time))
         return self
 
@@ -106,8 +105,8 @@ class ImmutableProperty(Generic[T]):
     def __init__(self, value: T):
         self._value = value
 
-    def transform(self, value: T_Optional[T]):
-        if isinstance(value, T_Default):
+    def transform(self, value: T | T_Null):
+        if isinstance(value, T_Null):
             return self
         return type(self)(value)
 
@@ -128,8 +127,8 @@ class PositionalProperty(Generic[S, T, U, V]):
     def __init__(self, value: T_Positional[S]):
         self._value = positional_map(self._process, value)
 
-    def transform(self, transformation: T_Positional[T_Optional[T]]):
-        if isinstance(transformation, T_Default):
+    def transform(self, transformation: T_Positional[T | T_Null]):
+        if isinstance(transformation, T_Null):
             return self
         self = shallowcopy(self)
         self._value = positional_map(self._transform, self._value, transformation)
@@ -156,8 +155,8 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
         return division, level
 
     def _transform_division(
-        self, origin: Optional[T_DivisionIndex], transformation: Optional[T_Division]
-    ) -> Optional[T_DivisionIndex]:
+        self, origin: T_DivisionIndex | None, transformation: T_Division | None
+    ) -> T_DivisionIndex | None:
         if transformation is None:
             return origin
         if transformation == "switch":
@@ -166,7 +165,7 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
             return (origin + 1) % 2
         return ["left", "right"].index(transformation)  # type: ignore
 
-    def _transform_level(self, origin: T_LevelIndex, transformation: Optional[T_Level]):
+    def _transform_level(self, origin: T_LevelIndex, transformation: T_Level | None):
         if transformation is None:
             return origin
         if is_typeform(transformation, T_AbsoluteLevel):
@@ -194,11 +193,11 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
         return division, level
 
     def transform(self, transformation):
-        if isinstance(transformation, T_Default):
+        if isinstance(transformation, T_Null):
             return super().transform(transformation)
 
-        def handle_bothsides(transformation: T_Optional[T_Position]) -> T_Positional[T_Optional[T_Position]]:
-            if is_typeform(transformation, T_Default | T_Level):
+        def handle_bothsides(transformation: T_Position | T_Null) -> T_Positional[T_Position | T_Null]:
+            if is_typeform(transformation, T_Null | T_Level):
                 return transformation
             if is_typeform(transformation, T_Division):
                 if transformation == "bothsides":

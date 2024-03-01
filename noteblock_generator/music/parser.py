@@ -30,7 +30,6 @@ from .typedefs import (
     T_Beat,
     T_CompoundNote,
     T_CompoundSection,
-    T_Default,
     T_Delay,
     T_DoubleDivisionSection,
     T_DoubleDivisionSequentialNotes,
@@ -45,6 +44,7 @@ from .typedefs import (
     T_NoteName,
     T_NotesModifier,
     T_NoteValue,
+    T_Null,
     T_ParallelNotes,
     T_Positional,
     T_Rest,
@@ -79,7 +79,7 @@ def parse(path_in: str) -> list[Section]:
 
 
 def _resolve_path(path: Path):
-    def find(path: Path, /, *, match_name: str = None) -> Optional[Path]:
+    def find(path: Path, /, *, match_name: str = None) -> Path | None:
         if not path.exists():
             return
         if path.is_dir():
@@ -188,7 +188,7 @@ class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]
         voices = flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
-            if not isinstance(voice, T_Default)
+            if not isinstance(voice, T_Null)
         )
         self += self._process_voices(voices)
 
@@ -199,7 +199,7 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
         voices = flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
-            if not isinstance(voice, T_Default)
+            if not isinstance(voice, T_Null)
         )
         self += self._process_voices(voices)
 
@@ -277,13 +277,13 @@ class _NotesFactory:
     def transform(self, src: T_NoteModel):
         self = shallowcopy(self)
         for field in T_NoteModel.model_fields:
-            if isinstance(value := getattr(src, field), T_Default):
+            if isinstance(value := getattr(src, field), T_Null):
                 # keep current field value
                 pass
             elif value is None:
                 # reset field to voice's value
                 setattr(self, field, getattr(self._env, field))
-            elif value is not T_Default:
+            elif value is not T_Null:
                 # transform from voice's value
                 setattr(self, field, getattr(self._env, field).transform(value))
         return self
@@ -335,7 +335,7 @@ class _NotesFactory:
     def _check_bar_assertion(self, src: T_BarDelimiter) -> list[list[Note]]:
         return []  # TODO
 
-    def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[Optional[T_Positional[NoteBlock]], T_Duration]:
+    def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
         _beat = self.beat.resolve()
         tokens = parse_timedvalue(src)
         note_name = tokens[0].lower()
@@ -400,8 +400,8 @@ class _NotesFactory:
         _sustain = self.sustain.resolve(beat=_beat, note_duration=len(notes))
         _dynamic = self.dynamic.resolve(beat=_beat, sus_duration=_sustain, note_duration=len(notes))
 
-        def transform(*notes: Optional[NoteBlock], dynamic: list[T_AbsoluteDynamic], position: T_Index):
-            def apply_delay_and_position(notes: Iterable[Optional[NoteBlock]]) -> Iterable[Note]:
+        def transform(*notes: NoteBlock | None, dynamic: list[T_AbsoluteDynamic], position: T_Index):
+            def apply_delay_and_position(notes: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 return (Note(noteblock=note, delay=_delay, position=position) for note in notes)
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[list[Note]]:
@@ -419,7 +419,7 @@ class _NotesFactory:
 
 @dataclass(kw_only=True, slots=True)
 class Note:
-    noteblock: Optional[NoteBlock]
+    noteblock: NoteBlock | None
     delay: T_Delay
     position: T_Index
 
@@ -432,12 +432,12 @@ class Note:
 
 
 class SingleDivisionNote(Protocol):
-    noteblock: Optional[NoteBlock]
+    noteblock: NoteBlock | None
     delay: T_Delay
     position: T_Level
 
 
 class DoubleDivisionNote(Protocol):
-    note: Optional[NoteBlock]
+    note: NoteBlock | None
     delay: T_Delay
     position: T_DoubleIndex
