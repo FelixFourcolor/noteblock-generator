@@ -60,7 +60,7 @@ from .typedefs import (
     T_TrillMode,
     T_Voice,
 )
-from .utils import is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
+from .utils import flatten, is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
 
 
 def parse(path_in: str) -> list[Section]:
@@ -73,7 +73,7 @@ def parse(path_in: str) -> list[Section]:
         return out
 
     path = _resolve_path(Path(path_in))
-    data = _load(_json_load(path), prefix=path.parent)
+    data = _resolve_references(_json_load(path), prefix=path.parent)
     validated_data = TypeAdapter(T_Section).validate_json(data)  # TODO: error handling
     return flatten(_BaseSection.new(0, validated_data, _GlobalDefault()))
 
@@ -113,15 +113,15 @@ def _json_load(path: Path):
     return json.dumps(obj)
 
 
-_path_pattern = re.compile(r'"file://([^"]+)"')
+_ref_pattern = re.compile(r'"file://([^"]+)"')
 
 
-def _load(source: str, *, prefix: Path) -> str:
+def _resolve_references(source: str, *, prefix: Path) -> str:
     offset = 0
-    for m in re.finditer(_path_pattern, source):
+    for m in re.finditer(_ref_pattern, source):
         match, match_path = m.group(0, 1)
         path = _resolve_path(prefix / match_path)
-        replacement = _load(_json_load(path), prefix=path.parent)
+        replacement = _resolve_references(_json_load(path), prefix=path.parent)
         start = m.start() + offset
         end = m.end() + offset
         source = source[:start] + replacement + source[end:]
@@ -185,20 +185,22 @@ class _BaseSingleSection(_BaseSection):
 class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]):
     def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
-        voices = []
-        for i, voice in enumerate(src.voices):
-            if not isinstance(voice, T_Default):
-                voices.append(SingleDivisionVoice(i, voice, self))
+        voices = flatten(
+            positional_map(SingleDivisionVoice, i, voice, self)
+            for i, voice in enumerate(src.voices)
+            if not isinstance(voice, T_Default)
+        )
         self += self._process_voices(voices)
 
 
 class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
-        voices = []
-        for i, voice in enumerate(src.voices):
-            if not isinstance(voice, T_Default):
-                voices.append(DoubleDivisionVoice(i, voice, self))
+        voices = flatten(
+            positional_map(DoubleDivisionVoice, i, voice, self)
+            for i, voice in enumerate(src.voices)
+            if not isinstance(voice, T_Default)
+        )
         self += self._process_voices(voices)
 
 
@@ -222,6 +224,12 @@ class _BaseVoice:
 
 class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
+        # I don't know if this is a pydantic BUG?
+        # but sometimes `src` is not converted into a T_Voice but remains a dict,
+        # so we force pydantic to convert the type again.
+        # Performance impact is negligible (if measureable at all), don't even think about it.
+        src = T_SingleDivisionVoice.model_validate(src)
+
         super().__init__(index, src, env)
         self.position = SingleDivisionPosition(index).transform(src.position)
         self += _NotesFactory(self).resolve(src.notes)
@@ -229,6 +237,9 @@ class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
 
 class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
+        # See comment in SingleDivisionVoice.__init__
+        src = T_DoubleDivisionVoice.model_validate(src)
+
         super().__init__(index, src, env)
         self.position = DoubleDivisionPosition(index).transform(src.position)
         self += _NotesFactory(self).resolve(src.notes)
@@ -278,12 +289,10 @@ class _NotesFactory:
         return self
 
     @overload
-    def resolve(self, src: T_SingleDivisionSequentialNotes) -> list[list[SingleDivisionNote]]:
-        ...
+    def resolve(self, src: T_SingleDivisionSequentialNotes) -> list[list[SingleDivisionNote]]: ...
 
     @overload
-    def resolve(self, src: T_DoubleDivisionSequentialNotes) -> list[list[DoubleDivisionNote]]:
-        ...
+    def resolve(self, src: T_DoubleDivisionSequentialNotes) -> list[list[DoubleDivisionNote]]: ...
 
     def resolve(self, src: T_SequentialNotes):
         return self._resolve_sequential_notes(src)

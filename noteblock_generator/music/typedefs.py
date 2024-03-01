@@ -407,11 +407,11 @@ class _BaseSection(_BaseModel):
 
 
 class T_SingleDivisionSection(_BaseSection):
-    voices: list[T_Optional[T_SingleDivisionVoice]]
+    voices: list[T_Optional[T_Positional[T_SingleDivisionVoice]]]
 
 
 class T_DoubleDivisionSection(_BaseSection):
-    voices: list[T_Optional[T_DoubleDivisionVoice]]
+    voices: list[T_Optional[T_Positional[T_DoubleDivisionVoice]]]
 
 
 T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
