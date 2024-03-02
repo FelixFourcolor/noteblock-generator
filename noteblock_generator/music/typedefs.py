@@ -269,6 +269,7 @@ class _BaseNoteModel(_BaseModel):
     time: T_Time | T_Reset | None = None
     delay: T_Delay | T_Reset | None = None
     beat: T_Beat | T_Reset | None = None
+    trill_style: T_TrillStyle | T_Reset | None = None
     instrument: T_Positional[T_Instrument | None] | T_Reset = None
     dynamic: T_Positional[T_LocalDynamic | None] | T_Reset = None
     transpose: T_Positional[T_LocalTranspose | None] | T_Reset = None
@@ -283,14 +284,10 @@ class _DoubleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
 
 
-class _BaseNotesModifier(_BaseNoteModel):
-    trill_style: T_TrillStyle | T_Reset | None = None
+class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, _BaseNoteModel): ...
 
 
-class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, _BaseNotesModifier): ...
-
-
-class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, _BaseNotesModifier): ...
+class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, _BaseNoteModel): ...
 
 
 class _BaseNote(_BaseNoteModel):
@@ -313,7 +310,6 @@ class T_DoubleDivisionRegularNote(_DoubleDivisionNoteModel, _BaseRegularNote): .
 class _BaseTrilledNote(_BaseNote):
     note: T_NoteName
     trill: T_NoteName
-    trill_style: T_TrillStyle | T_Reset | None = None
 
 
 class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, _BaseTrilledNote): ...

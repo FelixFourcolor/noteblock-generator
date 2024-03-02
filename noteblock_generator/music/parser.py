@@ -245,7 +245,7 @@ class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
         self += _NotesFactory(self).resolve(src.notes)
 
 
-def _generate_pitch_values():
+def _generate_note_values():
     notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
     octaves = {1: {note: value for value, note in enumerate(notes)}}
     for name, value in dict(octaves[1]).items():
@@ -259,7 +259,8 @@ def _generate_pitch_values():
 
 
 class _NotesFactory:
-    _PITCHES: ClassVar = _generate_pitch_values()
+    _NOTE_VALUES: ClassVar = _generate_note_values()
+    _PROPERTIES = ("time", "delay", "beat", "trill_style", "position", "instrument", "dynamic", "transpose", "sustain")
 
     def __init__(self, env: _BaseVoice):
         self._env = env
@@ -269,10 +270,10 @@ class _NotesFactory:
         self.trill_style = env.trill_style
         self.position = env.position
         self.instrument = env.instrument
-        self.octave = self.instrument.get_octave()
         self.dynamic = env.dynamic
         self.sustain = env.sustain
         self.transpose = env.transpose
+        self._octave = self.instrument.get_octave()
 
     @overload
     def resolve(self, src: T_SingleDivisionSequentialNotes) -> list[list[SingleDivisionNote]]: ...
@@ -285,12 +286,11 @@ class _NotesFactory:
 
     def _transform(self, src: T_NoteMeta):
         self = shallowcopy(self)
-        for field in type(src).model_fields:
-            if hasattr(self, field):
-                if is_typeform(value := getattr(src, field), T_Reset):
-                    setattr(self, field, getattr(self._env, field))
-                else:
-                    setattr(self, field, getattr(self, field).transform(value))
+        for field in self._PROPERTIES:
+            if is_typeform(value := getattr(src, field), T_Reset):
+                setattr(self, field, getattr(self._env, field))
+            else:
+                setattr(self, field, getattr(self, field).transform(value))
         return self
 
     def _resolve_sequential_notes(self, src: T_SequentialNotes):
@@ -350,12 +350,12 @@ class _NotesFactory:
                 return note_name, default_octave
 
             if is_typeform(note_name[-1], int, strict=False):
-                return self._PITCHES[note_name] + transpose
+                return self._NOTE_VALUES[note_name] + transpose
             else:
                 note, octave = parse_relative_octave(note_name, octave)
-                return self._PITCHES[note + str(octave)] + transpose
+                return self._NOTE_VALUES[note + str(octave)] + transpose
 
-        _octave = self.octave
+        _octave = self._octave
         _transpose = self.transpose.resolve()
         note_value = positional_map(_parse_note_name, note_name, octave=_octave, transpose=_transpose)
         note = self.instrument.resolve(note_value)
