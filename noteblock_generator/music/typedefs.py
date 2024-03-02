@@ -7,15 +7,14 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic_core import core_schema
 
-T = TypeVar("T")
 
-
-class T_MultiValue(tuple[T, ...]):
+class T_MultiValue(tuple["T", ...]):
     @classmethod
     def __get_pydantic_core_schema__(cls, src_type: Any, handler: GetCoreSchemaHandler):
         return core_schema.no_info_after_validator_function(cls, handler(tuple))
 
 
+T = TypeVar("T")
 T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
 T_LevelIndex = int
 T_DivisionIndex = Literal[0, 1]
@@ -285,8 +284,13 @@ class _DoubleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
 
 
-class T_NotesModifier(T_NoteModel):
-    pass
+class T_NotesModifier(T_NoteModel): ...
+
+
+class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier): ...
+
+
+class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, T_NotesModifier): ...
 
 
 class _BaseNote(T_NoteModel):
@@ -305,28 +309,16 @@ class T_TrilledNote(T_SingleNote):
     trill: T_NoteName
 
 
-class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier):
-    pass
+class T_SingleDivisionSingleNote(_SingleDivisionNoteModel, T_SingleNote): ...
 
 
-class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, T_NotesModifier):
-    pass
+class T_DoubleDivisionSingleNote(_DoubleDivisionNoteModel, T_SingleNote): ...
 
 
-class T_SingleDivisionSingleNote(_SingleDivisionNoteModel, T_SingleNote):
-    pass
+class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, T_TrilledNote): ...
 
 
-class T_DoubleDivisionSingleNote(_DoubleDivisionNoteModel, T_SingleNote):
-    pass
-
-
-class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, T_TrilledNote):
-    pass
-
-
-class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, T_TrilledNote):
-    pass
+class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, T_TrilledNote): ...
 
 
 class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
