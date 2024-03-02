@@ -266,7 +266,7 @@ class T_NoteModel(_BaseModel):
     delay: T_Delay | T_Null | None = _NULL
     beat: T_Beat | T_Null | None = _NULL
     trillStartsOn: T_TrillMode | T_Null | None = _NULL
-    position: T_Positional[T_Position | T_Null] | None = _NULL
+    position: Any  # will be overriden by either _SingleDivisionNoteModel or _DoubleDivisionNoteModel
     instrument: T_Positional[T_Instrument | T_Null] | None = _NULL
     dynamic: T_Positional[T_LocalDynamic | T_Null] | None = _NULL
     transpose: T_Positional[T_LocalTranspose | T_Null] | None = _NULL
@@ -302,54 +302,54 @@ class T_TrilledNote(T_SingleNote):
     trill: T_NoteName
 
 
-class _SingleDivisionNoteModel(T_NoteModel):
+class _SingleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_SingleDivisionPosition | T_Null] | None = _NULL
 
 
-class _DoubleDivisionNoteModel(T_NoteModel):
+class _DoubleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_DoubleDivisionPosition | T_Null] | None = _NULL
 
 
-class T_SingleDivisionNotesModifier(T_NotesModifier, _SingleDivisionNoteModel):
+class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier):
     pass
 
 
-class T_DoubleDivisionNotesModifier(T_NotesModifier, _DoubleDivisionNoteModel):
+class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, T_NotesModifier):
     pass
 
 
-class T_SingleDivisionSingleNote(T_SingleNote, _SingleDivisionNoteModel):
+class T_SingleDivisionSingleNote(_SingleDivisionNoteModel, T_SingleNote):
     pass
 
 
-class T_DoubleDivisionSingleNote(T_SingleNote, _DoubleDivisionNoteModel):
+class T_DoubleDivisionSingleNote(_DoubleDivisionNoteModel, T_SingleNote):
     pass
 
 
-class T_SingleDivisionTrilledNote(T_TrilledNote, _SingleDivisionNoteModel):
+class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, T_TrilledNote):
     pass
 
 
-class T_DoubleDivisionTrilledNote(T_TrilledNote, _DoubleDivisionNoteModel):
+class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, T_TrilledNote):
     pass
 
 
-class T_SingleDivisionParallelNotes(_BaseNote, _SingleDivisionNoteModel):
+class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
     note: list[T_SingleDivisionSingleNote | T_SingleDivisionSequentialNotes]
 
 
-class T_DoubleDivisionParallelNotes(_BaseNote, _DoubleDivisionNoteModel):
+class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
     note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionSequentialNotes]
 
 
 T_ParallelNotes = T_SingleDivisionParallelNotes | T_DoubleDivisionParallelNotes
 
 
-class T_SingleDivisionSequentialNotes(_BaseNote, _SingleDivisionNoteModel):
+class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
     note: list[T_SingleDivisionSingleNote | T_SingleDivisionParallelNotes | T_SingleDivisionNotesModifier]
 
 
-class T_DoubleDivisionSequentialNotes(_BaseNote, _DoubleDivisionNoteModel):
+class T_DoubleDivisionSequentialNotes(_DoubleDivisionNoteModel, _BaseNote):
     note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionParallelNotes | T_DoubleDivisionNotesModifier]
 
 
