@@ -57,7 +57,7 @@ from .typedefs import (
     T_Tick,
     T_Time,
     T_TrilledNote,
-    T_TrillMode,
+    T_TrillStyle,
     T_Voice,
 )
 from .utils import flatten, is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
@@ -136,7 +136,7 @@ class _GlobalDefault:
     delay = ImmutableProperty[T_Delay](1)
     beat = ImmutableProperty[T_Beat](1)
     tick = ImmutableProperty[T_Tick](20)
-    trillStartsOn = ImmutableProperty[T_TrillMode]("main")
+    trill_style = ImmutableProperty[T_TrillStyle]("normal")
     sustain = Sustain(-1)
     transpose = Transpose(0)
     dynamic = Dynamic("2 1, 1 -1")
@@ -159,7 +159,7 @@ class _BaseSection:
         self.delay = env.delay.transform(src.delay)
         self.beat = env.beat.transform(src.beat)
         self.tick = env.tick.transform(src.tick)
-        self.trillStartsOn = env.trillStartsOn.transform(src.trillStartsOn)
+        self.trill_style = env.trill_style.transform(src.trill_style)
         self.sustain = env.sustain.transform(src.sustain)
         self.transpose = env.transpose.transform(src.transpose)
         self.dynamic = env.dynamic.transform(src.dynamic)
@@ -217,7 +217,7 @@ class _BaseVoice:
         self.beat = env.beat.transform(src.beat)
         self.instrument = env.instrument.transform(src.instrument)
         self.dynamic = env.dynamic.transform(src.dynamic)
-        self.trillStartsOn = env.trillStartsOn.transform(src.trillStartsOn)
+        self.trill_style = env.trill_style.transform(src.trill_style)
         self.sustain = env.sustain.transform(src.sustain)
         self.transpose = env.transpose.transform(src.transpose)
 
@@ -266,22 +266,13 @@ class _NotesFactory:
         self.time = env.time
         self.delay = env.delay
         self.beat = env.beat
-        self.trillStartsOn = env.trillStartsOn
+        self.trill_style = env.trill_style
         self.position = env.position
         self.instrument = env.instrument
         self.octave = self.instrument.get_octave()
         self.dynamic = env.dynamic
         self.sustain = env.sustain
         self.transpose = env.transpose
-
-    def transform(self, src: T_NoteModel):
-        self = shallowcopy(self)
-        for field in T_NoteModel.model_fields:
-            if is_typeform(value := getattr(src, field), T_Reset):
-                setattr(self, field, getattr(self._env, field))
-            else:
-                setattr(self, field, getattr(self, field).transform(value))
-        return self
 
     @overload
     def resolve(self, src: T_SingleDivisionSequentialNotes) -> list[list[SingleDivisionNote]]: ...
@@ -292,14 +283,24 @@ class _NotesFactory:
     def resolve(self, src: T_SequentialNotes):
         return self._resolve_sequential_notes(src)
 
+    def _transform(self, src: T_NoteModel):
+        self = shallowcopy(self)
+        for field in type(src).model_fields:
+            if hasattr(self, field):
+                if is_typeform(value := getattr(src, field), T_Reset):
+                    setattr(self, field, getattr(self._env, field))
+                else:
+                    setattr(self, field, getattr(self, field).transform(value))
+        return self
+
     def _resolve_sequential_notes(self, src: T_SequentialNotes):
-        self = self.transform(src)
+        self = self._transform(src)
         out = []
         for note in src.note:
             if isinstance(note, T_SingleNote):
                 out += self._resolve_single_note(note)
             elif isinstance(note, T_NotesModifier):
-                self = self.transform(note)
+                self = self._transform(note)
             else:
                 out += self._resolve_parallel_notes(note)
         return out
@@ -310,17 +311,17 @@ class _NotesFactory:
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
-        self = self.transform(src)
+        self = self._transform(src)
         parallel_lines = map(_resolve, src.note)
         # fail if parallel lines written by the user are not of the same length # TODO: error handling
         merged_line = [list(e) for e in map(chain.from_iterable, zip(*parallel_lines, strict=True))]
         return merged_line
 
     def _resolve_single_note(self, src: T_SingleNote) -> list[list[Note]]:
-        self = self.transform(src)
+        self = self._transform(src)
         if isinstance(src, T_TrilledNote):
-            trillStartsOn = self.trillStartsOn.resolve()
-            return self._resolve_trilled_note(src.note, src.trill, starts_on=trillStartsOn)
+            trill_style = self.trill_style.resolve()
+            return self._resolve_trilled_note(src.note, src.trill, trill_style)
         if is_typeform(note := src.note, T_BarDelimiter):
             return self._check_bar_assertion(note)
         if is_typeform(note, T_CompoundNote):
@@ -372,7 +373,7 @@ class _NotesFactory:
     def _resolve_compound_note(self, _note: T_CompoundNote) -> list[list[Note]]:
         return self._apply_phrasing(*chain(*map(self._create_note, strip_split(_note, ","))))
 
-    def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, starts_on: T_TrillMode) -> list[list[Note]]:
+    def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle) -> list[list[Note]]:
         notes = self._create_note(note)
         note_duration = len(notes)
         trill_note, trill_duration = self._parse_note(trill)
@@ -382,7 +383,7 @@ class _NotesFactory:
         # unless the main note also lasts only one pulse
         trill_duration = max(trill_duration, min(note_duration, 2))
 
-        place_trill_note_here = (lambda i: i % 2 == 0) if starts_on == "main" else (lambda i: i % 2 == 1)
+        place_trill_note_here = (lambda i: i % 2 == 0) if trill_style == "alt" else (lambda i: i % 2 == 1)
         for i in range(trill_duration):
             if place_trill_note_here(i):
                 notes[i] = trill_note

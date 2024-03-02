@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar, Union
 
 from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
+from pydantic.alias_generators import to_camel
 from pydantic_core import core_schema
 
 
@@ -199,7 +200,7 @@ T_CompoundNote = Annotated[
         )
     ),
 ]
-T_TrillMode = Literal["main", "alt"]
+T_TrillStyle = Literal["normal", "alt"]
 T_AbsoluteLevel = NonNegativeInt
 T_RelativeLevel = Annotated[
     str,
@@ -262,14 +263,13 @@ class _BaseModel(BaseModel):
     class Config:
         frozen = True
         extra = "forbid"
+        alias_generator = to_camel
 
 
 class T_NoteModel(_BaseModel):
     time: T_Time | T_Reset | None = None
     delay: T_Delay | T_Reset | None = None
     beat: T_Beat | T_Reset | None = None
-    trillStartsOn: T_TrillMode | T_Reset | None = None
-    position: Any  # will be overriden by either _SingleDivisionNoteModel or _DoubleDivisionNoteModel
     instrument: T_Positional[T_Instrument | None] | T_Reset = None
     dynamic: T_Positional[T_LocalDynamic | None] | T_Reset = None
     transpose: T_Positional[T_LocalTranspose | None] | T_Reset = None
@@ -284,7 +284,8 @@ class _DoubleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
 
 
-class T_NotesModifier(T_NoteModel): ...
+class T_NotesModifier(T_NoteModel):
+    trill_style: T_TrillStyle | T_Reset | None = None
 
 
 class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier): ...
@@ -307,6 +308,7 @@ class T_SingleNote(_BaseNote):
 class T_TrilledNote(T_SingleNote):
     note: T_NoteName
     trill: T_NoteName
+    trill_style: T_TrillStyle | T_Reset | None = None
 
 
 class T_SingleDivisionSingleNote(_SingleDivisionNoteModel, T_SingleNote): ...
@@ -322,22 +324,32 @@ class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, T_TrilledNote): ...
 
 
 class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[T_SingleDivisionSingleNote | T_SingleDivisionSequentialNotes]
+    note: list[T_SingleDivisionSingleNote | T_DoubleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
 
 
 class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
-    note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionSequentialNotes]
+    note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
 
 
 T_ParallelNotes = T_SingleDivisionParallelNotes | T_DoubleDivisionParallelNotes
 
 
 class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[T_SingleDivisionSingleNote | T_SingleDivisionParallelNotes | T_SingleDivisionNotesModifier]
+    note: list[
+        T_SingleDivisionSingleNote
+        | T_SingleDivisionTrilledNote
+        | T_SingleDivisionParallelNotes
+        | T_SingleDivisionNotesModifier
+    ]
 
 
 class T_DoubleDivisionSequentialNotes(_DoubleDivisionNoteModel, _BaseNote):
-    note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionParallelNotes | T_DoubleDivisionNotesModifier]
+    note: list[
+        T_DoubleDivisionSingleNote
+        | T_DoubleDivisionTrilledNote
+        | T_DoubleDivisionParallelNotes
+        | T_DoubleDivisionNotesModifier
+    ]
 
 
 T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequentialNotes
@@ -348,7 +360,7 @@ class _BaseVoice(_BaseModel):
     name: T_Name | None = None
     time: T_Time | None = None
     beat: T_Beat | None = None
-    trillStartsOn: T_TrillMode | None = None
+    trill_style: T_TrillStyle | None = None
     instrument: T_Positional[T_Instrument | None] = None
     dynamic: T_Positional[T_LocalDynamic | None] = None
     transpose: T_Positional[T_LocalTranspose | None] = None
@@ -384,7 +396,7 @@ class _BaseSection(_BaseModel):
     delay: T_Delay | None = None
     beat: T_Beat | None = None
     tick: T_Tick | None = None
-    trillStartsOn: T_TrillMode | None = None
+    trill_style: T_TrillStyle | None = None
     instrument: T_Instrument | None = None
     dynamic: T_GlobalDynamic | None = None
     transpose: T_GlobalTranspose | None = None
