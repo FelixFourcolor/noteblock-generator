@@ -142,14 +142,14 @@ class SingleDivisionPosition(PositionalProperty[T_LevelIndex, T_SingleDivisionPo
     def _transform(self, origin, transformation):
         if is_typeform(transformation, T_AbsoluteLevel):
             return transformation
-        assert is_typeform(transformation, T_RelativeLevel)
+        assert is_typeform(transformation, T_RelativeLevel), transformation
         return origin + int(transformation)
 
 
 class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_DoubleIndex]):
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
         match = re.search("left|right|switch", value)
-        assert match is not None  # match is guaranteed by T_CompoundPosition type
+        assert match is not None, match  # match is guaranteed by T_CompoundPosition type
         division: T_Division = match.group()  # type: ignore
         level = value[match.end() :].strip()
         return division, level
@@ -183,7 +183,7 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
         elif is_typeform(transformation, T_Division):
             transformation_division, transformation_level = transformation, None
         else:
-            assert is_typeform(transformation, T_CompoundPosition)
+            assert is_typeform(transformation, T_CompoundPosition), transformation
             transformation_division, transformation_level = self._split_division_and_level(transformation)
         # ---
         division = self._transform_division(origin_division, transformation_division)  # type: ignore
@@ -203,7 +203,7 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
                 if transformation == "bothsides":
                     return T_MultiValue(("left", "right"))
                 return transformation
-            assert is_typeform(transformation, T_CompoundPosition)
+            assert is_typeform(transformation, T_CompoundPosition), transformation
             division, level = self._split_division_and_level(transformation)
             if division == "bothsides":
                 return T_MultiValue((f"left{level}", f"right{level}"))
@@ -277,8 +277,7 @@ class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDy
         def parse(value: T_LocalDynamic) -> list[T_ConstantDynamic]:
             if is_typeform(value, T_ConstantDynamic):
                 return [value] * sus_duration
-
-            assert is_typeform(value, T_TimedAbsoluteDynamic | T_TimedRelativeDynamic)
+            assert is_typeform(value, T_TimedAbsoluteDynamic | T_TimedRelativeDynamic), value
 
             def parse_timed_dynamic(tokens: list[T_TimedDynamic]) -> list[T_ConstantDynamic]:
                 dynamic = tokens[0]
