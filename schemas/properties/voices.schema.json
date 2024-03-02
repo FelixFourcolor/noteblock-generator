@@ -1,0 +1,68 @@
+{
+    "singleDivisionPosition": {
+        "oneOf": [
+            { "$ref": "locals.schema.json#/singleDivisionPosition" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "locals.schema.json#/singleDivisionPosition" }
+            }
+        ]
+    },
+    "doubleDivisionPosition": {
+        "oneOf": [
+            { "$ref": "locals.schema.json#/doubleDivisionPosition" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "locals.schema.json#/doubleDivisionPosition" }
+            }
+        ]
+    },
+    "instrument": {
+        "oneOf": [
+            { "$ref": "globals.schema.json#/instrument" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "globals.schema.json#/instrument" }
+            }
+        ]
+    },
+    "dynamic": {
+        "oneOf": [
+            { "$ref": "locals.schema.json#/dynamic" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "locals.schema.json#/dynamic" }
+            }
+        ]
+    },
+    "transpose": {
+        "oneOf": [
+            { "$ref": "locals.schema.json#/transpose" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "locals.schema.json#/transpose" }
+            }
+        ]
+    },
+    "sustain": {
+        "oneOf": [
+            { "$ref": "locals.schema.json#/sustain" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "locals.schema.json#/sustain" }
+            }
+        ]
+    }
+}

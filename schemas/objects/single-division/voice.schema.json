@@ -1,0 +1,26 @@
+{
+    "oneOf": [
+        { "$ref": "#/$def/voice" },
+        { "$ref": "../../properties/meta.schema.json#/reference" }
+    ],
+    "$def": {
+        "voice": {
+            "title": "Single-division voice",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "notes" ],
+            "properties": {
+                "notes": { "$ref": "notes.schema.json#" },
+                "name": { "$ref": "../../properties/globals.schema.json#/name" },
+                "time": { "$ref": "../../properties/globals.schema.json#/time" },
+                "beat": { "$ref": "../../properties/globals.schema.json#/beat" },
+                "trillStyle": { "$ref": "../../properties/globals.schema.json#/trillStyle" },
+                "position": { "$ref": "../../properties/voices.schema.json#/singleDivisionPosition" },
+                "instrument": { "$ref": "../../properties/voices.schema.json#/instrument" },
+                "dynamic": { "$ref": "../../properties/voices.schema.json#/dynamic" },
+                "transpose": { "$ref": "../../properties/voices.schema.json#/transpose" },
+                "sustain": { "$ref": "../../properties/voices.schema.json#/sustain" }
+            }
+        }
+    }
+}

@@ -1,0 +1,7 @@
+{
+    "anyOf": [
+        { "$ref": "objects/section.schema.json#" },
+        { "$ref": "objects/voice.schema.json#" },
+        { "$ref": "objects/notes.schema.json#" }
+    ]
+}

@@ -1,0 +1,11 @@
+{
+    "default": {
+        "description": "Infer value from environment",
+        "const": null
+    },
+    "reference": {
+        "title": "Data defined in another file",
+        "type": "string",
+        "pattern": "^file://.+$"
+    }
+}

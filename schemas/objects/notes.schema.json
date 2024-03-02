@@ -1,0 +1,6 @@
+{
+    "anyOf": [
+        { "$ref": "single-division/notes.schema.json#" },
+        { "$ref": "double-division/notes.schema.json#" }
+    ]
+}

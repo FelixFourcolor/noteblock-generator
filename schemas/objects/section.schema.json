@@ -1,0 +1,46 @@
+{
+    "anyOf": [
+        { "$ref": "single-division/section.schema.json#" },
+        { "$ref": "double-division/section.schema.json#" },
+        { "$ref": "#/$def/compoundSection" }
+    ],
+    "$def": {
+        "compoundSection": {
+            "title": "Compound section",
+            "oneOf": [
+                { "$ref": "#/$def/compoundSection/$def/sections" },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [ "sections" ],
+                    "properties": {
+                        "sections": { "$ref": "#/$def/compoundSection/$def/sections" },
+                        "name": { "$ref": "../properties/globals.schema.json#/name" },
+                        "time": { "$ref": "../properties/globals.schema.json#/time" },
+                        "width": { "$ref": "../properties/globals.schema.json#/width" },
+                        "beat": { "$ref": "../properties/globals.schema.json#/beat" },
+                        "tick": { "$ref": "../properties/globals.schema.json#/tick" },
+                        "trillStyle": { "$ref": "../properties/globals.schema.json#/trillStyle" },
+                        "instrument": { "$ref": "../properties/globals.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../properties/globals.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../properties/globals.schema.json#/transpose" },
+                        "sustain": { "$ref": "../properties/globals.schema.json#/sustain" }
+                    }
+                }
+            ],
+            "$def": {
+                "sections": {
+                    "title": "List of sections to be played sequentially",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#" },
+                            { "$ref": "../properties/meta.schema.json#/reference" }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
