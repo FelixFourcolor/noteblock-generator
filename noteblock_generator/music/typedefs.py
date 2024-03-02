@@ -4,7 +4,7 @@ import contextlib
 from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar, Union
 
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, PositiveFloat, PositiveInt, model_validator
+from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic_core import core_schema
 
 T = TypeVar("T")
@@ -211,7 +211,7 @@ T_CompoundNote = Annotated[
     ),
 ]
 T_TrillMode = Literal["main", "alt"]
-T_AbsoluteLevel = PositiveInt
+T_AbsoluteLevel = NonNegativeInt
 T_RelativeLevel = Annotated[
     str,
     Field(
