@@ -253,7 +253,7 @@ def _to_dict(data: Any, *, key: str) -> dict:
     if isinstance(data, dict):
         if key in data:
             return data
-        if "data" in data:
+        with contextlib.suppress(KeyError):
             return {key: data.pop("data")}
     return {key: data}
 
@@ -354,20 +354,15 @@ class _BaseVoice(_BaseModel):
     transpose: T_Positional[T_LocalTranspose | None] = None
     sustain: T_Positional[T_LocalSustain | None] = None
 
-    @classmethod
-    def _set_path(cls, data: dict):
-        if "path" not in data:
-            notes = data["notes"]
-            if isinstance(notes, dict):
-                with contextlib.suppress(KeyError, TypeError):
-                    data["path"] = notes.pop("path")
-        return data
-
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         data = _to_dict(data, key="notes")
-        data = cls._set_path(data)
+        if "path" not in data:
+            notes = data["notes"]  # guarantee valid key by _to_dict
+            with contextlib.suppress(TypeError, KeyError):
+                # try setting voice's path to notes' path, if it exists
+                data["path"] = notes.pop("path")
         return data
 
 
