@@ -212,7 +212,21 @@ T_CompoundNote = Annotated[
 ]
 T_TrillMode = Literal["main", "alt"]
 T_AbsoluteLevel = PositiveInt
+T_RelativeLevel = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^"
+            "[+-]"  # + to raise, - to lower
+            "\\d+"  # value
+            "$"
+        )
+    ),
+]
+T_Level = T_AbsoluteLevel | T_RelativeLevel
 T_AbsoluteDivision = Literal["left", "right", "bothsides"]
+T_RelativeDivision = Literal["switch"]
+T_Division = T_AbsoluteDivision | T_RelativeDivision
 T_AbsoluteCompoundPosition = Annotated[
     str,
     Field(
@@ -225,19 +239,6 @@ T_AbsoluteCompoundPosition = Annotated[
         )
     ),
 ]
-T_RelativeLevel = Annotated[
-    str,
-    Field(
-        pattern=(
-            "^"
-            "[+-]"  # + to raise, - to lower
-            "\\d+"  # value
-            "$"
-        )
-    ),
-]
-T_RelativeDivision = Literal["switch"]
-T_Division = T_AbsoluteDivision | T_RelativeDivision
 T_RelativeCompoundPosition = Annotated[
     str,
     Field(
@@ -252,7 +253,7 @@ T_RelativeCompoundPosition = Annotated[
     ),
 ]
 T_CompoundPosition = T_AbsoluteCompoundPosition | T_RelativeCompoundPosition
-T_SingleDivisionPosition = T_Level = T_AbsoluteLevel | T_RelativeLevel
+T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 T_Voice = Union["T_SingleDivisionVoice", "T_DoubleDivisionVoice"]
