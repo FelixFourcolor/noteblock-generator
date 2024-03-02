@@ -150,20 +150,20 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
         match = re.search("left|right|switch", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
-        division: T_Division = match.group()  # type: ignore
+        division = cast(T_Division, match.group())
         level = value[match.end() :].strip()
         return division, level
 
-    def _transform_division(
-        self, origin: T_DivisionIndex | None, transformation: T_Division | None
-    ) -> T_DivisionIndex | None:
+    def _transform_division(self, origin: T_DivisionIndex | None, transformation: T_Division | None):
         if transformation is None:
             return origin
         if transformation == "switch":
             if origin is None:
                 return None
             return (origin + 1) % 2
-        return ["left", "right"].index(transformation)  # type: ignore
+        if transformation == "bothsides":
+            return None
+        return cast(T_DivisionIndex, ["left", "right"].index(transformation))
 
     def _transform_level(self, origin: T_LevelIndex, transformation: T_Level | None):
         if transformation is None:
@@ -181,37 +181,16 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
         if is_typeform(transformation, T_Level):
             transformation_division, transformation_level = None, transformation
         elif is_typeform(transformation, T_Division):
-            transformation_division, transformation_level = transformation, None
+            transformation_division, transformation_level = cast(T_Division, transformation), None
         else:
             assert is_typeform(transformation, T_CompoundPosition), transformation
             transformation_division, transformation_level = self._split_division_and_level(transformation)
         # ---
-        division = self._transform_division(origin_division, transformation_division)  # type: ignore
+        division = self._transform_division(origin_division, transformation_division)
         level = self._transform_level(origin_level, transformation_level)
         if division is None:
             return level
         return division, level
-
-    def transform(self, transformation):
-        if isinstance(transformation, T_Null):
-            return super().transform(transformation)
-
-        def handle_bothsides(transformation: T_Position | T_Null) -> T_Positional[T_Position | T_Null]:
-            if is_typeform(transformation, T_Null | T_Level):
-                return transformation
-            if is_typeform(transformation, T_Division):
-                if transformation == "bothsides":
-                    return T_MultiValue(("left", "right"))
-                return transformation
-            assert is_typeform(transformation, T_CompoundPosition), transformation
-            division, level = self._split_division_and_level(transformation)
-            if division == "bothsides":
-                return T_MultiValue((f"left{level}", f"right{level}"))
-            return transformation
-
-        if isinstance(transformation, T_MultiValue):
-            return super().transform(flatten(map(handle_bothsides, transformation)))
-        return super().transform(handle_bothsides(transformation))
 
     def resolve(self):
         def handle_bothsides(origin: T_Index) -> T_Positional[T_DoubleIndex]:
