@@ -323,7 +323,7 @@ class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, _BaseTrilledNote): .
 
 
 class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[T_SingleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    note: list[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
 
 
 class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
