@@ -47,7 +47,7 @@ T_Instrument = Annotated[
     ),
 ]
 T_AbsoluteDynamic = Annotated[int, Field(ge=0, le=4)]
-T_TimedAbsoluteDynamic = Annotated[
+T_VariableAbsoluteDynamic = Annotated[
     str,
     Field(
         pattern=(
@@ -75,7 +75,7 @@ T_RelativeDynamic = Annotated[
         )
     ),
 ]
-T_TimedRelativeDynamic = Annotated[
+T_VariableRelativeDynamic = Annotated[
     str,
     Field(
         pattern=(
@@ -94,9 +94,9 @@ T_TimedRelativeDynamic = Annotated[
     ),
 ]
 T_ConstantDynamic = T_AbsoluteDynamic | T_RelativeDynamic
-T_TimedDynamic = T_TimedAbsoluteDynamic | T_TimedRelativeDynamic
-T_GlobalDynamic = T_AbsoluteDynamic | T_TimedAbsoluteDynamic
-T_LocalDynamic = T_ConstantDynamic | T_TimedDynamic
+T_VariableDynamic = T_VariableAbsoluteDynamic | T_VariableRelativeDynamic
+T_GlobalDynamic = T_AbsoluteDynamic | T_VariableAbsoluteDynamic
+T_LocalDynamic = T_ConstantDynamic | T_VariableDynamic
 T_GlobalTranspose = T_AbsoluteTranspose = int
 T_RelativeTranspose = Annotated[
     str,

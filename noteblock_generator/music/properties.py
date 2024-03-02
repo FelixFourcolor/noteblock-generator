@@ -39,9 +39,7 @@ from .typedefs import (
     T_RelativeLevel,
     T_SingleDivisionPosition,
     T_Time,
-    T_TimedAbsoluteDynamic,
-    T_TimedDynamic,
-    T_TimedRelativeDynamic,
+    T_VariableDynamic,
     T_Width,
 )
 from .utils import flatten, is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
@@ -261,9 +259,9 @@ class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDy
         def parse(value: T_LocalDynamic) -> list[T_ConstantDynamic]:
             if is_typeform(value, T_ConstantDynamic):
                 return [value] * sustain_duration
-            assert is_typeform(value, T_TimedAbsoluteDynamic | T_TimedRelativeDynamic), value
+            assert is_typeform(value, T_VariableDynamic), value
 
-            def parse_timed_dynamic(tokens: list[T_TimedDynamic]) -> list[T_ConstantDynamic]:
+            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> list[T_ConstantDynamic]:
                 dynamic = tokens[0]
                 if not dynamic.startswith(("+", "-")):
                     dynamic = int(dynamic)
@@ -273,8 +271,8 @@ class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDy
                 return [dynamic] * duration
 
             tokens = strip_split(value, ",")
-            timed_dynamics = map(parse_timedvalue, tokens)
-            transformations = map(parse_timed_dynamic, timed_dynamics)
+            timed_values = map(parse_timedvalue, tokens)
+            transformations = map(parse_variable_dynamic, timed_values)
             out = list(chain(*transformations))
             if (remaining_duration := sustain_duration - len(out)) < 0:
                 raise ValueError("Incompatible sustain and duration")  # TODO: error handling
