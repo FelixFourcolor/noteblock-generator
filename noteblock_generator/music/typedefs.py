@@ -58,7 +58,7 @@ T_TimedAbsoluteDynamic = Annotated[
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
             ")+"  # end duration
-            "(\\s*,\\s*|$)"  # ","  or end of string
+            "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
             "$"
         )
@@ -138,7 +138,7 @@ T_BarDelimiter = Annotated[
             "^"
             "\\|{1,2}"  # | to assert bar line, or || to also rest for the entire bar
             "(\\s*\\d+)?"  # optionally assert bar number
-            "\\!?"  # optionally disable compile-time check
+            "\\!?"  # optional "!" to force assertion
             "$"
         )
     ),
@@ -149,7 +149,7 @@ T_NoteName = Annotated[
         pattern=(
             "^"
             "[a-gA-G]"  # pitch A to G
-            "(bb|b|s|ss)?"  # accidentals: flat, sharp, double flats, double sharps
+            "(bb|b|s|ss)?"  # optional accidentals: double flats, flat, sharp, double sharps
             "("  # begin octave
             "[1-7]?"  # absolute: noteblock's octaves range from 1 to 7
             "|"  # or
@@ -184,7 +184,7 @@ T_CompoundNote = Annotated[
             "^"
             "("  # begin repeat
             "[a-gA-G]"  # pitch A to G
-            "(bb|b|s|ss)?"  # accidentals: flat, sharp, double flats, double sharps
+            "(bb|b|s|ss)?"  # optional accidentals: double flats, flat, sharp, double sharps
             "("  # begin octave
             "[1-7]?"  # absolute: noteblock's octaves range from 1 to 7
             "|"  # or
@@ -221,7 +221,7 @@ T_AbsoluteCompoundPosition = Annotated[
     str,
     Field(
         pattern=(
-            "^"  #
+            "^"
             "(left|right|bothsides)"  # which side relative to the player
             "\\s*"
             "\\d+"  # level: higher is closer to the player
