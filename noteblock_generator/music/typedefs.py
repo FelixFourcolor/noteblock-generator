@@ -367,13 +367,20 @@ class _BaseVoice(_BaseModel):
     transpose: T_Positional[T_LocalTranspose | T_Null] = _NULL
     sustain: T_Positional[T_LocalSustain | T_Null] = _NULL
 
+    @classmethod
+    def _set_path(cls, data: dict):
+        if "path" not in data:
+            notes = data["notes"]
+            if isinstance(notes, dict):
+                with contextlib.suppress(KeyError, TypeError):
+                    data["path"] = notes.pop("path")
+        return data
+
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         data = _accept_data(data, key="notes")
-        if "path" not in data:
-            with contextlib.suppress(KeyError):
-                data["path"] = data["notes"].pop("path")
+        data = cls._set_path(data)
         return data
 
 
