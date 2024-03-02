@@ -40,7 +40,7 @@ from .typedefs import (
     T_Level,
     T_LevelIndex,
     T_MultiValue,
-    T_NoteModel,
+    T_NoteMeta,
     T_NoteName,
     T_NotesModifier,
     T_NoteValue,
@@ -283,7 +283,7 @@ class _NotesFactory:
     def resolve(self, src: T_SequentialNotes):
         return self._resolve_sequential_notes(src)
 
-    def _transform(self, src: T_NoteModel):
+    def _transform(self, src: T_NoteMeta):
         self = shallowcopy(self)
         for field in type(src).model_fields:
             if hasattr(self, field):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypeVar, Union
+from typing import Annotated, Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic.alias_generators import to_camel
@@ -246,7 +246,6 @@ T_CompoundPosition = T_AbsoluteCompoundPosition | T_RelativeCompoundPosition
 T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
-T_Voice = Union["T_SingleDivisionVoice", "T_DoubleDivisionVoice"]
 T_Reset = Literal["$reset"]
 
 
@@ -266,7 +265,7 @@ class _BaseModel(BaseModel):
         alias_generator = to_camel
 
 
-class T_NoteModel(_BaseModel):
+class _BaseNoteModel(_BaseModel):
     time: T_Time | T_Reset | None = None
     delay: T_Delay | T_Reset | None = None
     beat: T_Beat | T_Reset | None = None
@@ -284,59 +283,56 @@ class _DoubleDivisionNoteModel(_BaseModel):
     position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
 
 
-class T_NotesModifier(T_NoteModel):
+class _BaseNotesModifier(_BaseNoteModel):
     trill_style: T_TrillStyle | T_Reset | None = None
 
 
-class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier): ...
+class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, _BaseNotesModifier): ...
 
 
-class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, T_NotesModifier): ...
+class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, _BaseNotesModifier): ...
 
 
-class _BaseNote(T_NoteModel):
+class _BaseNote(_BaseNoteModel):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         return _to_dict(data, key="note")
 
 
-class T_SingleNote(_BaseNote):
+class _BaseRegularNote(_BaseNote):
     note: T_BarDelimiter | T_Rest | T_NoteName | T_CompoundNote
 
 
-class T_TrilledNote(T_SingleNote):
+class T_SingleDivisionRegularNote(_SingleDivisionNoteModel, _BaseRegularNote): ...
+
+
+class T_DoubleDivisionRegularNote(_DoubleDivisionNoteModel, _BaseRegularNote): ...
+
+
+class _BaseTrilledNote(_BaseNote):
     note: T_NoteName
     trill: T_NoteName
     trill_style: T_TrillStyle | T_Reset | None = None
 
 
-class T_SingleDivisionSingleNote(_SingleDivisionNoteModel, T_SingleNote): ...
+class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, _BaseTrilledNote): ...
 
 
-class T_DoubleDivisionSingleNote(_DoubleDivisionNoteModel, T_SingleNote): ...
-
-
-class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, T_TrilledNote): ...
-
-
-class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, T_TrilledNote): ...
+class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, _BaseTrilledNote): ...
 
 
 class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[T_SingleDivisionSingleNote | T_DoubleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    note: list[T_SingleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
 
 
 class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
-    note: list[T_DoubleDivisionSingleNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
-
-
-T_ParallelNotes = T_SingleDivisionParallelNotes | T_DoubleDivisionParallelNotes
+    note: list[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
 
 
 class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
     note: list[
-        T_SingleDivisionSingleNote
+        T_SingleDivisionRegularNote
         | T_SingleDivisionTrilledNote
         | T_SingleDivisionParallelNotes
         | T_SingleDivisionNotesModifier
@@ -345,14 +341,11 @@ class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
 
 class T_DoubleDivisionSequentialNotes(_DoubleDivisionNoteModel, _BaseNote):
     note: list[
-        T_DoubleDivisionSingleNote
+        T_DoubleDivisionRegularNote
         | T_DoubleDivisionTrilledNote
         | T_DoubleDivisionParallelNotes
         | T_DoubleDivisionNotesModifier
     ]
-
-
-T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequentialNotes
 
 
 class _BaseVoice(_BaseModel):
@@ -416,9 +409,6 @@ class T_DoubleDivisionSection(_BaseSection):
     voices: list[T_Positional[T_DoubleDivisionVoice] | None]
 
 
-T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
-
-
 class T_CompoundSection(_BaseSection):
     sections: list[T_Section]
 
@@ -428,4 +418,14 @@ class T_CompoundSection(_BaseSection):
         return _to_dict(data, key="sections")
 
 
+T_NotesModifier = T_SingleDivisionNotesModifier | T_DoubleDivisionNotesModifier
+T_RegularNote = T_SingleDivisionRegularNote | T_DoubleDivisionRegularNote
+T_TrilledNote = T_SingleDivisionTrilledNote | T_DoubleDivisionTrilledNote
+T_SingleNote = T_RegularNote | T_TrilledNote
+T_ParallelNotes = T_SingleDivisionParallelNotes | T_DoubleDivisionParallelNotes
+T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequentialNotes
+T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
+T_NoteMeta = T_NotesModifier | T_Note
+T_Voice = T_SingleDivisionVoice | T_DoubleDivisionVoice
+T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
 T_Section = T_SingleSection | T_CompoundSection
