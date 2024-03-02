@@ -283,7 +283,7 @@ class _NotesFactory:
             elif value is None:
                 # reset field to voice's value
                 setattr(self, field, getattr(self._env, field))
-            elif value is not T_Null:
+            else:
                 # transform from voice's value
                 setattr(self, field, getattr(self._env, field).transform(value))
         return self
