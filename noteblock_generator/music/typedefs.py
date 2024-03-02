@@ -257,19 +257,19 @@ T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 T_Voice = Union["T_SingleDivisionVoice", "T_DoubleDivisionVoice"]
 
-_DEFAULT = T_Null()
+_NULL = T_Null()
 
 
 class T_NoteModel(_BaseModel):
-    time: T_Time | T_Null | None = _DEFAULT
-    delay: T_Delay | T_Null | None = _DEFAULT
-    beat: T_Beat | T_Null | None = _DEFAULT
-    trillStartsOn: T_TrillMode | T_Null | None = _DEFAULT
-    position: T_Positional[T_Position | T_Null] | None = _DEFAULT
-    instrument: T_Positional[T_Instrument | T_Null] | None = _DEFAULT
-    dynamic: T_Positional[T_LocalDynamic | T_Null] | None = _DEFAULT
-    transpose: T_Positional[T_LocalTranspose | T_Null] | None = _DEFAULT
-    sustain: T_Positional[T_LocalSustain | T_Null] | None = _DEFAULT
+    time: T_Time | T_Null | None = _NULL
+    delay: T_Delay | T_Null | None = _NULL
+    beat: T_Beat | T_Null | None = _NULL
+    trillStartsOn: T_TrillMode | T_Null | None = _NULL
+    position: T_Positional[T_Position | T_Null] | None = _NULL
+    instrument: T_Positional[T_Instrument | T_Null] | None = _NULL
+    dynamic: T_Positional[T_LocalDynamic | T_Null] | None = _NULL
+    transpose: T_Positional[T_LocalTranspose | T_Null] | None = _NULL
+    sustain: T_Positional[T_LocalSustain | T_Null] | None = _NULL
 
 
 class T_NotesModifier(T_NoteModel):
@@ -302,11 +302,11 @@ class T_TrilledNote(T_SingleNote):
 
 
 class _SingleDivisionNoteModel(T_NoteModel):
-    position: T_Positional[T_SingleDivisionPosition | T_Null] | None = _DEFAULT
+    position: T_Positional[T_SingleDivisionPosition | T_Null] | None = _NULL
 
 
 class _DoubleDivisionNoteModel(T_NoteModel):
-    position: T_Positional[T_DoubleDivisionPosition | T_Null] | None = _DEFAULT
+    position: T_Positional[T_DoubleDivisionPosition | T_Null] | None = _NULL
 
 
 class T_SingleDivisionNotesModifier(T_NotesModifier, _SingleDivisionNoteModel):
@@ -356,15 +356,15 @@ T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequential
 
 
 class _BaseVoice(_BaseModel):
-    path: Path | T_Null = Field(default=_DEFAULT, exclude=True)
-    name: T_Name | T_Null = _DEFAULT
-    time: T_Time | T_Null = _DEFAULT
-    beat: T_Beat | T_Null = _DEFAULT
-    trillStartsOn: T_TrillMode | T_Null = _DEFAULT
-    instrument: T_Positional[T_Instrument | T_Null] = _DEFAULT
-    dynamic: T_Positional[T_LocalDynamic | T_Null] = _DEFAULT
-    transpose: T_Positional[T_LocalTranspose | T_Null] = _DEFAULT
-    sustain: T_Positional[T_LocalSustain | T_Null] = _DEFAULT
+    path: Path | T_Null = Field(default=_NULL, exclude=True)
+    name: T_Name | T_Null = _NULL
+    time: T_Time | T_Null = _NULL
+    beat: T_Beat | T_Null = _NULL
+    trillStartsOn: T_TrillMode | T_Null = _NULL
+    instrument: T_Positional[T_Instrument | T_Null] = _NULL
+    dynamic: T_Positional[T_LocalDynamic | T_Null] = _NULL
+    transpose: T_Positional[T_LocalTranspose | T_Null] = _NULL
+    sustain: T_Positional[T_LocalSustain | T_Null] = _NULL
 
     @model_validator(mode="before")
     @classmethod
@@ -378,27 +378,27 @@ class _BaseVoice(_BaseModel):
 
 class T_SingleDivisionVoice(_BaseVoice):
     notes: T_SingleDivisionSequentialNotes
-    position: T_Positional[T_SingleDivisionPosition | T_Null] = _DEFAULT
+    position: T_Positional[T_SingleDivisionPosition | T_Null] = _NULL
 
 
 class T_DoubleDivisionVoice(_BaseVoice):
     notes: T_DoubleDivisionSequentialNotes
-    position: T_Positional[T_DoubleDivisionPosition | T_Null] = _DEFAULT
+    position: T_Positional[T_DoubleDivisionPosition | T_Null] = _NULL
 
 
 class _BaseSection(_BaseModel):
-    path: Path | T_Null = Field(default=_DEFAULT, exclude=True)
-    name: T_Name | T_Null = _DEFAULT
-    time: T_Time | T_Null = _DEFAULT
-    width: T_Width | T_Null = _DEFAULT
-    delay: T_Delay | T_Null = _DEFAULT
-    beat: T_Beat | T_Null = _DEFAULT
-    tick: T_Tick | T_Null = _DEFAULT
-    trillStartsOn: T_TrillMode | T_Null = _DEFAULT
-    instrument: T_Instrument | T_Null = _DEFAULT
-    dynamic: T_GlobalDynamic | T_Null = _DEFAULT
-    transpose: T_GlobalTranspose | T_Null = _DEFAULT
-    sustain: T_GlobalSustain | T_Null = _DEFAULT
+    path: Path | T_Null = Field(default=_NULL, exclude=True)
+    name: T_Name | T_Null = _NULL
+    time: T_Time | T_Null = _NULL
+    width: T_Width | T_Null = _NULL
+    delay: T_Delay | T_Null = _NULL
+    beat: T_Beat | T_Null = _NULL
+    tick: T_Tick | T_Null = _NULL
+    trillStartsOn: T_TrillMode | T_Null = _NULL
+    instrument: T_Instrument | T_Null = _NULL
+    dynamic: T_GlobalDynamic | T_Null = _NULL
+    transpose: T_GlobalTranspose | T_Null = _NULL
+    sustain: T_GlobalSustain | T_Null = _NULL
 
     @model_validator(mode="before")
     @classmethod
