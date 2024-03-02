@@ -10,20 +10,10 @@ from pydantic_core import core_schema
 T = TypeVar("T")
 
 
-class T_MultiValue(list[T]):
+class T_MultiValue(tuple[T, ...]):
     @classmethod
     def __get_pydantic_core_schema__(cls, src_type: Any, handler: GetCoreSchemaHandler):
-        return core_schema.no_info_after_validator_function(cls, handler(list))
-
-
-class _BaseModel(BaseModel):
-    class Config:
-        frozen = True
-        extra = "forbid"
-
-
-class T_Null(_BaseModel):
-    pass
+        return core_schema.no_info_after_validator_function(cls, handler(tuple))
 
 
 T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
@@ -257,24 +247,7 @@ T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 T_Voice = Union["T_SingleDivisionVoice", "T_DoubleDivisionVoice"]
-
-_NULL = T_Null()
-
-
-class T_NoteModel(_BaseModel):
-    time: T_Time | T_Null | None = _NULL
-    delay: T_Delay | T_Null | None = _NULL
-    beat: T_Beat | T_Null | None = _NULL
-    trillStartsOn: T_TrillMode | T_Null | None = _NULL
-    position: Any  # will be overriden by either _SingleDivisionNoteModel or _DoubleDivisionNoteModel
-    instrument: T_Positional[T_Instrument | T_Null] | None = _NULL
-    dynamic: T_Positional[T_LocalDynamic | T_Null] | None = _NULL
-    transpose: T_Positional[T_LocalTranspose | T_Null] | None = _NULL
-    sustain: T_Positional[T_LocalSustain | T_Null] | None = _NULL
-
-
-class T_NotesModifier(T_NoteModel):
-    pass
+T_Reset = Literal["$reset"]
 
 
 def _to_dict(data: Any, *, key: str) -> dict:
@@ -284,6 +257,36 @@ def _to_dict(data: Any, *, key: str) -> dict:
         if "data" in data:
             return {key: data.pop("data")}
     return {key: data}
+
+
+class _BaseModel(BaseModel):
+    class Config:
+        frozen = True
+        extra = "forbid"
+
+
+class T_NoteModel(_BaseModel):
+    time: T_Time | T_Reset | None = None
+    delay: T_Delay | T_Reset | None = None
+    beat: T_Beat | T_Reset | None = None
+    trillStartsOn: T_TrillMode | T_Reset | None = None
+    position: Any  # will be overriden by either _SingleDivisionNoteModel or _DoubleDivisionNoteModel
+    instrument: T_Positional[T_Instrument | None] | T_Reset = None
+    dynamic: T_Positional[T_LocalDynamic | None] | T_Reset = None
+    transpose: T_Positional[T_LocalTranspose | None] | T_Reset = None
+    sustain: T_Positional[T_LocalSustain | None] | T_Reset = None
+
+
+class _SingleDivisionNoteModel(_BaseModel):
+    position: T_Positional[T_SingleDivisionPosition | None] | T_Reset = None
+
+
+class _DoubleDivisionNoteModel(_BaseModel):
+    position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
+
+
+class T_NotesModifier(T_NoteModel):
+    pass
 
 
 class _BaseNote(T_NoteModel):
@@ -300,14 +303,6 @@ class T_SingleNote(_BaseNote):
 class T_TrilledNote(T_SingleNote):
     note: T_NoteName
     trill: T_NoteName
-
-
-class _SingleDivisionNoteModel(_BaseModel):
-    position: T_Positional[T_SingleDivisionPosition | T_Null] | None = _NULL
-
-
-class _DoubleDivisionNoteModel(_BaseModel):
-    position: T_Positional[T_DoubleDivisionPosition | T_Null] | None = _NULL
 
 
 class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, T_NotesModifier):
@@ -357,15 +352,15 @@ T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequential
 
 
 class _BaseVoice(_BaseModel):
-    path: Path | T_Null = Field(default=_NULL, exclude=True)
-    name: T_Name | T_Null = _NULL
-    time: T_Time | T_Null = _NULL
-    beat: T_Beat | T_Null = _NULL
-    trillStartsOn: T_TrillMode | T_Null = _NULL
-    instrument: T_Positional[T_Instrument | T_Null] = _NULL
-    dynamic: T_Positional[T_LocalDynamic | T_Null] = _NULL
-    transpose: T_Positional[T_LocalTranspose | T_Null] = _NULL
-    sustain: T_Positional[T_LocalSustain | T_Null] = _NULL
+    path: Path | None = Field(default=None, exclude=True)
+    name: T_Name | None = None
+    time: T_Time | None = None
+    beat: T_Beat | None = None
+    trillStartsOn: T_TrillMode | None = None
+    instrument: T_Positional[T_Instrument | None] = None
+    dynamic: T_Positional[T_LocalDynamic | None] = None
+    transpose: T_Positional[T_LocalTranspose | None] = None
+    sustain: T_Positional[T_LocalSustain | None] = None
 
     @classmethod
     def _set_path(cls, data: dict):
@@ -386,27 +381,27 @@ class _BaseVoice(_BaseModel):
 
 class T_SingleDivisionVoice(_BaseVoice):
     notes: T_SingleDivisionSequentialNotes
-    position: T_Positional[T_SingleDivisionPosition | T_Null] = _NULL
+    position: T_Positional[T_SingleDivisionPosition | None] = None
 
 
 class T_DoubleDivisionVoice(_BaseVoice):
     notes: T_DoubleDivisionSequentialNotes
-    position: T_Positional[T_DoubleDivisionPosition | T_Null] = _NULL
+    position: T_Positional[T_DoubleDivisionPosition | None] = None
 
 
 class _BaseSection(_BaseModel):
-    path: Path | T_Null = Field(default=_NULL, exclude=True)
-    name: T_Name | T_Null = _NULL
-    time: T_Time | T_Null = _NULL
-    width: T_Width | T_Null = _NULL
-    delay: T_Delay | T_Null = _NULL
-    beat: T_Beat | T_Null = _NULL
-    tick: T_Tick | T_Null = _NULL
-    trillStartsOn: T_TrillMode | T_Null = _NULL
-    instrument: T_Instrument | T_Null = _NULL
-    dynamic: T_GlobalDynamic | T_Null = _NULL
-    transpose: T_GlobalTranspose | T_Null = _NULL
-    sustain: T_GlobalSustain | T_Null = _NULL
+    path: Path | None = Field(default=None, exclude=True)
+    name: T_Name | None = None
+    time: T_Time | None = None
+    width: T_Width | None = None
+    delay: T_Delay | None = None
+    beat: T_Beat | None = None
+    tick: T_Tick | None = None
+    trillStartsOn: T_TrillMode | None = None
+    instrument: T_Instrument | None = None
+    dynamic: T_GlobalDynamic | None = None
+    transpose: T_GlobalTranspose | None = None
+    sustain: T_GlobalSustain | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -415,11 +410,11 @@ class _BaseSection(_BaseModel):
 
 
 class T_SingleDivisionSection(_BaseSection):
-    voices: list[T_Positional[T_SingleDivisionVoice] | T_Null]
+    voices: list[T_Positional[T_SingleDivisionVoice] | None]
 
 
 class T_DoubleDivisionSection(_BaseSection):
-    voices: list[T_Positional[T_DoubleDivisionVoice] | T_Null]
+    voices: list[T_Positional[T_DoubleDivisionVoice] | None]
 
 
 T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection

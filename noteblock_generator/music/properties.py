@@ -34,7 +34,6 @@ from .typedefs import (
     T_MultiValue,
     T_Name,
     T_NoteValue,
-    T_Null,
     T_Position,
     T_Positional,
     T_RelativeLevel,
@@ -51,27 +50,27 @@ S, T, U, V = TypeVar("S"), TypeVar("T"), TypeVar("U"), TypeVar("V")
 
 
 class SupportsName(Protocol):
-    name: T_Name | T_Null
-    path: Path | T_Null
+    name: T_Name | None
+    path: Path | None
 
 
 class Name:
-    def _process(self, index: T_Index = 0, src: SupportsName = None):
+    def _init_core(self, index: T_Index = 0, src: SupportsName = None):
         if src is None:
             return ""
-        if not isinstance(name := src.name, T_Null):
+        if (name := src.name) is not None:
             return name
-        if not isinstance(path := src.path, T_Null):
+        if (path := src.path) is not None:
             return str(path.with_suffix(""))
         return f"Unnamed {type(src).__name__} {index}"
 
     def __init__(self):
-        self._value = self._process()
+        self._value = self._init_core()
 
     def transform(self, index: T_Index, src: SupportsName) -> Name:
         self = shallowcopy(self)
-        if isinstance(name := src.name, T_Null):
-            name = self._process(index, src)
+        if (name := src.name) is None:
+            name = self._init_core(index, src)
         if self._value:
             self._value += "/"
         self._value += name
@@ -85,10 +84,10 @@ class Width:
     def __init__(self, value: T_Width = None):
         self._value = value
 
-    def transform(self, time: T_Time, value: T_Width | T_Null):
-        if not isinstance(value, T_Null):
+    def transform(self, time: T_Time, value: T_Width | None):
+        if value is not None:
             return Width(value)
-        elif isinstance(self._value, T_Null):
+        elif self._value is None:
             return Width(self._resolve_time(time))
         return self
 
@@ -105,8 +104,8 @@ class ImmutableProperty(Generic[T]):
     def __init__(self, value: T):
         self._value = value
 
-    def transform(self, value: T | T_Null):
-        if isinstance(value, T_Null):
+    def transform(self, value: T | None):
+        if value is None:
             return self
         return type(self)(value)
 
@@ -115,31 +114,35 @@ class ImmutableProperty(Generic[T]):
 
 
 class PositionalProperty(Generic[S, T, U, V]):
-    def _process(self, value: S) -> U:
+    def _init_core(self, value: S) -> U:
         return cast(U, value)
 
-    def _transform(self, origin: U, transformation: T) -> U:
-        return self._process(cast(S, transformation))
+    def _transform_core(self, origin: U, transformation: T) -> U:
+        return self._init_core(cast(S, transformation))
 
-    def _resolve(self, origin: U, *args, **kwargs) -> V:
+    def _resolve_core(self, origin: U, *args, **kwargs) -> V:
         return cast(V, origin)
 
     def __init__(self, value: T_Positional[S]):
-        self._value = positional_map(self._process, value)
+        self._value = positional_map(self._init_core, value)
 
-    def transform(self, transformation: T_Positional[T | T_Null]):
-        if isinstance(transformation, T_Null):
-            return self
+    def transform(self, transformation: T_Positional[T | None]):
         self = shallowcopy(self)
-        self._value = positional_map(self._transform, self._value, transformation)
+
+        def _optional_transform_core(origin: U, transformation: T | None):
+            if transformation is None:
+                return origin
+            return self._transform_core(origin, transformation)
+
+        self._value = positional_map(_optional_transform_core, self._value, transformation)
         return self
 
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
-        return positional_map(self._resolve, self._value, *args, **kwargs)
+        return positional_map(self._resolve_core, self._value, *args, **kwargs)
 
 
 class SingleDivisionPosition(PositionalProperty[T_LevelIndex, T_SingleDivisionPosition, T_LevelIndex, T_LevelIndex]):
-    def _transform(self, origin, transformation):
+    def _transform_core(self, origin, transformation):
         if is_typeform(transformation, T_AbsoluteLevel):
             return transformation
         assert is_typeform(transformation, T_RelativeLevel), transformation
@@ -172,7 +175,7 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
             return transformation
         return origin + int(transformation)
 
-    def _transform(self, origin, transformation):
+    def _transform_core(self, origin, transformation):
         if isinstance(origin, T_LevelIndex):
             origin_division, origin_level = None, origin
         else:
@@ -229,7 +232,7 @@ class Instrument(PositionalProperty[T_Instrument, T_Instrument, T_Instrument, No
         "chime": range(54, 79),
     }
 
-    def _resolve(self, origin: T_Instrument, note_value: T_NoteValue):
+    def _resolve_core(self, origin: T_Instrument, note_value: T_NoteValue):
         for instrument in strip_split(origin, "/"):
             instrument_range = self._INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
             with contextlib.suppress(ValueError):
@@ -244,18 +247,20 @@ class Instrument(PositionalProperty[T_Instrument, T_Instrument, T_Instrument, No
 
 
 class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDynamic], list[T_AbsoluteDynamic]]):
-    def _process(self, value):
+    def _init_core(self, value):
         return [value]
 
-    def _transform(self, origin, transformation):
+    def _transform_core(self, origin, transformation):
         if is_typeform(transformation, T_GlobalDynamic):
-            return self._process(transformation)
+            return self._init_core(transformation)
         return [*origin, transformation]
 
-    def _resolve(self, origin: list[T_LocalDynamic], beat: T_Beat, sus_duration: T_Duration, note_duration: T_Duration):
+    def _resolve_core(
+        self, origin: list[T_LocalDynamic], beat: T_Beat, sustain_duration: T_Duration, note_duration: T_Duration
+    ):
         def parse(value: T_LocalDynamic) -> list[T_ConstantDynamic]:
             if is_typeform(value, T_ConstantDynamic):
-                return [value] * sus_duration
+                return [value] * sustain_duration
             assert is_typeform(value, T_TimedAbsoluteDynamic | T_TimedRelativeDynamic), value
 
             def parse_timed_dynamic(tokens: list[T_TimedDynamic]) -> list[T_ConstantDynamic]:
@@ -264,14 +269,14 @@ class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDy
                     dynamic = int(dynamic)
                 duration = parse_duration(*tokens[1:], beat=beat)
                 if duration < 0:
-                    duration += sus_duration
+                    duration += sustain_duration
                 return [dynamic] * duration
 
             tokens = strip_split(value, ",")
             timed_dynamics = map(parse_timedvalue, tokens)
             transformations = map(parse_timed_dynamic, timed_dynamics)
             out = list(chain(*transformations))
-            if (remaining_duration := sus_duration - len(out)) < 0:
+            if (remaining_duration := sustain_duration - len(out)) < 0:
                 raise ValueError("Incompatible sustain and duration")  # TODO: error handling
             return out + ["+0"] * remaining_duration
 
@@ -286,20 +291,20 @@ class Dynamic(PositionalProperty[T_GlobalDynamic, T_LocalDynamic, list[T_LocalDy
         transform = partial(reduce, apply_transformation)
         transformations = zip(*map(parse, origin), strict=True)
         result = map(int, map(transform, transformations))
-        padding = [0] * (note_duration - sus_duration)
+        padding = [0] * (note_duration - sustain_duration)
         return list(result) + padding
 
 
 class Sustain(PositionalProperty[T_GlobalSustain, T_LocalSustain, list[T_LocalSustain], T_AbsoluteSustain]):
-    def _process(self, value):
+    def _init_core(self, value):
         return [value]
 
-    def _transform(self, origin, transformation):
+    def _transform_core(self, origin, transformation):
         if is_typeform(transformation, T_GlobalSustain):
-            return self._process(transformation)
+            return self._init_core(transformation)
         return [*origin, transformation]
 
-    def _resolve(self, origin: list[T_LocalSustain], beat: T_Beat, note_duration: T_Duration):
+    def _resolve_core(self, origin: list[T_LocalSustain], beat: T_Beat, note_duration: T_Duration):
         out = 1
         for sustain in origin:
             relative = False
@@ -320,7 +325,7 @@ class Sustain(PositionalProperty[T_GlobalSustain, T_LocalSustain, list[T_LocalSu
 
 
 class Transpose(PositionalProperty[T_GlobalTranspose, T_LocalTranspose, T_AbsoluteTranspose, T_AbsoluteTranspose]):
-    def _transform(self, origin, transformation):
+    def _transform_core(self, origin, transformation):
         if isinstance(transformation, T_GlobalTranspose):
             return int(transformation)
         return origin + int(transformation)

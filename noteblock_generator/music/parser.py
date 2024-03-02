@@ -44,9 +44,9 @@ from .typedefs import (
     T_NoteName,
     T_NotesModifier,
     T_NoteValue,
-    T_Null,
     T_ParallelNotes,
     T_Positional,
+    T_Reset,
     T_Rest,
     T_Section,
     T_SequentialNotes,
@@ -174,7 +174,7 @@ class CompoundSection(_BaseSection, list["Section | CompoundSection"]):
 
 
 class _BaseSingleSection(_BaseSection):
-    def _process_voices(self, voices: list[SingleDivisionVoice | DoubleDivisionVoice]):
+    def _process_voices(self, voices: Iterable[SingleDivisionVoice | DoubleDivisionVoice]):
         # voices are NOT necesarily of equal length, pad them with empty notes
         merged_voice = [list(e) for e in map(chain.from_iterable, zip_longest(*voices, fillvalue=[]))]
         if not all(unit.delay == step[0].delay for step in merged_voice for unit in step[1:]):
@@ -188,7 +188,7 @@ class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]
         voices = flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
-            if not isinstance(voice, T_Null)
+            if voice is not None
         )
         self += self._process_voices(voices)
 
@@ -199,7 +199,7 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
         voices = flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
-            if not isinstance(voice, T_Null)
+            if voice is not None
         )
         self += self._process_voices(voices)
 
@@ -277,15 +277,10 @@ class _NotesFactory:
     def transform(self, src: T_NoteModel):
         self = shallowcopy(self)
         for field in T_NoteModel.model_fields:
-            if isinstance(value := getattr(src, field), T_Null):
-                # keep current field value
-                pass
-            elif value is None:
-                # reset field to voice's value
+            if is_typeform(value := getattr(src, field), T_Reset):
                 setattr(self, field, getattr(self._env, field))
             else:
-                # transform from voice's value
-                setattr(self, field, getattr(self._env, field).transform(value))
+                setattr(self, field, getattr(self, field).transform(value))
         return self
 
     @overload
@@ -398,7 +393,7 @@ class _NotesFactory:
         _position = self.position.resolve()
         _beat = self.beat.resolve()
         _sustain = self.sustain.resolve(beat=_beat, note_duration=len(notes))
-        _dynamic = self.dynamic.resolve(beat=_beat, sus_duration=_sustain, note_duration=len(notes))
+        _dynamic = self.dynamic.resolve(beat=_beat, sustain_duration=_sustain, note_duration=len(notes))
 
         def transform(*notes: NoteBlock | None, dynamic: list[T_AbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(notes: Iterable[NoteBlock | None]) -> Iterable[Note]:
