@@ -277,7 +277,7 @@ class T_NotesModifier(T_NoteModel):
     pass
 
 
-def _accept_data(data: Any, key: str):
+def _to_dict(data: Any, *, key: str) -> dict:
     if isinstance(data, dict):
         if key in data:
             return data
@@ -290,7 +290,7 @@ class _BaseNote(T_NoteModel):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        return _accept_data(data, key="note")
+        return _to_dict(data, key="note")
 
 
 class T_SingleNote(_BaseNote):
@@ -379,7 +379,7 @@ class _BaseVoice(_BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = _accept_data(data, key="notes")
+        data = _to_dict(data, key="notes")
         data = cls._set_path(data)
         return data
 
@@ -411,7 +411,7 @@ class _BaseSection(_BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        return _accept_data(data, key="voices")
+        return _to_dict(data, key="voices")
 
 
 class T_SingleDivisionSection(_BaseSection):
@@ -431,7 +431,7 @@ class T_CompoundSection(_BaseSection):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        return _accept_data(data, key="sections")
+        return _to_dict(data, key="sections")
 
 
 T_Section = T_SingleSection | T_CompoundSection
