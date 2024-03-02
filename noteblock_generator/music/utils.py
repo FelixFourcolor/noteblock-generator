@@ -31,9 +31,9 @@ def flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue:
 
 
 @cache
-def is_typeform(obj: Any, typeform: type[T]) -> TypeGuard[T]:
+def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     try:
-        TypeAdapter(typeform).validate_python(obj, strict=True)
+        TypeAdapter(typeform).validate_python(obj, strict=strict)
         return True
     except ValidationError:
         return False

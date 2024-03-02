@@ -349,7 +349,7 @@ class _NotesFactory:
                     return note_name, octave - 1
                 return note_name, default_octave
 
-            if is_typeform(note_name[-1], int):
+            if is_typeform(note_name[-1], int, strict=False):
                 return self._PITCHES[note_name] + transpose
             else:
                 note, octave = parse_relative_octave(note_name, octave)
