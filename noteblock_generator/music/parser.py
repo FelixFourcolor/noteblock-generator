@@ -366,7 +366,7 @@ class _NotesFactory:
         _octave = self._octave
         _transpose = self.transpose.resolve()
         note_value = positional_map(_parse_note_name, note_name, octave=_octave, transpose=_transpose)
-        note = self.instrument.resolve(note_value)
+        note = self.instrument.resolve(note_value)  # TODO: error handling when note out of range
         return note, note_duration
 
     def _create_note(self, src: T_NoteName | T_Rest):
