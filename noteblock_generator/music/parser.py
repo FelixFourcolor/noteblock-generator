@@ -281,44 +281,51 @@ class _NotesFactory:
     @overload
     def resolve(self, src: T_DoubleDivisionSequentialNotes) -> list[list[DoubleDivisionNote]]: ...
 
-    def resolve(self, src: T_SequentialNotes):
+    def resolve(self, src: T_SequentialNotes):  # type: ignore
         return self._resolve_sequential_notes(src)
 
     def _transform(self, src: T_NoteMeta):
-        self = shallowcopy(self)
         for field in self._PROPERTIES:
-            if is_typeform(value := getattr(src, field), T_Reset):
-                setattr(self, field, getattr(self._env, field))
-            else:
-                setattr(self, field, getattr(self, field).transform(value))
-        return self
+            if (value := getattr(src, field)) is not None:
+                if is_typeform(value, T_Reset):
+                    setattr(self, field, getattr(self._env, field))
+                else:
+                    setattr(self, field, getattr(self, field).transform(value))
 
     def _resolve_sequential_notes(self, src: T_SequentialNotes):
-        self = self._transform(src)
-        out = []
-        for note in src.note:
+        self = shallowcopy(self)
+        self._transform(src)
+
+        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier):
             if isinstance(note, T_SingleNote):
-                out += self._resolve_single_note(note)
-            elif isinstance(note, T_NotesModifier):
-                self = self._transform(note)
-            else:
-                out += self._resolve_parallel_notes(note)
-        return out
+                return self._resolve_single_note(note)
+            if isinstance(note, T_ParallelNotes):
+                return self._resolve_parallel_notes(note)
+            self._transform(note)
+            return ()
+
+        sequential_lines = map(_resolve_core, src.note)
+        merged_line = list(chain.from_iterable(sequential_lines))
+        return merged_line
 
     def _resolve_parallel_notes(self, src: T_ParallelNotes) -> list[list[Note]]:
-        def _resolve(note: T_SingleNote | T_SequentialNotes):
+        self = shallowcopy(self)
+        self._transform(src)
+
+        def _resolve_core(note: T_SingleNote | T_SequentialNotes):
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
-        self = self._transform(src)
-        parallel_lines = map(_resolve, src.note)
+        parallel_lines = map(_resolve_core, src.note)
         # fail if parallel lines written by the user are not of the same length # TODO: error handling
         merged_line = [list(e) for e in map(chain.from_iterable, zip(*parallel_lines, strict=True))]
         return merged_line
 
     def _resolve_single_note(self, src: T_SingleNote) -> list[list[Note]]:
-        self = self._transform(src)
+        self = shallowcopy(self)
+        self._transform(src)
+
         if isinstance(src, T_TrilledNote):
             trill_style = self.trill_style.resolve()
             return self._resolve_trilled_note(src.note, src.trill, trill_style)
@@ -371,7 +378,7 @@ class _NotesFactory:
         return self._apply_phrasing(*self._create_note(_note))
 
     def _resolve_compound_note(self, _note: T_CompoundNote) -> list[list[Note]]:
-        return self._apply_phrasing(*chain(*map(self._create_note, strip_split(_note, ","))))
+        return self._apply_phrasing(*chain.from_iterable(map(self._create_note, strip_split(_note, ","))))
 
     def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle) -> list[list[Note]]:
         notes = self._create_note(note)
