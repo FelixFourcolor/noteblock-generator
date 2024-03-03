@@ -73,13 +73,28 @@ def parse(path_in: str) -> list[Section]:
             out += flatten(subsection)
         return out
 
-    path = _resolve_path(Path(path_in))
-    data = _resolve_references(_json_load(path), prefix=path.parent)
+    data = _resolve_references(f'"file://{path_in}"', prefix=Path.cwd())
     validated_data = TypeAdapter(T_Section).validate_json(data)  # TODO: error handling
     return flatten(_BaseSection.new(0, validated_data, _GlobalDefault()))
 
 
-def _resolve_path(path: Path):
+_URI_PATTERN = re.compile(r'"file://([^"]+)"')
+
+
+def _resolve_references(source: str, *, prefix: Path) -> str:
+    offset = 0
+    for m in _URI_PATTERN.finditer(source):
+        match, match_path = m.group(0, 1)
+        path = _find_path(prefix / match_path)
+        replacement = _load_reference(path)
+        start = m.start() + offset
+        end = m.end() + offset
+        source = source[:start] + replacement + source[end:]
+        offset += len(replacement) - len(match)
+    return source
+
+
+def _find_path(path: Path):
     def find(path: Path, /, *, match_name: str = None) -> Path | None:
         if not path.exists():
             return
@@ -102,32 +117,13 @@ def _resolve_path(path: Path):
     return found
 
 
-def _json_load(path: Path):
-    with path.open("r") as f:
-        obj = json.load(f)
-
-    if isinstance(obj, dict):
+def _load_reference(path: Path):
+    text = _resolve_references(path.read_text(), prefix=path.parent)
+    if isinstance(obj := json.loads(text), dict):
         obj["path"] = str(path)
     else:
         obj = {"path": str(path), "data": obj}
-
     return json.dumps(obj)
-
-
-_ref_pattern = re.compile(r'"file://([^"]+)"')
-
-
-def _resolve_references(source: str, *, prefix: Path) -> str:
-    offset = 0
-    for m in re.finditer(_ref_pattern, source):
-        match, match_path = m.group(0, 1)
-        path = _resolve_path(prefix / match_path)
-        replacement = _resolve_references(_json_load(path), prefix=path.parent)
-        start = m.start() + offset
-        end = m.end() + offset
-        source = source[:start] + replacement + source[end:]
-        offset += len(replacement) - len(match)
-    return source
 
 
 class _GlobalDefault:
