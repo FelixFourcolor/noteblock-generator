@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import operator
 import os
 import re
 from copy import copy as shallowcopy
@@ -408,7 +409,7 @@ class _NotesFactory:
                 return (Note(noteblock=note, delay=_delay, position=position) for note in notes)
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[list[Note]]:
-                return map(lambda note, dynamic: note * dynamic, notes, dynamic)
+                return map(operator.mul, notes, dynamic)
 
             return apply_dynamic(apply_delay_and_position(notes))
 
