@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial, reduce
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Generic, Protocol, TypeVar, cast
+from typing import ClassVar, Generic, Protocol, TypeVar, cast, final
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -17,6 +17,7 @@ from .typedefs import (
     T_Beat,
     T_CompoundPosition,
     T_ConstantDynamic,
+    T_Delete,
     T_Division,
     T_DivisionIndex,
     T_DoubleIndex,
@@ -37,12 +38,20 @@ from .typedefs import (
     T_Position,
     T_Positional,
     T_RelativeLevel,
+    T_Reset,
     T_SingleDivisionPosition,
     T_Time,
     T_VariableDynamic,
     T_Width,
 )
-from .utils import flatten, is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
+from .utils import (
+    is_typeform,
+    mutivalue_flatten,
+    parse_duration,
+    parse_timedvalue,
+    positional_map,
+    strip_split,
+)
 
 S, T, U, V = TypeVar("S"), TypeVar("T"), TypeVar("U"), TypeVar("V")
 
@@ -121,20 +130,35 @@ class PositionalProperty(Generic[S, T, U, V]):
     def _resolve_core(self, origin: U, *args, **kwargs) -> V:
         return cast(V, origin)
 
+    @final
     def __init__(self, value: T_Positional[S]):
-        self._value = positional_map(self._init_core, value)
+        self._value = self._original_value = positional_map(self._init_core, value)
 
-    def transform(self, transformation: T_Positional[T | None]):
+    @final
+    def transform(self, transformation: T_Positional[T | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
 
-        def _optional_transform_core(origin: U, transformation: T | None):
+        def transform_core(origin: U, current: U, transformation: None | T_Reset | T_Delete | T) -> U | None:
             if transformation is None:
+                return current
+            if transformation == "$reset":
                 return origin
+            if transformation == "$del":
+                return None
             return self._transform_core(origin, transformation)
 
-        self._value = positional_map(_optional_transform_core, self._value, transformation)
+        def transform_core_wrapper() -> T_Positional[U]:
+            result = positional_map(transform_core, self._original_value, self._value, transformation)
+            if isinstance(result, T_MultiValue):
+                return T_MultiValue(filter(None, result)) or self._original_value
+            return result or self._original_value
+
+        self._value = transform_core_wrapper()
+        if save:
+            self._original_value = self._value
         return self
 
+    @final
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
         return positional_map(self._resolve_core, self._value, *args, **kwargs)
 
@@ -193,14 +217,14 @@ class DoubleDivisionPosition(PositionalProperty[T_Index, T_Position, T_Index, T_
             return level
         return division, level
 
-    def resolve(self):
+    def resolve(self):  # type: ignore @final # TODO: refactor
         def handle_bothsides(origin: T_Index) -> T_Positional[T_DoubleIndex]:
             if isinstance(origin, T_LevelIndex):
                 return T_MultiValue(((0, origin), (1, origin)))
             return origin
 
         if isinstance(self._value, T_MultiValue):
-            return flatten(map(handle_bothsides, self._value))
+            return mutivalue_flatten(map(handle_bothsides, self._value))
         return handle_bothsides(self._value)
 
 

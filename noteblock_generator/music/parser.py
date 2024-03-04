@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, zip_longest
 from pathlib import Path
-from typing import ClassVar, Iterable, Optional, Protocol, overload
+from typing import ClassVar, Iterable, Optional, Protocol
 
 from pydantic import TypeAdapter
 
@@ -33,7 +33,6 @@ from .typedefs import (
     T_CompoundSection,
     T_Delay,
     T_DoubleDivisionSection,
-    T_DoubleDivisionSequentialNotes,
     T_DoubleDivisionVoice,
     T_DoubleIndex,
     T_Duration,
@@ -47,12 +46,10 @@ from .typedefs import (
     T_NoteValue,
     T_ParallelNotes,
     T_Positional,
-    T_Reset,
     T_Rest,
     T_Section,
     T_SequentialNotes,
     T_SingleDivisionSection,
-    T_SingleDivisionSequentialNotes,
     T_SingleDivisionVoice,
     T_SingleNote,
     T_Tick,
@@ -61,7 +58,15 @@ from .typedefs import (
     T_TrillStyle,
     T_Voice,
 )
-from .utils import flatten, is_typeform, parse_duration, parse_timedvalue, positional_map, strip_split
+from .utils import (
+    is_typeform,
+    mutivalue_flatten,
+    parse_duration,
+    parse_timedvalue,
+    positional_map,
+    strict_zip,
+    strip_split,
+)
 
 
 def parse(path_in: str) -> list[Section]:
@@ -182,7 +187,7 @@ class _BaseSingleSection(_BaseSection):
 class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]):
     def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
-        voices = flatten(
+        voices = mutivalue_flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
             if voice is not None
@@ -193,7 +198,7 @@ class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]
 class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
-        voices = flatten(
+        voices = mutivalue_flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
             if voice is not None
@@ -202,44 +207,6 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
 
 
 Section = SingleDivisionSection | DoubleDivisionSection
-
-
-class _BaseVoice:
-    position: SingleDivisionPosition | DoubleDivisionPosition
-
-    def __init__(self, index: T_LevelIndex, src: T_Voice, env: Section):
-        self.name = env.name.transform(index, src)
-        self.time = env.time.transform(src.time)
-        self.delay = env.delay
-        self.beat = env.beat.transform(src.beat)
-        self.instrument = env.instrument.transform(src.instrument)
-        self.dynamic = env.dynamic.transform(src.dynamic)
-        self.trill_style = env.trill_style.transform(src.trill_style)
-        self.sustain = env.sustain.transform(src.sustain)
-        self.transpose = env.transpose.transform(src.transpose)
-
-
-class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
-        # I don't know if this is a pydantic BUG?
-        # but sometimes `src` is not converted into a T_Voice but remains a dict,
-        # so we force pydantic to convert the type again.
-        # Performance impact is negligible (if measureable at all), don't even think about it.
-        src = T_SingleDivisionVoice.model_validate(src)
-
-        super().__init__(index, src, env)
-        self.position = SingleDivisionPosition(index).transform(src.position)
-        self += _NotesFactory(self).resolve(src.notes)
-
-
-class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
-        # See comment in SingleDivisionVoice.__init__
-        src = T_DoubleDivisionVoice.model_validate(src)
-
-        super().__init__(index, src, env)
-        self.position = DoubleDivisionPosition(index).transform(src.position)
-        self += _NotesFactory(self).resolve(src.notes)
 
 
 def _generate_note_values():
@@ -255,41 +222,29 @@ def _generate_note_values():
     return {note + str(octave): value for octave, notes in octaves.items() for note, value in notes.items()}
 
 
-class _NotesFactory:
-    _NOTE_VALUES: ClassVar = _generate_note_values()
-    _PROPERTIES = ("time", "delay", "beat", "trill_style", "position", "instrument", "dynamic", "transpose", "sustain")
+class _BaseVoice:
+    position: SingleDivisionPosition | DoubleDivisionPosition
 
-    def __init__(self, env: _BaseVoice):
-        self._env = env
-        self.time = env.time
+    def __init__(self, index: T_LevelIndex, src: T_Voice, env: Section):
+        self.name = env.name.transform(index, src)
+        self.time = env.time.transform(src.time)
         self.delay = env.delay
-        self.beat = env.beat
-        self.trill_style = env.trill_style
-        self.position = env.position
-        self.instrument = env.instrument
-        self.dynamic = env.dynamic
-        self.sustain = env.sustain
-        self.transpose = env.transpose
-        self._octave = self.instrument.get_octave()
+        self.beat = env.beat.transform(src.beat)
+        self.trill_style = env.trill_style.transform(src.trill_style)
+        self.instrument = env.instrument.transform(src.instrument, save=True)
+        self.dynamic = env.dynamic.transform(src.dynamic, save=True)
+        self.sustain = env.sustain.transform(src.sustain, save=True)
+        self.transpose = env.transpose.transform(src.transpose, save=True)
+        self.octave = self.instrument.get_octave()
 
-    @overload
-    def resolve(self, src: T_SingleDivisionSequentialNotes) -> list[list[SingleDivisionNote]]: ...
-
-    @overload
-    def resolve(self, src: T_DoubleDivisionSequentialNotes) -> list[list[DoubleDivisionNote]]: ...
-
-    def resolve(self, src: T_SequentialNotes):  # type: ignore
-        return self._resolve_sequential_notes(src)
+    _PROPERTIES = ("time", "delay", "beat", "trill_style", "position", "instrument", "dynamic", "transpose", "sustain")
 
     def _transform(self, src: T_NoteMeta):
         for field in self._PROPERTIES:
             if (value := getattr(src, field)) is not None:
-                if is_typeform(value, T_Reset):
-                    setattr(self, field, getattr(self._env, field))
-                else:
-                    setattr(self, field, getattr(self, field).transform(value))
+                setattr(self, field, getattr(self, field).transform(value))
 
-    def _resolve_sequential_notes(self, src: T_SequentialNotes):
+    def _resolve_sequential_notes(self, src: T_SequentialNotes):  # type: ignore
         self = shallowcopy(self)
         self._transform(src)
 
@@ -316,7 +271,7 @@ class _NotesFactory:
 
         parallel_lines = map(_resolve_core, src.note)
         # fail if parallel lines written by the user are not of the same length # TODO: error handling
-        merged_line = [list(e) for e in map(chain.from_iterable, zip(*parallel_lines, strict=True))]
+        merged_line = [list(e) for e in map(chain.from_iterable, strict_zip(*parallel_lines))]
         return merged_line
 
     def _resolve_single_note(self, src: T_SingleNote) -> list[list[Note]]:
@@ -334,6 +289,8 @@ class _NotesFactory:
 
     def _check_bar_assertion(self, src: T_BarDelimiter) -> list[list[Note]]:
         return []  # TODO
+
+    _NOTE_VALUES: ClassVar = _generate_note_values()
 
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
         _beat = self.beat.resolve()
@@ -359,7 +316,7 @@ class _NotesFactory:
                 note, octave = parse_relative_octave(note_name, octave)
                 return self._NOTE_VALUES[note + str(octave)] + transpose
 
-        _octave = self._octave
+        _octave = self.octave
         _transpose = self.transpose.resolve()
         note_value = positional_map(_parse_note_name, note_name, octave=_octave, transpose=_transpose)
         note = self.instrument.resolve(note_value)  # TODO: error handling when note out of range
@@ -412,9 +369,30 @@ class _NotesFactory:
         parallel_lines = positional_map(transform, *notes, dynamic=_dynamic, position=_position)
         if isinstance(parallel_lines, T_MultiValue):
             # parallel lines are of equal length by design
-            merged_line = [list(e) for e in map(chain.from_iterable, zip(*parallel_lines))]
+            merged_line = [list(e) for e in map(chain.from_iterable, strict_zip(*parallel_lines))]
             return merged_line
         return list(parallel_lines)
+
+
+class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
+        # I don't know if this is a pydantic BUG?
+        # but sometimes `src` is not converted into a T_Voice but remains a dict,
+        # so we force pydantic to convert the type again.
+        # Performance impact is negligible (if measureable at all), don't even think about it.
+        src = T_SingleDivisionVoice.model_validate(src)
+        super().__init__(index, src, env)
+        self.position = SingleDivisionPosition(index).transform(src.position, save=True)
+        self += self._resolve_sequential_notes(src.notes)
+
+
+class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
+        # See comment in SingleDivisionVoice.__init__
+        src = T_DoubleDivisionVoice.model_validate(src)
+        super().__init__(index, src, env)
+        self.position = DoubleDivisionPosition(index).transform(src.position, save=True)
+        self += self._resolve_sequential_notes(src.notes)
 
 
 @dataclass(kw_only=True, slots=True)

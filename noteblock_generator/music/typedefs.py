@@ -247,6 +247,7 @@ T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 T_Reset = Literal["$reset"]
+T_Delete = Literal["$del"]
 
 
 def _to_dict(data: Any, *, key: str) -> dict:
@@ -270,18 +271,18 @@ class _BaseNoteModel(_BaseModel):
     delay: T_Delay | T_Reset | None = None
     beat: T_Beat | T_Reset | None = None
     trill_style: T_TrillStyle | T_Reset | None = None
-    instrument: T_Positional[T_Instrument | None] | T_Reset = None
-    dynamic: T_Positional[T_LocalDynamic | None] | T_Reset = None
-    transpose: T_Positional[T_LocalTranspose | None] | T_Reset = None
-    sustain: T_Positional[T_LocalSustain | None] | T_Reset = None
+    instrument: T_Positional[T_Instrument | T_Reset | T_Delete | None] = None
+    dynamic: T_Positional[T_LocalDynamic | T_Reset | T_Delete | None] = None
+    transpose: T_Positional[T_LocalTranspose | T_Reset | T_Delete | None] = None
+    sustain: T_Positional[T_LocalSustain | T_Reset | T_Delete | None] = None
 
 
 class _SingleDivisionNoteModel(_BaseModel):
-    position: T_Positional[T_SingleDivisionPosition | None] | T_Reset = None
+    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
 class _DoubleDivisionNoteModel(_BaseModel):
-    position: T_Positional[T_DoubleDivisionPosition | None] | T_Reset = None
+    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
 class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, _BaseNoteModel): ...

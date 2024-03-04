@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import functools
 import re
+from functools import cache, partial
 from itertools import repeat
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, TypeGuard, TypeVar
 
@@ -13,24 +13,24 @@ T = TypeVar("T")
 CT = TypeVar("CT", bound=Callable)
 
 
-def cache(func: CT) -> CT:
+def _cache(func: CT) -> CT:
     if TYPE_CHECKING:
         return func
-    return functools.cache(func)
+    return cache(func)
 
 
-def flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue:
-    def core() -> Iterator[T]:
+def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue:
+    def flatten_core() -> Iterator[T]:
         for i in nested_list:
             if isinstance(i, T_MultiValue):
                 yield from i
             else:
                 yield i
 
-    return T_MultiValue(core())
+    return T_MultiValue(flatten_core())
 
 
-@cache
+@_cache
 def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     try:
         TypeAdapter(typeform).validate_python(obj, strict=strict)
@@ -39,7 +39,7 @@ def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
         return False
 
 
-@cache
+@_cache
 def parse_timedvalue(value: str) -> list[str]:
     def append(element: str):
         if element:
@@ -54,13 +54,13 @@ def parse_timedvalue(value: str) -> list[str]:
     return out
 
 
-@cache
+@_cache
 def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
     if not durations:
         return beat
 
     if len(durations) > 1:
-        return sum(map(functools.partial(parse_duration, beat=beat), durations))
+        return sum(map(partial(parse_duration, beat=beat), durations))
 
     if not (duration := durations[0]):
         return beat
@@ -94,7 +94,10 @@ def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T
             return func(*args, **kwargs)
         return T_MultiValue(func(*arg, **kwargs) for arg in zipped_args)
 
-    zipped_kwargs = map(dict, map(functools.partial(zip, multivalued_kwargs.keys()), zip(*multivalued_kwargs.values())))
+    zipped_kwargs = map(dict, map(partial(zip, multivalued_kwargs.keys()), zip(*multivalued_kwargs.values())))
     if not any_multivalued_args:
         return T_MultiValue(func(*args, **single_kwargs, **kwarg) for kwarg in zipped_kwargs)
     return T_MultiValue(func(*arg, **single_kwargs, **kwarg) for arg, kwarg in zip(zipped_args, zipped_kwargs))
+
+
+strict_zip = partial(zip, strict=True)
