@@ -83,21 +83,20 @@ def strip_split(string: str, delimiter: str):
 
 
 def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
-    any_multivalued_args = any(isinstance(arg, T_MultiValue) for arg in args)
-    zipped_args = zip(*(arg if isinstance(arg, T_MultiValue) else repeat(arg) for arg in args))
+    single_kwargs = {k: v for k, v in kwargs.items() if not isinstance(v, T_MultiValue)}
+    multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
+    zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), strict_zip(*multi_kwargs.values())))
 
-    multivalued_kwargs = {k: v for k, v in kwargs.items() if isinstance(v, T_MultiValue)}
-    single_kwargs = {k: v for k, v in kwargs.items() if k not in multivalued_kwargs}
-
-    if not multivalued_kwargs:
-        if not any_multivalued_args:
+    multi_args = [arg for arg in args if isinstance(arg, T_MultiValue)]
+    if not multi_args:
+        if not multi_kwargs:
             return func(*args, **kwargs)
-        return T_MultiValue(func(*arg, **kwargs) for arg in zipped_args)
-
-    zipped_kwargs = map(dict, map(partial(zip, multivalued_kwargs.keys()), zip(*multivalued_kwargs.values())))
-    if not any_multivalued_args:
         return T_MultiValue(func(*args, **single_kwargs, **kwarg) for kwarg in zipped_kwargs)
-    return T_MultiValue(func(*arg, **single_kwargs, **kwarg) for arg, kwarg in zip(zipped_args, zipped_kwargs))
+
+    zipped_args = strict_zip(*(arg if arg in multi_args else repeat(arg, len(multi_args[0])) for arg in args))
+    if not multi_kwargs:
+        return T_MultiValue(func(*arg, **kwargs) for arg in zipped_args)
+    return T_MultiValue(func(*arg, **single_kwargs, **kwarg) for arg, kwarg in strict_zip(zipped_args, zipped_kwargs))
 
 
 strict_zip = partial(zip, strict=True)
