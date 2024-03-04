@@ -96,8 +96,6 @@ def _resolve_references(source: str, *, prefix: Path) -> str:
 
 def _find_path(path: Path):
     def find(path: Path, /, *, match_name: str = None) -> Path | None:
-        if not path.exists():
-            return
         if path.is_dir():
             cwd, directories, files = next(os.walk(path))
             files = [f for f in files if f.endswith(".json")]
@@ -112,6 +110,8 @@ def _find_path(path: Path):
         elif match_name is None or match_name == path.stem:
             return path
 
+    if not path.exists():
+        raise ValueError(f"{path} does not exist.")
     if not (found := find(path)):
         raise ValueError(f"unrecognized music format for {path}")
     return found
