@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial, reduce
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, Generic, Hashable, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Hashable, Protocol, TypeVar, cast
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -273,55 +273,53 @@ class DoubleDivisionPosition(
         return handle_bothsides(self._value)
 
 
-@dataclass(kw_only=True, slots=True, frozen=True)
-class NoteBlock:
-    note: T_NoteValue
-    instrument: str
-
-
 class Instrument(
     PositionalProperty[
         T_Instrument,
         T_Instrument,
         T_Instrument,
-        NoteBlock,
+        "NoteBlock",
     ]
 ):
-    _INSTRUMENT_RANGE: ClassVar = {
-        "basedrum": range(6, 31),
-        "hat": range(6, 31),
-        "snare": range(6, 31),
-        "bass": range(6, 31),
-        "didgeridoo": range(6, 31),
-        "guitar": range(18, 43),
-        "banjo": range(30, 55),
-        "bit": range(30, 55),
-        "harp": range(30, 55),
-        "iron_xylophone": range(30, 55),
-        "pling": range(30, 55),
-        "cow_bell": range(42, 67),
-        "flute": range(42, 67),
-        "bell": range(54, 79),
-        "xylophone": range(54, 79),
-        "chime": range(54, 79),
-    }
+    def _resolve_core(
+        self,
+        origin: T_Instrument,
+        current: T_Instrument,
+        note_name: str,
+        transpose: T_AbsoluteTranspose,
+    ):
+        def parse_relative_octave(note_name: str, default_octave: int) -> tuple[str, int]:
+            if note_name.endswith("^"):
+                note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
+                return note_name, octave + 1
+            if note_name.endswith("_"):
+                note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
+                return note_name, octave - 1
+            return note_name, default_octave
 
-    def get_octave(self):
-        def get(value: T_Instrument):
-            return (self._INSTRUMENT_RANGE[next(strip_split(value, "/"))].start - 6) // 12 + 2
+        if is_typeform(note_name[-1], int, strict=False):
+            note_value = _NOTE_VALUE[note_name] + transpose
+        else:
+            default_octave = (_INSTRUMENT_RANGE[next(strip_split(origin, "/"))].start - 6) // 12 + 2
+            note, octave = parse_relative_octave(note_name, default_octave)
+            note_value = _NOTE_VALUE[note + str(octave)] + transpose
 
-        return positional_map(get, self._value)
-
-    def _resolve_core(self, current: T_Instrument, note_value: T_NoteValue):
         for instrument in strip_split(current, "/"):
-            instrument_range = self._INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
+            instrument_range = _INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
             with contextlib.suppress(ValueError):
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
-        raise ValueError(f"Note out of range for {current}")  # TODO: error handling
 
-    if TYPE_CHECKING:
+        if transpose < 0:
+            str_transpose = str(transpose)
+        elif transpose == 0:
+            str_transpose = ""
+        else:
+            str_transpose = f"+{transpose}"
+        raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")
 
-        def resolve(self, note_value: T_Positional[T_NoteValue]) -> T_Positional[NoteBlock]: ...
+    @typed_cache
+    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock]:
+        return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
 
 
 class Dynamic(
@@ -458,3 +456,43 @@ class Transpose(
     if TYPE_CHECKING:
 
         def resolve(self) -> T_Positional[T_AbsoluteTranspose]: ...
+
+
+@dataclass(kw_only=True, slots=True, frozen=True)
+class NoteBlock:
+    note: T_NoteValue
+    instrument: str
+
+
+def _generate_note_values():
+    notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
+    octaves = {1: {note: value for value, note in enumerate(notes)}}
+    for name, value in dict(octaves[1]).items():
+        octaves[1][name + "s"] = value + 1
+        if not name.endswith("s"):
+            octaves[1][name + "b"] = value - 1
+            octaves[1][name + "bb"] = value - 2
+    for i in range(1, 7):
+        octaves[i + 1] = {note: value + 12 for note, value in octaves[i].items()}
+    return {note + str(octave): value for octave, notes in octaves.items() for note, value in notes.items()}
+
+
+_NOTE_VALUE = _generate_note_values()
+_INSTRUMENT_RANGE = {
+    "basedrum": range(6, 31),
+    "hat": range(6, 31),
+    "snare": range(6, 31),
+    "bass": range(6, 31),
+    "didgeridoo": range(6, 31),
+    "guitar": range(18, 43),
+    "banjo": range(30, 55),
+    "bit": range(30, 55),
+    "harp": range(30, 55),
+    "iron_xylophone": range(30, 55),
+    "pling": range(30, 55),
+    "cow_bell": range(42, 67),
+    "flute": range(42, 67),
+    "bell": range(54, 79),
+    "xylophone": range(54, 79),
+    "chime": range(54, 79),
+}

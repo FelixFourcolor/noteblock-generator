@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, zip_longest
 from pathlib import Path
-from typing import ClassVar, Iterable, Protocol
+from typing import Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -26,7 +26,6 @@ from .properties import (
 )
 from .typedefs import (
     T_AbsoluteDynamic,
-    T_AbsoluteTranspose,
     T_BarDelimiter,
     T_Beat,
     T_CompoundNote,
@@ -43,7 +42,6 @@ from .typedefs import (
     T_NoteMeta,
     T_NoteName,
     T_NotesModifier,
-    T_NoteValue,
     T_ParallelNotes,
     T_Position,
     T_Positional,
@@ -209,19 +207,6 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
         self += self._process_voices(voices)
 
 
-def _generate_note_values():
-    notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
-    octaves = {1: {note: value for value, note in enumerate(notes)}}
-    for name, value in dict(octaves[1]).items():
-        octaves[1][name + "s"] = value + 1
-        if not name.endswith("s"):
-            octaves[1][name + "b"] = value - 1
-            octaves[1][name + "bb"] = value - 2
-    for i in range(1, 7):
-        octaves[i + 1] = {note: value + 12 for note, value in octaves[i].items()}
-    return {note + str(octave): value for octave, notes in octaves.items() for note, value in notes.items()}
-
-
 class _BaseVoice:
     position: SingleDivisionPosition | DoubleDivisionPosition
 
@@ -236,7 +221,6 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
-        self.octave = self.instrument.get_octave()
 
     def _transform(self, src: T_NoteMeta):
         self.time = self.time.transform(src.time)
@@ -295,36 +279,14 @@ class _BaseVoice:
     def _check_bar_assertion(self, src: T_BarDelimiter) -> list[list[Note]]:
         return []  # TODO
 
-    _NOTE_VALUES: ClassVar = _generate_note_values()
-
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
-        _beat = self.beat.resolve()
         tokens = parse_timedvalue(src)
         note_name = tokens[0].lower()
-        note_duration = parse_duration(*tokens[1:], beat=_beat)
+        note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
+
         if note_name == "r":
             return None, note_duration
-
-        def _parse_note_name(note_name: str, octave: int, transpose: T_AbsoluteTranspose) -> T_NoteValue:
-            def parse_relative_octave(note_name: str, default_octave: int) -> tuple[str, int]:
-                if note_name.endswith("^"):
-                    note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
-                    return note_name, octave + 1
-                if note_name.endswith("_"):
-                    note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
-                    return note_name, octave - 1
-                return note_name, default_octave
-
-            if is_typeform(note_name[-1], int, strict=False):
-                return self._NOTE_VALUES[note_name] + transpose
-            else:
-                note, octave = parse_relative_octave(note_name, octave)
-                return self._NOTE_VALUES[note + str(octave)] + transpose
-
-        _octave = self.octave
-        _transpose = self.transpose.resolve()
-        note_value = positional_map(_parse_note_name, note_name, octave=_octave, transpose=_transpose)
-        note = self.instrument.resolve(note_value)  # TODO: error handling when note out of range
+        note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
         return note, note_duration
 
     def _create_note(self, src: T_NoteName | T_Rest):
