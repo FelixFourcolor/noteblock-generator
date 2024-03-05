@@ -13,7 +13,7 @@ T = TypeVar("T")
 CT = TypeVar("CT", bound=Callable)
 
 
-def _cache(func: CT) -> CT:
+def typed_cache(func: CT) -> CT:
     if TYPE_CHECKING:
         return func
     return cache(func)
@@ -30,7 +30,7 @@ def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValu
     return T_MultiValue(flatten_core())
 
 
-@_cache
+@typed_cache
 def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     try:
         TypeAdapter(typeform).validate_python(obj, strict=strict)
@@ -39,7 +39,7 @@ def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
         return False
 
 
-@_cache
+@typed_cache
 def parse_timedvalue(value: str) -> list[str]:
     def append(element: str):
         if element:
@@ -54,7 +54,7 @@ def parse_timedvalue(value: str) -> list[str]:
     return out
 
 
-@_cache
+@typed_cache
 def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
     if not durations:
         return beat

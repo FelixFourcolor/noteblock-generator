@@ -17,6 +17,7 @@ class T_MultiValue(tuple["T", ...]):
 
 T = TypeVar("T")
 T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
+T_Array = tuple[T, ...]
 T_LevelIndex = int
 T_DivisionIndex = Literal[0, 1]
 T_DoubleIndex = tuple[T_DivisionIndex, T_LevelIndex]
@@ -320,15 +321,15 @@ class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, _BaseTrilledNote): .
 
 
 class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    note: T_Array[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
 
 
 class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
-    note: list[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
+    note: T_Array[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
 
 
 class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
-    note: list[
+    note: T_Array[
         T_SingleDivisionRegularNote
         | T_SingleDivisionTrilledNote
         | T_SingleDivisionParallelNotes
@@ -337,7 +338,7 @@ class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
 
 
 class T_DoubleDivisionSequentialNotes(_DoubleDivisionNoteModel, _BaseNote):
-    note: list[
+    note: T_Array[
         T_DoubleDivisionRegularNote
         | T_DoubleDivisionTrilledNote
         | T_DoubleDivisionParallelNotes
@@ -399,15 +400,15 @@ class _BaseSection(_BaseModel):
 
 
 class T_SingleDivisionSection(_BaseSection):
-    voices: list[T_Positional[T_SingleDivisionVoice] | None]
+    voices: T_Array[T_Positional[T_SingleDivisionVoice] | None]
 
 
 class T_DoubleDivisionSection(_BaseSection):
-    voices: list[T_Positional[T_DoubleDivisionVoice] | None]
+    voices: T_Array[T_Positional[T_DoubleDivisionVoice] | None]
 
 
 class T_CompoundSection(_BaseSection):
-    sections: list[T_Section]
+    sections: T_Array[T_Section]
 
     @model_validator(mode="before")
     @classmethod
