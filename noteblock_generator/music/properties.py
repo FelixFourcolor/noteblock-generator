@@ -71,7 +71,7 @@ class Name:
             return name
         if (path := src.path) is not None:
             return str(path.with_suffix(""))
-        return f"Unnamed {type(src).__name__} {index}"
+        return f"{type(src).__name__} {index}"
 
     def __init__(self):
         self._value = self._init_core()
@@ -113,6 +113,7 @@ class ImmutableProperty(Generic[T]):
     def __init__(self, value: T):
         self._value = self._original_value = value
 
+    @typed_cache
     def transform(self, modifier: None | T_Reset | T, *, save=False):
         self = shallowcopy(self)
         if modifier is not None:
@@ -136,16 +137,13 @@ class PositionalProperty(
         V,  # `resolve` output type
     ]
 ):
-    @classmethod
-    def _init_core(cls, value: S) -> U:
+    def _init_core(self, value: S) -> U:
         return cast(U, value)
 
-    @classmethod
-    def _transform_core(cls, current: U, modifier: T) -> U:
-        return cls._init_core(cast(S, modifier))
+    def _transform_core(self, current: U, modifier: T) -> U:
+        return self._init_core(cast(S, modifier))
 
-    @classmethod
-    def _resolve_core(cls, current: U, *args, **kwargs) -> V:
+    def _resolve_core(self, current: U, *args, **kwargs) -> V:
         return cast(V, current)
 
     @final
@@ -153,17 +151,17 @@ class PositionalProperty(
         self._value = self._original_value = positional_map(self._init_core, value)
 
     @final
-    @classmethod
-    def _transform_core_wrapper(cls, origin: U, current: U, modifier: None | T_Reset | T_Delete | T) -> U | None:
+    def _transform_core_wrapper(self, origin: U, current: U, modifier: None | T_Reset | T_Delete | T) -> U | None:
         if modifier is None:
             return current
         if modifier == "$reset":
             return origin
         if modifier == "$del":
             return None
-        return cls._transform_core(origin, modifier)
+        return self._transform_core(origin, modifier)
 
     @final
+    @typed_cache
     def transform(self, modifier: T_Positional[T | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
 
@@ -183,6 +181,7 @@ class PositionalProperty(
         return self
 
     @final
+    @typed_cache
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
         return positional_map(self._resolve_core, self._value, *args, **kwargs)
 
@@ -195,8 +194,7 @@ class SingleDivisionPosition(
         T_LevelIndex,
     ]
 ):
-    @classmethod
-    def _transform_core(cls, current, modifier):
+    def _transform_core(self, current, modifier):
         if is_typeform(modifier, T_AbsoluteLevel):
             return modifier
         assert is_typeform(modifier, T_RelativeLevel), modifier
@@ -211,16 +209,14 @@ class DoubleDivisionPosition(
         T_DoubleIndex,
     ]
 ):
-    @classmethod
-    def _split_division_and_level(cls, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
+    def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
         match = re.search("left|right|switch", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
         division = cast(T_Division, match.group())
         level = value[match.end() :].strip()
         return division, level
 
-    @classmethod
-    def _transform_division(cls, current: T_DivisionIndex | None, modifier: T_Division | None):
+    def _transform_division(self, current: T_DivisionIndex | None, modifier: T_Division | None):
         if modifier is None:
             return current
         if modifier == "switch":
@@ -231,17 +227,14 @@ class DoubleDivisionPosition(
             return None
         return cast(T_DivisionIndex, ["left", "right"].index(modifier))
 
-    @classmethod
-    def _transform_level(cls, current: T_LevelIndex, modifier: T_Level | None):
+    def _transform_level(self, current: T_LevelIndex, modifier: T_Level | None):
         if modifier is None:
             return current
         if is_typeform(modifier, T_AbsoluteLevel):
             return modifier
         return current + int(modifier)
 
-    @classmethod
-    @typed_cache
-    def _transform_core(cls, current, modifier):
+    def _transform_core(self, current, modifier):
         if isinstance(current, T_LevelIndex):
             origin_division, origin_level = None, current
         else:
@@ -253,14 +246,15 @@ class DoubleDivisionPosition(
             transformation_division, transformation_level = cast(T_Division, modifier), None
         else:
             assert is_typeform(modifier, T_CompoundPosition), modifier
-            transformation_division, transformation_level = cls._split_division_and_level(modifier)
+            transformation_division, transformation_level = self._split_division_and_level(modifier)
         # ---
-        division = cls._transform_division(origin_division, transformation_division)
-        level = cls._transform_level(origin_level, transformation_level)
+        division = self._transform_division(origin_division, transformation_division)
+        level = self._transform_level(origin_level, transformation_level)
         if division is None:
             return level
         return division, level
 
+    @typed_cache
     def resolve(self):  # type: ignore @final # TODO: refactor
         def handle_bothsides(current: T_Index) -> T_Positional[T_DoubleIndex]:
             if isinstance(current, T_LevelIndex):
@@ -272,7 +266,7 @@ class DoubleDivisionPosition(
         return handle_bothsides(self._value)
 
 
-@dataclass(kw_only=True, slots=True)
+@dataclass(kw_only=True, slots=True, frozen=True)
 class NoteBlock:
     note: T_NoteValue
     instrument: str
@@ -305,11 +299,9 @@ class Instrument(
         "chime": range(54, 79),
     }
 
-    @classmethod
-    @typed_cache
-    def _resolve_core(cls, current: T_Instrument, note_value: T_NoteValue):
+    def _resolve_core(self, current: T_Instrument, note_value: T_NoteValue):
         for instrument in strip_split(current, "/"):
-            instrument_range = cls._INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
+            instrument_range = self._INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
             with contextlib.suppress(ValueError):
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
         raise ValueError(f"Note out of range for {current}")  # TODO: error handling
@@ -329,20 +321,16 @@ class Dynamic(
         T_Array[T_AbsoluteDynamic],
     ]
 ):
-    @classmethod
-    def _init_core(cls, value):
+    def _init_core(self, value):
         return (value,)
 
-    @classmethod
-    def _transform_core(cls, current, modifier):
+    def _transform_core(self, current, modifier):
         if is_typeform(modifier, T_GlobalDynamic):
-            return cls._init_core(modifier)
+            return self._init_core(modifier)
         return (*current, modifier)
 
-    @classmethod
-    @typed_cache
     def _resolve_core(
-        cls,
+        self,
         current: T_Array[T_LocalDynamic],
         beat: T_Beat,
         sustain_duration: T_Duration,
@@ -393,20 +381,16 @@ class Sustain(
         T_AbsoluteSustain,
     ]
 ):
-    @classmethod
-    def _init_core(cls, value):
+    def _init_core(self, value):
         return (value,)
 
-    @classmethod
-    def _transform_core(cls, current, modifier):
+    def _transform_core(self, current, modifier):
         if is_typeform(modifier, T_GlobalSustain):
-            return cls._init_core(modifier)
+            return self._init_core(modifier)
         return (*current, modifier)
 
-    @classmethod
-    @typed_cache
     def _resolve_core(
-        cls,
+        self,
         current: T_Array[T_LocalSustain],
         beat: T_Beat,
         note_duration: T_Duration,
@@ -438,8 +422,7 @@ class Transpose(
         T_AbsoluteTranspose,
     ]
 ):
-    @classmethod
-    def _transform_core(cls, current, modifier):
+    def _transform_core(self, current, modifier):
         if isinstance(modifier, T_GlobalTranspose):
             return int(modifier)
         return current + int(modifier)
