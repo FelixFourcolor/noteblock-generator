@@ -155,7 +155,8 @@ class PositionalProperty(
 
     @final
     def __init__(self, value: T_Positional[S]):
-        self._value = self._original_value = positional_map(self._init_core, value)
+        self._value: T_Positional[U] = positional_map(self._init_core, value)
+        self._original_value: T_Positional[U] = self._value  # no need to copy, we never modify self._value directly
 
     @final
     def _transform_core_wrapper(self, origin: U, current: U, modifier: None | T_Reset | T_Delete | T) -> U | None:
@@ -171,12 +172,11 @@ class PositionalProperty(
     @typed_cache
     def transform(self, modifier: T_Positional[T | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
-
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
         if isinstance(new_value, T_MultiValue):
-            new_value = T_MultiValue(filter(None, new_value))
+            new_value = T_MultiValue(e for e in new_value if e is not None)
             if new_value:
-                self._value = new_value
+                self._value = new_value  # type: ignore , I have no idea why pyright complains
             else:
                 self._value = self._original_value
         elif new_value is None:
@@ -184,7 +184,7 @@ class PositionalProperty(
         else:
             self._value = new_value
         if save:
-            self._original_value = self._value
+            self._original_value = self._value  # type: ignore
         return self
 
     @final
