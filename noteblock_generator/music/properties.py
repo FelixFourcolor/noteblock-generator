@@ -109,12 +109,18 @@ class Width:
 
 class ImmutableProperty(Generic[T]):
     def __init__(self, value: T):
-        self._value = value
+        self._value = self._original_value = value
 
-    def transform(self, value: T | None):
-        if value is None:
-            return self
-        return type(self)(value)
+    def transform(self, value: None | T_Reset | T, *, save=False):
+        self = shallowcopy(self)
+        if value is not None:
+            if value == "$reset":
+                self._value = self._original_value
+            else:
+                self._value = value
+        if save:
+            self._original_value = self._value
+        return self
 
     def resolve(self) -> T:
         return self._value

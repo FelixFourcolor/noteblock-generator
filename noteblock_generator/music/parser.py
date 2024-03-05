@@ -227,22 +227,25 @@ class _BaseVoice:
 
     def __init__(self, index: T_LevelIndex, src: T_Voice, env: Section):
         self.name = env.name.transform(index, src)
-        self.time = env.time.transform(src.time)
-        self.delay = env.delay
-        self.beat = env.beat.transform(src.beat)
-        self.trill_style = env.trill_style.transform(src.trill_style)
+        self.time = env.time.transform(src.time, save=True)
+        self.delay = env.delay.transform(None, save=True)
+        self.beat = env.beat.transform(src.beat, save=True)
+        self.trill_style = env.trill_style.transform(src.trill_style, save=True)
         self.instrument = env.instrument.transform(src.instrument, save=True)
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
         self.octave = self.instrument.get_octave()
 
-    _PROPERTIES = ("time", "delay", "beat", "trill_style", "position", "instrument", "dynamic", "transpose", "sustain")
-
     def _transform(self, src: T_NoteMeta):
-        for field in self._PROPERTIES:
-            if (value := getattr(src, field)) is not None:
-                setattr(self, field, getattr(self, field).transform(value))
+        self.time = self.time.transform(src.time)
+        self.delay = self.time.transform(src.delay)
+        self.beat = self.beat.transform(src.beat)
+        self.trill_style = self.trill_style.transform(src.trill_style)
+        self.instrument = self.instrument.transform(src.instrument)
+        self.dynamic = self.dynamic.transform(src.dynamic)
+        self.sustain = self.sustain.transform(src.sustain)
+        self.transpose = self.transpose.transform(src.transpose)
 
     def _resolve_sequential_notes(self, src: T_SequentialNotes):  # type: ignore
         self = shallowcopy(self)
