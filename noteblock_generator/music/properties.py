@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial, reduce
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Generic, Protocol, TypeVar, cast, final
+from typing import ClassVar, Generic, Hashable, Protocol, TypeVar, cast, final
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -54,8 +54,6 @@ from .utils import (
     strip_split,
     typed_cache,
 )
-
-S, T, U, V = TypeVar("S"), TypeVar("T"), TypeVar("U"), TypeVar("V")
 
 
 class SupportsName(Protocol):
@@ -109,6 +107,12 @@ class Width:
         return self._value or 12
 
 
+S = TypeVar("S")
+T = TypeVar("T", bound=Hashable)
+U = TypeVar("U", bound=Hashable)
+V = TypeVar("V")
+
+
 class ImmutableProperty(Generic[T]):
     def __init__(self, value: T):
         self._value = self._original_value = value
@@ -138,12 +142,15 @@ class PositionalProperty(
     ]
 ):
     def _init_core(self, value: S) -> U:
+        # must override if S != U
         return cast(U, value)
 
     def _transform_core(self, current: U, modifier: T) -> U:
+        # must override if S != T
         return self._init_core(cast(S, modifier))
 
     def _resolve_core(self, current: U, *args, **kwargs) -> V:
+        # must override if U != V
         return cast(V, current)
 
     @final
