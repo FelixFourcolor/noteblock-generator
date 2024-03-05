@@ -242,6 +242,7 @@ class _BaseVoice:
         self.delay = self.time.transform(src.delay)
         self.beat = self.beat.transform(src.beat)
         self.trill_style = self.trill_style.transform(src.trill_style)
+        self.position = self.position.transform(src.position)
         self.instrument = self.instrument.transform(src.instrument)
         self.dynamic = self.dynamic.transform(src.dynamic)
         self.sustain = self.sustain.transform(src.sustain)
