@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import partial, reduce
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Generic, Hashable, Protocol, TypeVar, cast, final
+from typing import TYPE_CHECKING, ClassVar, Generic, Hashable, Protocol, TypeVar, cast
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -149,16 +149,14 @@ class PositionalProperty(
         # must override if S != T
         return self._init_core(cast(S, modifier))
 
-    def _resolve_core(self, current: U, *args, **kwargs) -> V:
+    def _resolve_core(self, current: U) -> V:
         # must override if U != V
         return cast(V, current)
 
-    @final
     def __init__(self, value: T_Positional[S]):
         self._value: T_Positional[U] = positional_map(self._init_core, value)
         self._original_value: T_Positional[U] = self._value  # no need to copy, we never modify self._value directly
 
-    @final
     def _transform_core_wrapper(self, origin: U, current: U, modifier: None | T_Reset | T_Delete | T) -> U | None:
         if modifier is None:
             return current
@@ -168,7 +166,6 @@ class PositionalProperty(
             return None
         return self._transform_core(current, modifier)
 
-    @final
     @typed_cache
     def transform(self, modifier: T_Positional[T | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
@@ -187,7 +184,6 @@ class PositionalProperty(
             self._original_value = self._value  # type: ignore
         return self
 
-    @final
     @typed_cache
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
         return positional_map(self._resolve_core, self._value, *args, **kwargs)
@@ -206,6 +202,10 @@ class SingleDivisionPosition(
             return modifier
         assert is_typeform(modifier, T_RelativeLevel), modifier
         return current + int(modifier)
+
+    if TYPE_CHECKING:
+
+        def resolve(self) -> T_Positional[T_LevelIndex]: ...
 
 
 class DoubleDivisionPosition(
@@ -262,7 +262,7 @@ class DoubleDivisionPosition(
         return division, level
 
     @typed_cache
-    def resolve(self):  # type: ignore @final # TODO: refactor
+    def resolve(self) -> T_Positional[T_DoubleIndex]:
         def handle_bothsides(current: T_Index) -> T_Positional[T_DoubleIndex]:
             if isinstance(current, T_LevelIndex):
                 return T_MultiValue(((0, current), (1, current)))
@@ -306,6 +306,12 @@ class Instrument(
         "chime": range(54, 79),
     }
 
+    def get_octave(self):
+        def get(value: T_Instrument):
+            return (self._INSTRUMENT_RANGE[next(strip_split(value, "/"))].start - 6) // 12 + 2
+
+        return positional_map(get, self._value)
+
     def _resolve_core(self, current: T_Instrument, note_value: T_NoteValue):
         for instrument in strip_split(current, "/"):
             instrument_range = self._INSTRUMENT_RANGE[instrument]  # guarantee valid key by T_Instrument
@@ -313,11 +319,9 @@ class Instrument(
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
         raise ValueError(f"Note out of range for {current}")  # TODO: error handling
 
-    def get_octave(self):
-        def get(value: T_Instrument):
-            return (self._INSTRUMENT_RANGE[next(strip_split(value, "/"))].start - 6) // 12 + 2
+    if TYPE_CHECKING:
 
-        return positional_map(get, self._value)
+        def resolve(self, note_value: T_Positional[T_NoteValue]) -> T_Positional[NoteBlock]: ...
 
 
 class Dynamic(
@@ -325,7 +329,7 @@ class Dynamic(
         T_GlobalDynamic,
         T_LocalDynamic,
         T_Array[T_LocalDynamic],
-        T_Array[T_AbsoluteDynamic],
+        list[T_AbsoluteDynamic],
     ]
 ):
     def _init_core(self, value):
@@ -377,7 +381,16 @@ class Dynamic(
         transformations = zip(*map(parse, current), strict=True)
         result = [int(e) for e in map(transform, transformations)]
         padding = [0] * (note_duration - sustain_duration)
-        return T_Array(result + padding)
+        return result + padding
+
+    if TYPE_CHECKING:
+
+        def resolve(
+            self,
+            beat: T_Positional[T_Beat],
+            sustain_duration: T_Positional[T_Duration],
+            note_duration: T_Positional[T_Duration],
+        ) -> T_Positional[list[T_AbsoluteDynamic]]: ...
 
 
 class Sustain(
@@ -420,6 +433,14 @@ class Sustain(
         low_limit, high_limit = 1, note_duration
         return min(max(out, low_limit), high_limit)
 
+    if TYPE_CHECKING:
+
+        def resolve(
+            self,
+            beat: T_Positional[T_Beat],
+            note_duration: T_Positional[T_Duration],
+        ) -> T_Positional[T_AbsoluteSustain]: ...
+
 
 class Transpose(
     PositionalProperty[
@@ -433,3 +454,7 @@ class Transpose(
         if isinstance(modifier, T_GlobalTranspose):
             return int(modifier)
         return current + int(modifier)
+
+    if TYPE_CHECKING:
+
+        def resolve(self) -> T_Positional[T_AbsoluteTranspose]: ...
