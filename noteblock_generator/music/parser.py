@@ -137,12 +137,12 @@ class _GlobalDefault:
     width = Width()
     delay = ImmutableProperty[T_Delay](1)
     beat = ImmutableProperty[T_Beat](1)
-    tick = ImmutableProperty[T_Tick](20)
+    tick = ImmutableProperty[T_Tick](20.0)
     trill_style = ImmutableProperty[T_TrillStyle]("normal")
     sustain = Sustain(-1)
     transpose = Transpose(0)
-    dynamic = Dynamic("2 1, 1 -1")
-    instrument = Instrument("harp/bass/flute/bell")
+    dynamic = Dynamic(1)
+    instrument = Instrument("harp")
 
 
 class _BaseSection:
