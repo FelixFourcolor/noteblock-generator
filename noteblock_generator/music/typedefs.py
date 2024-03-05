@@ -278,18 +278,12 @@ class _BaseNoteModel(_BaseModel):
     sustain: T_Positional[T_LocalSustain | T_Reset | T_Delete | None] = None
 
 
-class _SingleDivisionNoteModel(_BaseModel):
+class T_SingleDivisionNotesModifier(_BaseNoteModel):
     position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class _DoubleDivisionNoteModel(_BaseModel):
+class T_DoubleDivisionNotesModifier(_BaseNoteModel):
     position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
-
-
-class T_SingleDivisionNotesModifier(_SingleDivisionNoteModel, _BaseNoteModel): ...
-
-
-class T_DoubleDivisionNotesModifier(_DoubleDivisionNoteModel, _BaseNoteModel): ...
 
 
 class _BaseNote(_BaseNoteModel):
@@ -303,10 +297,12 @@ class _BaseRegularNote(_BaseNote):
     note: T_BarDelimiter | T_Rest | T_NoteName | T_CompoundNote
 
 
-class T_SingleDivisionRegularNote(_SingleDivisionNoteModel, _BaseRegularNote): ...
+class T_SingleDivisionRegularNote(_BaseRegularNote):
+    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_DoubleDivisionRegularNote(_DoubleDivisionNoteModel, _BaseRegularNote): ...
+class T_DoubleDivisionRegularNote(_BaseRegularNote):
+    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
 class _BaseTrilledNote(_BaseNote):
@@ -314,36 +310,42 @@ class _BaseTrilledNote(_BaseNote):
     trill: T_NoteName
 
 
-class T_SingleDivisionTrilledNote(_SingleDivisionNoteModel, _BaseTrilledNote): ...
+class T_SingleDivisionTrilledNote(_BaseTrilledNote):
+    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_DoubleDivisionTrilledNote(_DoubleDivisionNoteModel, _BaseTrilledNote): ...
+class T_DoubleDivisionTrilledNote(_BaseTrilledNote):
+    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_SingleDivisionParallelNotes(_SingleDivisionNoteModel, _BaseNote):
+class T_SingleDivisionParallelNotes(_BaseNote):
     note: T_Array[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_DoubleDivisionParallelNotes(_DoubleDivisionNoteModel, _BaseNote):
+class T_DoubleDivisionParallelNotes(_BaseNote):
     note: T_Array[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
+    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_SingleDivisionSequentialNotes(_SingleDivisionNoteModel, _BaseNote):
+class T_SingleDivisionSequentialNotes(_BaseNote):
     note: T_Array[
         T_SingleDivisionRegularNote
         | T_SingleDivisionTrilledNote
         | T_SingleDivisionParallelNotes
         | T_SingleDivisionNotesModifier
     ]
+    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
-class T_DoubleDivisionSequentialNotes(_DoubleDivisionNoteModel, _BaseNote):
+class T_DoubleDivisionSequentialNotes(_BaseNote):
     note: T_Array[
         T_DoubleDivisionRegularNote
         | T_DoubleDivisionTrilledNote
         | T_DoubleDivisionParallelNotes
         | T_DoubleDivisionNotesModifier
     ]
+    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
 
 
 class _BaseVoice(_BaseModel):
@@ -371,12 +373,12 @@ class _BaseVoice(_BaseModel):
 
 class T_SingleDivisionVoice(_BaseVoice):
     notes: T_SingleDivisionSequentialNotes
-    position: T_Positional[T_SingleDivisionPosition | None] = None
+    position: T_Positional[T_SingleDivisionPosition | T_Delete | None] = None
 
 
 class T_DoubleDivisionVoice(_BaseVoice):
     notes: T_DoubleDivisionSequentialNotes
-    position: T_Positional[T_DoubleDivisionPosition | None] = None
+    position: T_Positional[T_DoubleDivisionPosition | T_Delete | None] = None
 
 
 class _BaseSection(_BaseModel):
@@ -401,19 +403,34 @@ class _BaseSection(_BaseModel):
 
 class T_SingleDivisionSection(_BaseSection):
     voices: T_Array[T_Positional[T_SingleDivisionVoice] | None]
+    position: T_Positional[T_SingleDivisionPosition | None] = None
 
 
 class T_DoubleDivisionSection(_BaseSection):
     voices: T_Array[T_Positional[T_DoubleDivisionVoice] | None]
+    position: T_Positional[T_DoubleDivisionPosition | None] = None
 
 
-class T_CompoundSection(_BaseSection):
-    sections: T_Array[T_Section]
-
+class _BaseCompoundSection(_BaseSection):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         return _to_dict(data, key="sections")
+
+
+class T_SingleDivisionCompoundSection(_BaseCompoundSection):
+    sections: T_Array[T_SingleDivisionSection | T_SingleDivisionCompoundSection]
+    position: T_Positional[T_SingleDivisionPosition | None] = None
+
+
+class T_DoubleDivisionCompoundSection(_BaseCompoundSection):
+    sections: T_Array[T_DoubleDivisionSection | T_DoubleDivisionCompoundSection]
+    position: T_Positional[T_DoubleDivisionPosition | None] = None
+
+
+class T_MixedCompoundSection(_BaseCompoundSection):
+    sections: T_Array[T_Section]
+    position: T_Positional[T_SingleDivisionPosition | None] = None
 
 
 T_NotesModifier = T_SingleDivisionNotesModifier | T_DoubleDivisionNotesModifier
@@ -426,4 +443,5 @@ T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
 T_NoteMeta = T_NotesModifier | T_Note
 T_Voice = T_SingleDivisionVoice | T_DoubleDivisionVoice
 T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
+T_CompoundSection = T_SingleDivisionCompoundSection | T_DoubleDivisionCompoundSection | T_MixedCompoundSection
 T_Section = T_SingleSection | T_CompoundSection

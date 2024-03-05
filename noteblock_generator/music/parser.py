@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, zip_longest
 from pathlib import Path
-from typing import ClassVar, Iterable, Optional, Protocol
+from typing import ClassVar, Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -45,6 +45,7 @@ from .typedefs import (
     T_NotesModifier,
     T_NoteValue,
     T_ParallelNotes,
+    T_Position,
     T_Positional,
     T_Rest,
     T_Section,
@@ -139,10 +140,11 @@ class _GlobalDefault:
     beat = ImmutableProperty[T_Beat](1)
     tick = ImmutableProperty[T_Tick](20.0)
     trill_style = ImmutableProperty[T_TrillStyle]("normal")
+    position = ImmutableProperty[T_Positional[T_Position | None]](None)
+    instrument = Instrument("harp")
+    dynamic = Dynamic(1)
     sustain = Sustain(-1)
     transpose = Transpose(0)
-    dynamic = Dynamic(1)
-    instrument = Instrument("harp")
 
 
 class _BaseSection:
@@ -162,10 +164,11 @@ class _BaseSection:
         self.beat = env.beat.transform(src.beat)
         self.tick = env.tick.transform(src.tick)
         self.trill_style = env.trill_style.transform(src.trill_style)
+        self.position = env.position.transform(src.position)
+        self.instrument = env.instrument.transform(src.instrument)
+        self.dynamic = env.dynamic.transform(src.dynamic)
         self.sustain = env.sustain.transform(src.sustain)
         self.transpose = env.transpose.transform(src.transpose)
-        self.dynamic = env.dynamic.transform(src.dynamic)
-        self.instrument = env.instrument.transform(src.instrument)
 
 
 class CompoundSection(_BaseSection, list["Section | CompoundSection"]):
@@ -206,9 +209,6 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
         self += self._process_voices(voices)
 
 
-Section = SingleDivisionSection | DoubleDivisionSection
-
-
 def _generate_note_values():
     notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
     octaves = {1: {note: value for value, note in enumerate(notes)}}
@@ -231,6 +231,7 @@ class _BaseVoice:
         self.delay = env.delay.transform(None, save=True)
         self.beat = env.beat.transform(src.beat, save=True)
         self.trill_style = env.trill_style.transform(src.trill_style, save=True)
+        self.position = self.position.transform(env.position.resolve()).transform(src.position, save=True)
         self.instrument = env.instrument.transform(src.instrument, save=True)
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
@@ -354,7 +355,7 @@ class _BaseVoice:
                 notes[i] = trill_note
         return self._apply_phrasing(*notes)
 
-    def _apply_phrasing(self, *notes: Optional[T_Positional[NoteBlock]]) -> list[list[Note]]:
+    def _apply_phrasing(self, *notes: T_Positional[NoteBlock] | None) -> list[list[Note]]:
         _delay = self.delay.resolve()
         _position = self.position.resolve()
         _beat = self.beat.resolve()
@@ -385,8 +386,8 @@ class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
         # so we force pydantic to convert the type again.
         # Performance impact is negligible (if measureable at all), don't even think about it.
         src = T_SingleDivisionVoice.model_validate(src)
+        self.position = SingleDivisionPosition(index)
         super().__init__(index, src, env)
-        self.position = SingleDivisionPosition(index).transform(src.position, save=True)
         self += self._resolve_sequential_notes(src.notes)
 
 
@@ -394,8 +395,8 @@ class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
         # See comment in SingleDivisionVoice.__init__
         src = T_DoubleDivisionVoice.model_validate(src)
+        self.position = DoubleDivisionPosition(index)
         super().__init__(index, src, env)
-        self.position = DoubleDivisionPosition(index).transform(src.position, save=True)
         self += self._resolve_sequential_notes(src.notes)
 
 
@@ -423,3 +424,6 @@ class DoubleDivisionNote(Protocol):
     note: NoteBlock | None
     delay: T_Delay
     position: T_DoubleIndex
+
+
+Section = SingleDivisionSection | DoubleDivisionSection
