@@ -79,7 +79,7 @@ def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
 
 
 def strip_split(string: str, delimiter: str):
-    return filter(bool, map(str.strip, string.split(delimiter)))
+    return filter(None, map(str.strip, string.split(delimiter)))
 
 
 def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
