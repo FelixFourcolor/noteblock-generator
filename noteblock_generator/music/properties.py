@@ -169,10 +169,15 @@ class PositionalProperty(
 
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
         if isinstance(new_value, T_MultiValue):
-            self._value = T_MultiValue(filter(None, new_value)) or self._original_value
+            new_value = T_MultiValue(filter(None, new_value))
+            if new_value:
+                self._value = new_value
+            else:
+                self._value = self._original_value
+        elif new_value is None:
+            self._value = self._original_value
         else:
-            self._value = new_value or self._original_value
-
+            self._value = new_value
         if save:
             self._original_value = self._value
         return self
