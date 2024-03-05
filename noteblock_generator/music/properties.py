@@ -165,7 +165,7 @@ class PositionalProperty(
             return origin
         if modifier == "$del":
             return None
-        return self._transform_core(origin, modifier)
+        return self._transform_core(current, modifier)
 
     @final
     @typed_cache
