@@ -4,7 +4,7 @@ import contextlib
 import re
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from functools import partial, reduce
+from functools import reduce
 from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Hashable, Protocol, TypeVar, cast
@@ -51,6 +51,7 @@ from .utils import (
     parse_duration,
     parse_timedvalue,
     positional_map,
+    strict_zip,
     strip_split,
     typed_cache,
 )
@@ -367,18 +368,19 @@ class Dynamic(
                 raise ValueError("Incompatible sustain and duration")  # TODO: error handling
             return out + ["+0"] * remaining_duration
 
-        def apply_transformation(current: T_AbsoluteDynamic, modifier: T_ConstantDynamic) -> T_AbsoluteDynamic:
-            if isinstance(modifier, int):
+        def transform2(current: T_AbsoluteDynamic, modifier: T_ConstantDynamic) -> T_AbsoluteDynamic:
+            if is_typeform(modifier, T_AbsoluteDynamic):
                 return modifier
-            current += int(modifier)
-            low_limit = min(1, current)
-            high_limit = 4
-            return min(max(current, low_limit), high_limit)
+            low, high = min(1, current), 4
+            out = current + int(modifier)
+            return min(max(out, low), high)
 
-        transform = partial(reduce, apply_transformation)
-        transformations = zip(*map(parse, current), strict=True)
-        result = [int(e) for e in map(transform, transformations)]
-        padding = [0] * (note_duration - sustain_duration)
+        def transform(transformation: list[T_ConstantDynamic]):
+            return reduce(transform2, transformation, 0)
+
+        transformations = strict_zip(*map(parse, current))
+        result = list(map(transform, transformations))
+        padding = [0 for _ in range(note_duration - sustain_duration)]
         return result + padding
 
     if TYPE_CHECKING:
@@ -428,8 +430,8 @@ class Sustain(
             else:
                 out = duration if duration > 0 else note_duration + duration
 
-        low_limit, high_limit = 1, note_duration
-        return min(max(out, low_limit), high_limit)
+        low, high = 1, note_duration
+        return min(max(out, low), high)
 
     if TYPE_CHECKING:
 
