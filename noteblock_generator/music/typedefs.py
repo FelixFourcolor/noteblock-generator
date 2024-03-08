@@ -47,7 +47,7 @@ T_Instrument = Annotated[
         )
     ),
 ]
-T_AbsoluteDynamic = Annotated[int, Field(ge=0, le=4)]
+T_StaticAbsoluteDynamic = Annotated[int, Field(ge=0, le=4)]
 T_VariableAbsoluteDynamic = Annotated[
     str,
     Field(
@@ -65,7 +65,7 @@ T_VariableAbsoluteDynamic = Annotated[
         )
     ),
 ]
-T_RelativeDynamic = Annotated[
+T_StaticRelativeDynamic = Annotated[
     str,
     Field(
         pattern=(
@@ -94,11 +94,12 @@ T_VariableRelativeDynamic = Annotated[
         )
     ),
 ]
-T_ConstantDynamic = T_AbsoluteDynamic | T_RelativeDynamic
+T_AbsoluteDynamic = T_StaticAbsoluteDynamic | T_VariableAbsoluteDynamic
+T_RelativeDynamic = T_StaticRelativeDynamic | T_VariableRelativeDynamic
+T_StaticDynamic = T_StaticAbsoluteDynamic | T_StaticRelativeDynamic
 T_VariableDynamic = T_VariableAbsoluteDynamic | T_VariableRelativeDynamic
-T_GlobalDynamic = T_AbsoluteDynamic | T_VariableAbsoluteDynamic
-T_LocalDynamic = T_ConstantDynamic | T_VariableDynamic
-T_GlobalTranspose = T_AbsoluteTranspose = int
+T_Dynamic = T_StaticDynamic | T_VariableDynamic
+T_AbsoluteTranspose = int
 T_RelativeTranspose = Annotated[
     str,
     Field(
@@ -110,11 +111,10 @@ T_RelativeTranspose = Annotated[
         )
     ),
 ]
-T_LocalTranspose = T_GlobalTranspose | T_RelativeTranspose
-T_AbsoluteSustain = int
-T_GlobalSustain = (
+T_Transpose = T_AbsoluteTranspose | T_RelativeTranspose
+T_AbsoluteSustain = (
     bool
-    | T_AbsoluteSustain
+    | int
     | Annotated[
         str,
         Field(pattern=("^(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)$")),  # number of pulses or of beats
@@ -131,7 +131,7 @@ T_RelativeSustain = Annotated[
         )
     ),
 ]
-T_LocalSustain = T_GlobalSustain | T_RelativeSustain
+T_Sustain = T_AbsoluteSustain | T_RelativeSustain
 T_BarDelimiter = Annotated[
     str,
     Field(
@@ -273,9 +273,9 @@ class _BaseNoteModel(_BaseModel):
     beat: T_Beat | T_Reset | None = None
     trill_style: T_TrillStyle | T_Reset | None = None
     instrument: T_Positional[T_Instrument | T_Reset | T_Delete | None] = None
-    dynamic: T_Positional[T_LocalDynamic | T_Reset | T_Delete | None] = None
-    transpose: T_Positional[T_LocalTranspose | T_Reset | T_Delete | None] = None
-    sustain: T_Positional[T_LocalSustain | T_Reset | T_Delete | None] = None
+    dynamic: T_Positional[T_Dynamic | T_Reset | T_Delete | None] = None
+    transpose: T_Positional[T_Transpose | T_Reset | T_Delete | None] = None
+    sustain: T_Positional[T_Sustain | T_Reset | T_Delete | None] = None
 
 
 class T_SingleDivisionNotesModifier(_BaseNoteModel):
@@ -355,9 +355,9 @@ class _BaseVoice(_BaseModel):
     beat: T_Beat | None = None
     trill_style: T_TrillStyle | None = None
     instrument: T_Positional[T_Instrument | None] = None
-    dynamic: T_Positional[T_LocalDynamic | None] = None
-    transpose: T_Positional[T_LocalTranspose | None] = None
-    sustain: T_Positional[T_LocalSustain | None] = None
+    dynamic: T_Positional[T_Dynamic | None] = None
+    transpose: T_Positional[T_Transpose | None] = None
+    sustain: T_Positional[T_Sustain | None] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -391,9 +391,9 @@ class _BaseSection(_BaseModel):
     tick: T_Tick | None = None
     trill_style: T_TrillStyle | None = None
     instrument: T_Instrument | None = None
-    dynamic: T_GlobalDynamic | None = None
-    transpose: T_GlobalTranspose | None = None
-    sustain: T_GlobalSustain | None = None
+    dynamic: T_Dynamic | None = None
+    transpose: T_Transpose | None = None
+    sustain: T_Sustain | None = None
 
     @model_validator(mode="before")
     @classmethod

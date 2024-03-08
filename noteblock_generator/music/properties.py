@@ -17,22 +17,17 @@ from .typedefs import (
     T_Array,
     T_Beat,
     T_CompoundPosition,
-    T_ConstantDynamic,
+    T_Delay,
     T_Delete,
     T_Division,
     T_DivisionIndex,
     T_DoubleIndex,
     T_Duration,
-    T_GlobalDynamic,
-    T_GlobalSustain,
-    T_GlobalTranspose,
+    T_Dynamic,
     T_Index,
     T_Instrument,
     T_Level,
     T_LevelIndex,
-    T_LocalDynamic,
-    T_LocalSustain,
-    T_LocalTranspose,
     T_MultiValue,
     T_Name,
     T_NoteValue,
@@ -41,7 +36,13 @@ from .typedefs import (
     T_RelativeLevel,
     T_Reset,
     T_SingleDivisionPosition,
+    T_StaticAbsoluteDynamic,
+    T_StaticDynamic,
+    T_Sustain,
+    T_Tick,
     T_Time,
+    T_Transpose,
+    T_TrillStyle,
     T_VariableDynamic,
     T_Width,
 )
@@ -114,12 +115,14 @@ U = TypeVar("U", bound=Hashable)
 V = TypeVar("V")
 
 
-class ImmutableProperty(Generic[T]):
-    def __init__(self, value: T):
-        self._value = self._original_value = value
+class _StaticProperty(Generic[T]):
+    _DEFAULT: T
+
+    def __init__(self):
+        self._value = self._original_value = self._DEFAULT
 
     @typed_cache
-    def transform(self, modifier: None | T_Reset | T, *, save=False):
+    def transform(self, modifier: T | T_Reset | None, *, save=False):
         self = shallowcopy(self)
         if modifier is not None:
             if modifier == "$reset":
@@ -134,31 +137,47 @@ class ImmutableProperty(Generic[T]):
         return self._value
 
 
-class PositionalProperty(
+class Time(_StaticProperty[T_Time]):
+    _DEFAULT = 16
+
+
+class Delay(_StaticProperty[T_Delay]):
+    _DEFAULT = 1
+
+
+class Beat(_StaticProperty[T_Beat]):
+    _DEFAULT = 2
+
+
+class Tick(_StaticProperty[T_Tick]):
+    _DEFAULT = 20.0
+
+
+class TrillStyle(_StaticProperty[T_TrillStyle]):
+    _DEFAULT = "normal"
+
+
+class _PositionalProperty(
     Generic[
-        S,  # `__init__` argument type
-        T,  # `transform` argument type
-        U,  # internal representation type
+        T,  # internal representation type
+        U,  # `transform` argument type
         V,  # `resolve` output type
     ]
 ):
-    def _init_core(self, value: S) -> U:
-        # must override if S != U
-        return cast(U, value)
+    _DEFAULT: T
 
-    def _transform_core(self, current: U, modifier: T) -> U:
-        # must override if S != T
-        return self._init_core(cast(S, modifier))
+    def _transform_core(self, current: T, modifier: U) -> T:
+        # must override if T != U
+        return cast(T, modifier)
 
-    def _resolve_core(self, current: U) -> V:
-        # must override if U != V
+    def _resolve_core(self, current: T) -> V:
+        # must override if T != V, or if resolve_core should take more arguments
         return cast(V, current)
 
-    def __init__(self, value: T_Positional[S]):
-        self._value: T_Positional[U] = positional_map(self._init_core, value)
-        self._original_value: T_Positional[U] = self._value  # no need to copy, we never modify self._value directly
+    def __init__(self):
+        self._value = self._original_value = self._DEFAULT
 
-    def _transform_core_wrapper(self, origin: U, current: U, modifier: None | T_Reset | T_Delete | T) -> U | None:
+    def _transform_core_wrapper(self, origin: T, current: T, modifier: None | T_Reset | T_Delete | U) -> T | None:
         if modifier is None:
             return current
         if modifier == "$reset":
@@ -168,21 +187,21 @@ class PositionalProperty(
         return self._transform_core(current, modifier)
 
     @typed_cache
-    def transform(self, modifier: T_Positional[T | T_Reset | T_Delete | None], *, save=False):
+    def transform(self, modifier: T_Positional[U | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
         if isinstance(new_value, T_MultiValue):
             new_value = T_MultiValue(e for e in new_value if e is not None)
             if new_value:
-                self._value = new_value  # type: ignore , I have no idea why pyright complains
+                self._value = new_value
             else:
-                self._value = self._original_value
+                self._value = self._DEFAULT
         elif new_value is None:
             self._value = self._original_value
         else:
             self._value = new_value
         if save:
-            self._original_value = self._value  # type: ignore
+            self._original_value = self._value
         return self
 
     @typed_cache
@@ -190,14 +209,48 @@ class PositionalProperty(
         return positional_map(self._resolve_core, self._value, *args, **kwargs)
 
 
-class SingleDivisionPosition(
-    PositionalProperty[
-        T_LevelIndex,
-        T_SingleDivisionPosition,
-        T_LevelIndex,
-        T_LevelIndex,
-    ]
+class GlobalPosition(
+    _PositionalProperty[
+        T_Array[T_Position],
+        T_Position,
+        T_Array[T_Position],
+    ],
 ):
+    _DEFAULT = ()
+
+    def __init__(self):
+        self._value = self._original_value = self._DEFAULT
+
+    def _transform_core(self, current, modifier):
+        if is_typeform(modifier, T_AbsoluteLevel):
+            return (modifier,)
+        return (*current, modifier)
+
+    if TYPE_CHECKING:
+
+        def resolve(self) -> T_Positional[T_Array[T_Position]]: ...
+
+
+class _LocalPosition(_PositionalProperty):
+    def apply_globals(self, value: GlobalPosition):
+        self = shallowcopy(self)
+
+        def apply(self, modifier: T_Array[T_Position]):
+            for mod in modifier:
+                self = super().transform(mod)
+            return self._value
+
+        self._value = positional_map(apply, self, value.resolve())
+        return self
+
+
+class SingleDivisionPosition(
+    _LocalPosition,
+    _PositionalProperty[T_LevelIndex, T_SingleDivisionPosition, T_LevelIndex],
+):
+    def __init__(self, index: T_LevelIndex):
+        self._value = self._original_value = self._DEFAULT = index
+
     def _transform_core(self, current, modifier):
         if is_typeform(modifier, T_AbsoluteLevel):
             return modifier
@@ -210,13 +263,12 @@ class SingleDivisionPosition(
 
 
 class DoubleDivisionPosition(
-    PositionalProperty[
-        T_Index,
-        T_Position,
-        T_Index,
-        T_DoubleIndex,
-    ]
+    _LocalPosition,
+    _PositionalProperty[T_Index, T_Position, T_DoubleIndex],
 ):
+    def __init__(self, index: T_LevelIndex):
+        self._value = self._original_value = self._DEFAULT = index
+
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
         match = re.search("left|right|switch", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
@@ -274,14 +326,15 @@ class DoubleDivisionPosition(
         return handle_bothsides(self._value)
 
 
-class Instrument(
-    PositionalProperty[
-        T_Instrument,
-        T_Instrument,
-        T_Instrument,
-        "NoteBlock",
-    ]
-):
+@dataclass(kw_only=True, slots=True, frozen=True)
+class NoteBlock:
+    note: T_NoteValue
+    instrument: str
+
+
+class Instrument(_PositionalProperty[T_Instrument, T_Instrument, NoteBlock]):
+    _DEFAULT = "harp"
+
     def _resolve_core(
         self,
         origin: T_Instrument,
@@ -323,35 +376,27 @@ class Instrument(
         return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
 
 
-class Dynamic(
-    PositionalProperty[
-        T_GlobalDynamic,
-        T_LocalDynamic,
-        T_Array[T_LocalDynamic],
-        list[T_AbsoluteDynamic],
-    ]
-):
-    def _init_core(self, value):
-        return (value,)
+class Dynamic(_PositionalProperty[T_Array[T_Dynamic], T_Dynamic, list[T_StaticAbsoluteDynamic]]):
+    _DEFAULT = (1,)
 
     def _transform_core(self, current, modifier):
-        if is_typeform(modifier, T_GlobalDynamic):
-            return self._init_core(modifier)
+        if is_typeform(modifier, T_AbsoluteDynamic):
+            return (modifier,)
         return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Array[T_LocalDynamic],
+        current: T_Array[T_Dynamic],
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
     ):
-        def parse(value: T_LocalDynamic) -> list[T_ConstantDynamic]:
-            if is_typeform(value, T_ConstantDynamic):
+        def parse(value: T_Dynamic) -> list[T_StaticDynamic]:
+            if is_typeform(value, T_StaticDynamic):
                 return [value] * sustain_duration
             assert is_typeform(value, T_VariableDynamic), value
 
-            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> list[T_ConstantDynamic]:
+            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> list[T_StaticDynamic]:
                 dynamic = tokens[0]
                 if not dynamic.startswith(("+", "-")):
                     dynamic = int(dynamic)
@@ -368,15 +413,15 @@ class Dynamic(
                 raise ValueError("Incompatible sustain and duration")  # TODO: error handling
             return out + ["+0"] * remaining_duration
 
-        def transform2(current: T_AbsoluteDynamic, modifier: T_ConstantDynamic) -> T_AbsoluteDynamic:
-            if is_typeform(modifier, T_AbsoluteDynamic):
+        def transform2(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
+            if is_typeform(modifier, T_StaticAbsoluteDynamic):
                 return modifier
             low, high = min(1, current), 4
             out = current + int(modifier)
             return min(max(out, low), high)
 
-        def transform(transformation: list[T_ConstantDynamic]):
-            return reduce(transform2, transformation, 0)
+        def transform(transformation: list[T_StaticDynamic]):
+            return reduce(transform2, transformation, 1)
 
         transformations = strict_zip(*map(parse, current))
         result = list(map(transform, transformations))
@@ -390,28 +435,20 @@ class Dynamic(
             beat: T_Positional[T_Beat],
             sustain_duration: T_Positional[T_Duration],
             note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[list[T_AbsoluteDynamic]]: ...
+        ) -> T_Positional[list[T_StaticAbsoluteDynamic]]: ...
 
 
-class Sustain(
-    PositionalProperty[
-        T_GlobalSustain,
-        T_LocalSustain,
-        T_Array[T_LocalSustain],
-        T_AbsoluteSustain,
-    ]
-):
-    def _init_core(self, value):
-        return (value,)
+class Sustain(_PositionalProperty[T_Array[T_Sustain], T_Sustain, int]):
+    _DEFAULT = (-1,)
 
     def _transform_core(self, current, modifier):
-        if is_typeform(modifier, T_GlobalSustain):
-            return self._init_core(modifier)
+        if is_typeform(modifier, T_AbsoluteSustain):
+            return (modifier,)
         return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Array[T_LocalSustain],
+        current: T_Array[T_Sustain],
         beat: T_Beat,
         note_duration: T_Duration,
     ):
@@ -439,31 +476,20 @@ class Sustain(
             self,
             beat: T_Positional[T_Beat],
             note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[T_AbsoluteSustain]: ...
+        ) -> T_Positional[int]: ...
 
 
-class Transpose(
-    PositionalProperty[
-        T_GlobalTranspose,
-        T_LocalTranspose,
-        T_AbsoluteTranspose,
-        T_AbsoluteTranspose,
-    ]
-):
+class Transpose(_PositionalProperty[T_AbsoluteTranspose, T_Transpose, T_AbsoluteTranspose]):
+    _DEFAULT = 0
+
     def _transform_core(self, current, modifier):
-        if isinstance(modifier, T_GlobalTranspose):
-            return int(modifier)
+        if isinstance(modifier, T_AbsoluteTranspose):
+            return modifier
         return current + int(modifier)
 
     if TYPE_CHECKING:
 
         def resolve(self) -> T_Positional[T_AbsoluteTranspose]: ...
-
-
-@dataclass(kw_only=True, slots=True, frozen=True)
-class NoteBlock:
-    note: T_NoteValue
-    instrument: str
 
 
 def _generate_note_values():

@@ -13,21 +13,24 @@ from typing import Iterable, Protocol
 from pydantic import TypeAdapter
 
 from .properties import (
+    Beat,
+    Delay,
     DoubleDivisionPosition,
     Dynamic,
-    ImmutableProperty,
+    GlobalPosition,
     Instrument,
     Name,
     NoteBlock,
     SingleDivisionPosition,
     Sustain,
+    Tick,
+    Time,
     Transpose,
+    TrillStyle,
     Width,
 )
 from .typedefs import (
-    T_AbsoluteDynamic,
     T_BarDelimiter,
-    T_Beat,
     T_CompoundNote,
     T_CompoundSection,
     T_Delay,
@@ -43,7 +46,6 @@ from .typedefs import (
     T_NoteName,
     T_NotesModifier,
     T_ParallelNotes,
-    T_Position,
     T_Positional,
     T_Rest,
     T_Section,
@@ -51,8 +53,7 @@ from .typedefs import (
     T_SingleDivisionSection,
     T_SingleDivisionVoice,
     T_SingleNote,
-    T_Tick,
-    T_Time,
+    T_StaticAbsoluteDynamic,
     T_TrilledNote,
     T_TrillStyle,
     T_Voice,
@@ -115,7 +116,7 @@ def _find_path(path: Path):
             return path
 
     if not path.exists():
-        raise ValueError(f"{path} does not exist.")
+        raise ValueError(f"{path} does not exist")
     if not (found := find(path)):
         raise ValueError(f"unrecognized music format for {path}")
     return found
@@ -132,17 +133,17 @@ def _load_reference(path: Path):
 
 class _GlobalDefault:
     name = Name()
-    time = ImmutableProperty[T_Time](16)
+    time = Time()
     width = Width()
-    delay = ImmutableProperty[T_Delay](1)
-    beat = ImmutableProperty[T_Beat](1)
-    tick = ImmutableProperty[T_Tick](20.0)
-    trill_style = ImmutableProperty[T_TrillStyle]("normal")
-    position = ImmutableProperty[T_Positional[T_Position | None]](None)
-    instrument = Instrument("harp")
-    dynamic = Dynamic(1)
-    sustain = Sustain(-1)
-    transpose = Transpose(0)
+    delay = Delay()
+    beat = Beat()
+    tick = Tick()
+    trill_style = TrillStyle()
+    position = GlobalPosition()
+    instrument = Instrument()
+    dynamic = Dynamic()
+    sustain = Sustain()
+    transpose = Transpose()
 
 
 class _BaseSection:
@@ -216,7 +217,7 @@ class _BaseVoice:
         self.delay = env.delay.transform(None, save=True)
         self.beat = env.beat.transform(src.beat, save=True)
         self.trill_style = env.trill_style.transform(src.trill_style, save=True)
-        self.position = self.position.transform(env.position.resolve()).transform(src.position, save=True)
+        self.position = self.position.apply_globals(env.position).transform(src.position, save=True)
         self.instrument = env.instrument.transform(src.instrument, save=True)
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
@@ -324,7 +325,7 @@ class _BaseVoice:
         _sustain = self.sustain.resolve(beat=_beat, note_duration=len(notes))
         _dynamic = self.dynamic.resolve(beat=_beat, sustain_duration=_sustain, note_duration=len(notes))
 
-        def transform(*notes: NoteBlock | None, dynamic: list[T_AbsoluteDynamic], position: T_Index):
+        def transform(*notes: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(notes: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 return (Note(noteblock=note, delay=_delay, position=position) for note in notes)
 
@@ -368,7 +369,7 @@ class Note:
     delay: T_Delay
     position: T_Index
 
-    def __mul__(self, dynamic: T_AbsoluteDynamic):
+    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
         if self.noteblock is None:
             return [self]
         if dynamic > 0:
