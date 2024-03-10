@@ -225,7 +225,7 @@ class _BaseVoice:
 
     def _transform(self, src: T_NoteMeta):
         self.time = self.time.transform(src.time)
-        self.delay = self.time.transform(src.delay)
+        self.delay = self.delay.transform(src.delay)
         self.beat = self.beat.transform(src.beat)
         self.trill_style = self.trill_style.transform(src.trill_style)
         self.position = self.position.transform(src.position)
