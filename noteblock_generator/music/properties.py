@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import reduce
 from itertools import chain
 from pathlib import Path
-from typing import TYPE_CHECKING, Generic, Hashable, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Protocol, TypeVar, cast
 
 from .typedefs import (
     T_AbsoluteDynamic,
@@ -165,6 +165,8 @@ class _PositionalProperty(
     ]
 ):
     _DEFAULT: T
+    _original_value: T_Positional[T]
+    _value: T_Positional[T]
 
     def _transform_core(self, current: T, modifier: U) -> T:
         # must override if T != U
@@ -186,18 +188,55 @@ class _PositionalProperty(
             return None
         return self._transform_core(current, modifier)
 
+    def _prepare_transform(
+        self, modifier: T_Positional[U | T_Reset | T_Delete | None]
+    ) -> T_Positional[U | T_Reset | T_Delete | None]:
+        if not isinstance(modifier, T_MultiValue):
+            return modifier
+
+        modifier_len = len(modifier)
+        working_modifier = list(modifier)  # convert to list to allow mutation
+
+        if isinstance(self._value, T_MultiValue):
+            current_len = len(self._value)
+            # fewer modifiers than current values -> implicit delete
+            if modifier_len < current_len:
+                working_modifier += ("$del" for _ in range(current_len - modifier_len))
+            # more modifiers than current values -> apply extra modifiers to _DEFAULT
+            elif modifier_len > current_len:
+                self._value += (self._DEFAULT for _ in range(modifier_len - current_len))
+
+        def replace(iterable: Iterable[S], old: S, new: S) -> Iterable[S]:
+            for element in iterable:
+                if element == old:
+                    yield new
+                else:
+                    yield element
+
+        if isinstance(self._original_value, T_MultiValue):
+            original_len = len(self._original_value)
+            # replace every "$reset" modifier with "$del" if it overflows original value
+            if modifier_len > original_len:
+                inbound_modifiers = working_modifier[:original_len]
+                outbound_modifiers = replace(working_modifier[original_len:], "$reset", "$del")
+                working_modifier = inbound_modifiers + list(outbound_modifiers)
+
+        return T_MultiValue(working_modifier)  # type: ignore # no idea why pyright complains
+
     @typed_cache
     def transform(self, modifier: T_Positional[U | T_Reset | T_Delete | None], *, save=False):
         self = shallowcopy(self)
+        modifier = self._prepare_transform(modifier)
+
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
         if isinstance(new_value, T_MultiValue):
-            new_value = T_MultiValue(e for e in new_value if e is not None)
+            new_value = T_MultiValue(cast(T, e) for e in new_value if e is not None)
             if new_value:
                 self._value = new_value
             else:
                 self._value = self._DEFAULT
         elif new_value is None:
-            self._value = self._original_value
+            self._value = self._DEFAULT
         else:
             self._value = new_value
         if save:
@@ -210,11 +249,7 @@ class _PositionalProperty(
 
 
 class GlobalPosition(
-    _PositionalProperty[
-        T_Array[T_Position],
-        T_Position,
-        T_Array[T_Position],
-    ],
+    _PositionalProperty[T_Array[T_Position], T_Position, T_Array[T_Position]],
 ):
     _DEFAULT = ()
 
