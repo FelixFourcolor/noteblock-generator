@@ -85,7 +85,7 @@ def strip_split(string: str, delimiter: str):
 def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
     single_kwargs = {k: v for k, v in kwargs.items() if not isinstance(v, T_MultiValue)}
     multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
-    zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), strict_zip(*multi_kwargs.values())))
+    zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))
 
     multi_args = [arg for arg in args if isinstance(arg, T_MultiValue)]
     if not multi_args:
@@ -93,10 +93,14 @@ def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T
             return func(*args, **kwargs)
         return T_MultiValue(func(*args, **single_kwargs, **kwarg) for kwarg in zipped_kwargs)
 
-    zipped_args = strict_zip(*(arg if arg in multi_args else repeat(arg, len(multi_args[0])) for arg in args))
+    zipped_args = transpose(arg if arg in multi_args else repeat(arg, len(multi_args[0])) for arg in args)
     if not multi_kwargs:
         return T_MultiValue(func(*arg, **kwargs) for arg in zipped_args)
     return T_MultiValue(func(*arg, **single_kwargs, **kwarg) for arg, kwarg in strict_zip(zipped_args, zipped_kwargs))
 
 
 strict_zip = partial(zip, strict=True)
+
+
+def transpose(double_iterable: Iterable[Iterable[T]]) -> Iterable[Iterable[T]]:
+    return strict_zip(*double_iterable)

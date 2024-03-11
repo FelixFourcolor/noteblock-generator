@@ -65,8 +65,8 @@ from .utils import (
     parse_duration,
     parse_timedvalue,
     positional_map,
-    strict_zip,
     strip_split,
+    transpose,
 )
 
 
@@ -235,17 +235,17 @@ class _BaseVoice:
         self.sustain = self.sustain.transform(src.sustain)
         self.transpose = self.transpose.transform(src.transpose)
 
-    def _resolve_sequential_notes(self, src: T_SequentialNotes):  # type: ignore
+    def _resolve_sequential_notes(self, src: T_SequentialNotes):
         self = shallowcopy(self)
         self._transform(src)
 
-        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier):
+        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> list[list[Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             if isinstance(note, T_ParallelNotes):
                 return self._resolve_parallel_notes(note)
             self._transform(note)
-            return ()
+            return []
 
         sequential_lines = map(_resolve_core, src.note)
         merged_line = list(chain.from_iterable(sequential_lines))
@@ -255,14 +255,14 @@ class _BaseVoice:
         self = shallowcopy(self)
         self._transform(src)
 
-        def _resolve_core(note: T_SingleNote | T_SequentialNotes):
+        def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> list[list[Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
         parallel_lines = map(_resolve_core, src.note)
         # fail if parallel lines written by the user are not of the same length # TODO: error handling
-        merged_line = [list(e) for e in map(chain.from_iterable, strict_zip(*parallel_lines))]
+        merged_line = [list(e) for e in map(chain.from_iterable, transpose(parallel_lines))]
         return merged_line
 
     def _resolve_single_note(self, src: T_SingleNote) -> list[list[Note]]:
@@ -341,14 +341,13 @@ class _BaseVoice:
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[list[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            return apply_dynamic(apply_delay_and_position(notes))
+            return list(apply_dynamic(apply_delay_and_position(notes)))
 
         parallel_lines = positional_map(transform, *notes, dynamic=_dynamic, position=_position)
         if isinstance(parallel_lines, T_MultiValue):
-            # parallel lines are of equal length by design
-            merged_line = [list(e) for e in map(chain.from_iterable, strict_zip(*parallel_lines))]
+            merged_line = [list(e) for e in map(chain.from_iterable, transpose(parallel_lines))]
             return merged_line
-        return list(parallel_lines)
+        return parallel_lines
 
 
 class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):

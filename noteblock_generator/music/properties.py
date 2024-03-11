@@ -33,11 +33,13 @@ from .typedefs import (
     T_NoteValue,
     T_Position,
     T_Positional,
+    T_PositionalProperty,
     T_RelativeLevel,
     T_Reset,
     T_SingleDivisionPosition,
     T_StaticAbsoluteDynamic,
     T_StaticDynamic,
+    T_StaticProperty,
     T_Sustain,
     T_Tick,
     T_Time,
@@ -52,8 +54,8 @@ from .utils import (
     parse_duration,
     parse_timedvalue,
     positional_map,
-    strict_zip,
     strip_split,
+    transpose,
     typed_cache,
 )
 
@@ -122,13 +124,13 @@ class _StaticProperty(Generic[T]):
         self._value = self._original_value = self._DEFAULT
 
     @typed_cache
-    def transform(self, modifier: T | T_Reset | None, *, save=False):
+    def transform(self, modifier: T_StaticProperty[T], *, save=False):
         self = shallowcopy(self)
         if modifier is not None:
             if modifier == "$reset":
                 self._value = self._original_value
             else:
-                self._value = modifier
+                self._value = cast(T, modifier)
         if save:
             self._original_value = self._value
         return self
@@ -179,7 +181,7 @@ class _PositionalProperty(
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
 
-    def _transform_core_wrapper(self, origin: T, current: T, modifier: None | T_Reset | T_Delete | U) -> T | None:
+    def _transform_core_wrapper(self, origin: T, current: T, modifier: U | T_Reset | T_Delete | None) -> T | None:
         if modifier is None:
             return current
         if modifier == "$reset":
@@ -188,9 +190,7 @@ class _PositionalProperty(
             return None
         return self._transform_core(current, modifier)
 
-    def _prepare_transform(
-        self, modifier: T_Positional[U | T_Reset | T_Delete | None]
-    ) -> T_Positional[U | T_Reset | T_Delete | None]:
+    def _prepare_transform(self, modifier: T_PositionalProperty[U]) -> T_PositionalProperty[U]:
         if not isinstance(modifier, T_MultiValue):
             return modifier
 
@@ -224,7 +224,7 @@ class _PositionalProperty(
         return T_MultiValue(working_modifier)  # type: ignore # no idea why pyright complains
 
     @typed_cache
-    def transform(self, modifier: T_Positional[U | T_Reset | T_Delete | None], *, save=False):
+    def transform(self, modifier: T_PositionalProperty[U], *, save=False):
         self = shallowcopy(self)
         modifier = self._prepare_transform(modifier)
 
@@ -266,16 +266,16 @@ class GlobalPosition(
         def resolve(self) -> T_Positional[T_Array[T_Position]]: ...
 
 
-class _LocalPosition(_PositionalProperty):
-    def apply_globals(self, value: GlobalPosition):
+class _LocalPosition:
+    def apply_globals(self, modifier: GlobalPosition):
         self = shallowcopy(self)
 
-        def apply(self, modifier: T_Array[T_Position]):
+        def apply(self, modifier: T_Array[T_Position]):  # -> Any | T_MultiValue[Any]:
             for mod in modifier:
                 self = _PositionalProperty.transform(self, mod)
             return self._value
 
-        self._value = positional_map(apply, self, value.resolve())
+        self._value = positional_map(apply, self, modifier.resolve())
         return self
 
 
@@ -411,7 +411,9 @@ class Instrument(_PositionalProperty[T_Instrument, T_Instrument, NoteBlock]):
         return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
 
 
-class Dynamic(_PositionalProperty[T_Array[T_Dynamic], T_Dynamic, list[T_StaticAbsoluteDynamic]]):
+class Dynamic(
+    _PositionalProperty[T_Array[T_Dynamic], T_Dynamic, list[T_StaticAbsoluteDynamic]],
+):
     _DEFAULT = (1,)
 
     def _transform_core(self, current, modifier):
@@ -455,10 +457,10 @@ class Dynamic(_PositionalProperty[T_Array[T_Dynamic], T_Dynamic, list[T_StaticAb
             out = current + int(modifier)
             return min(max(out, low), high)
 
-        def transform(transformation: list[T_StaticDynamic]):
+        def transform(transformation: Iterable[T_StaticDynamic]):
             return reduce(transform2, transformation, 1)
 
-        transformations = strict_zip(*map(parse, current))
+        transformations = transpose(map(parse, current))
         result = list(map(transform, transformations))
         padding = [0 for _ in range(note_duration - sustain_duration)]
         return result + padding

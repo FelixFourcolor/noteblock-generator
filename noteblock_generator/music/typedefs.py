@@ -19,7 +19,11 @@ class T_MultiValue(tuple["T", ...]):
 
 
 T = TypeVar("T")
+T_Reset = Literal["$reset"]
+T_StaticProperty = T | T_Reset | None
 T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
+T_Delete = Literal["$del"]
+T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 T_Array = tuple[T, ...]
 T_LevelIndex = int
 T_DivisionIndex = Literal[0, 1]
@@ -277,8 +281,6 @@ T_CompoundPosition = T_AbsoluteCompoundPosition | T_RelativeCompoundPosition
 T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
-T_Reset = Literal["$reset"]
-T_Delete = Literal["$del"]
 
 
 def _to_dict(data: Any, *, key: str) -> dict:
@@ -298,22 +300,22 @@ class _BaseModel(BaseModel):
 
 
 class _BaseNoteModel(_BaseModel):
-    time: T_Time | T_Reset | None = None
-    delay: T_Delay | T_Reset | None = None
-    beat: T_Beat | T_Reset | None = None
-    trill_style: T_TrillStyle | T_Reset | None = None
-    instrument: T_Positional[T_Instrument | T_Reset | T_Delete | None] = None
-    dynamic: T_Positional[T_Dynamic | T_Reset | T_Delete | None] = None
-    transpose: T_Positional[T_Transpose | T_Reset | T_Delete | None] = None
-    sustain: T_Positional[T_Sustain | T_Reset | T_Delete | None] = None
+    time: T_StaticProperty[T_Time] = None
+    delay: T_StaticProperty[T_Delay] = None
+    beat: T_StaticProperty[T_Beat] = None
+    trill_style: T_StaticProperty[T_TrillStyle] = None
+    instrument: T_PositionalProperty[T_Instrument] = None
+    dynamic: T_PositionalProperty[T_Dynamic] = None
+    transpose: T_PositionalProperty[T_Transpose] = None
+    sustain: T_PositionalProperty[T_Sustain] = None
 
 
 class T_SingleDivisionNotesModifier(_BaseNoteModel):
-    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionNotesModifier(_BaseNoteModel):
-    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class _BaseNote(_BaseNoteModel):
@@ -328,11 +330,11 @@ class _BaseRegularNote(_BaseNote):
 
 
 class T_SingleDivisionRegularNote(_BaseRegularNote):
-    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionRegularNote(_BaseRegularNote):
-    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class _BaseTrilledNote(_BaseNote):
@@ -341,21 +343,21 @@ class _BaseTrilledNote(_BaseNote):
 
 
 class T_SingleDivisionTrilledNote(_BaseTrilledNote):
-    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionTrilledNote(_BaseTrilledNote):
-    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class T_SingleDivisionParallelNotes(_BaseNote):
     note: T_Array[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
-    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionParallelNotes(_BaseNote):
     note: T_Array[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
-    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class T_SingleDivisionSequentialNotes(_BaseNote):
@@ -365,7 +367,7 @@ class T_SingleDivisionSequentialNotes(_BaseNote):
         | T_SingleDivisionParallelNotes
         | T_SingleDivisionNotesModifier
     ]
-    position: T_Positional[T_SingleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionSequentialNotes(_BaseNote):
@@ -375,19 +377,19 @@ class T_DoubleDivisionSequentialNotes(_BaseNote):
         | T_DoubleDivisionParallelNotes
         | T_DoubleDivisionNotesModifier
     ]
-    position: T_Positional[T_DoubleDivisionPosition | T_Reset | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class _BaseVoice(_BaseModel):
     path: Path | None = Field(default=None, exclude=True)
     name: T_Name | None = None
-    time: T_Time | None = None
-    beat: T_Beat | None = None
-    trill_style: T_TrillStyle | None = None
-    instrument: T_Positional[T_Instrument | None] = None
-    dynamic: T_Positional[T_Dynamic | None] = None
-    transpose: T_Positional[T_Transpose | None] = None
-    sustain: T_Positional[T_Sustain | None] = None
+    time: T_StaticProperty[T_Time] = None
+    beat: T_StaticProperty[T_Beat] = None
+    trill_style: T_StaticProperty[T_TrillStyle] = None
+    instrument: T_PositionalProperty[T_Instrument] = None
+    dynamic: T_PositionalProperty[T_Dynamic] = None
+    transpose: T_PositionalProperty[T_Transpose] = None
+    sustain: T_PositionalProperty[T_Sustain] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -403,27 +405,27 @@ class _BaseVoice(_BaseModel):
 
 class T_SingleDivisionVoice(_BaseVoice):
     notes: T_SingleDivisionSequentialNotes
-    position: T_Positional[T_SingleDivisionPosition | T_Delete | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionVoice(_BaseVoice):
     notes: T_DoubleDivisionSequentialNotes
-    position: T_Positional[T_DoubleDivisionPosition | T_Delete | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class _BaseSection(_BaseModel):
     path: Path | None = Field(default=None, exclude=True)
     name: T_Name | None = None
-    time: T_Time | None = None
     width: T_Width | None = None
-    delay: T_Delay | None = None
-    beat: T_Beat | None = None
-    tick: T_Tick | None = None
-    trill_style: T_TrillStyle | None = None
-    instrument: T_Instrument | None = None
-    dynamic: T_Dynamic | None = None
-    transpose: T_Transpose | None = None
-    sustain: T_Sustain | None = None
+    time: T_StaticProperty[T_Time] = None
+    delay: T_StaticProperty[T_Delay] = None
+    beat: T_StaticProperty[T_Beat] = None
+    tick: T_StaticProperty[T_Tick] = None
+    trill_style: T_StaticProperty[T_TrillStyle] = None
+    instrument: T_StaticProperty[T_Instrument] = None
+    dynamic: T_StaticProperty[T_Dynamic] = None
+    transpose: T_StaticProperty[T_Transpose] = None
+    sustain: T_StaticProperty[T_Sustain] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -433,12 +435,12 @@ class _BaseSection(_BaseModel):
 
 class T_SingleDivisionSection(_BaseSection):
     voices: T_Array[T_Positional[T_SingleDivisionVoice] | None]
-    position: T_Positional[T_SingleDivisionPosition | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionSection(_BaseSection):
     voices: T_Array[T_Positional[T_DoubleDivisionVoice] | None]
-    position: T_Positional[T_DoubleDivisionPosition | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class _BaseCompoundSection(_BaseSection):
@@ -450,17 +452,17 @@ class _BaseCompoundSection(_BaseSection):
 
 class T_SingleDivisionCompoundSection(_BaseCompoundSection):
     sections: T_Array[T_SingleDivisionSection | T_SingleDivisionCompoundSection]
-    position: T_Positional[T_SingleDivisionPosition | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionCompoundSection(_BaseCompoundSection):
     sections: T_Array[T_DoubleDivisionSection | T_DoubleDivisionCompoundSection]
-    position: T_Positional[T_DoubleDivisionPosition | None] = None
+    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class T_MixedCompoundSection(_BaseCompoundSection):
     sections: T_Array[T_Section]
-    position: T_Positional[T_SingleDivisionPosition | None] = None
+    position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 T_NotesModifier = T_SingleDivisionNotesModifier | T_DoubleDivisionNotesModifier
