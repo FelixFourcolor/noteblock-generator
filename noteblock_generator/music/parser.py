@@ -6,9 +6,9 @@ import os
 import re
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from itertools import chain, zip_longest
+from itertools import chain, repeat, zip_longest
 from pathlib import Path
-from typing import Iterable, Protocol
+from typing import TYPE_CHECKING, Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -209,11 +209,14 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
         self += self._process_voices(voices)
 
 
+Section = SingleDivisionSection | DoubleDivisionSection
+
+
 class _BaseVoice:
     position: SingleDivisionPosition | DoubleDivisionPosition
 
     def __init__(self, index: T_LevelIndex, src: T_Voice, env: Section):
-        self.name = env.name.transform(index, src)
+        self.name = env.name.transform(index, src).resolve()
         self.time = env.time.transform(src.time, save=True)
         self.delay = env.delay.transform(None, save=True)
         self.beat = env.beat.transform(src.beat, save=True)
@@ -223,6 +226,10 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
+        self._notes = self._resolve_sequential_notes(src.notes)
+
+    def __iter__(self):
+        yield from self._notes
 
     def _transform(self, src: T_NoteMeta):
         self.time = self.time.transform(src.time)
@@ -239,33 +246,33 @@ class _BaseVoice:
         self = shallowcopy(self)
         self._transform(src)
 
-        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> list[list[Note]]:
+        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             if isinstance(note, T_ParallelNotes):
                 return self._resolve_parallel_notes(note)
             self._transform(note)
-            return []
+            return ()
 
         sequential_lines = map(_resolve_core, src.note)
-        merged_line = list(chain.from_iterable(sequential_lines))
+        merged_line = chain.from_iterable(sequential_lines)
         return merged_line
 
-    def _resolve_parallel_notes(self, src: T_ParallelNotes) -> list[list[Note]]:
+    def _resolve_parallel_notes(self, src: T_ParallelNotes) -> Iterable[Iterable[Note]]:
         self = shallowcopy(self)
         self._transform(src)
 
-        def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> list[list[Note]]:
+        def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
         parallel_lines = map(_resolve_core, src.note)
         # fail if parallel lines written by the user are not of the same length # TODO: error handling
-        merged_line = [list(e) for e in map(chain.from_iterable, transpose(parallel_lines))]
+        merged_line = map(chain.from_iterable, transpose(parallel_lines))
         return merged_line
 
-    def _resolve_single_note(self, src: T_SingleNote) -> list[list[Note]]:
+    def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[Note]]:
         self = shallowcopy(self)
         self._transform(src)
 
@@ -280,8 +287,8 @@ class _BaseVoice:
             return self._resolve_compound_note(note)
         return self._resolve_regular_note(note)
 
-    def _check_bar_assertion(self, src: T_BarDelimiter) -> list[list[Note]]:
-        return []  # TODO
+    def _check_bar_assertion(self, src: T_BarDelimiter) -> Iterable[Iterable[Note]]:
+        return ()  # TODO
 
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
         tokens = parse_timedvalue(src)
@@ -293,64 +300,73 @@ class _BaseVoice:
         note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
         return note, note_duration
 
-    def _create_note(self, src: T_NoteName | T_Rest):
+    def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock] | None]:
         note, duration = self._parse_note(src)
         if duration <= 0:
             raise ValueError("Note duration must be positive")  # TODO error handling
-        return [note] * duration
+        return repeat(note, duration)
 
-    def _resolve_regular_note(self, _note: T_NoteName | T_Rest):
-        return self._apply_phrasing(*self._create_note(_note))
+    def _resolve_regular_note(self, _note: T_NoteName | T_Rest) -> Iterable[Iterable[Note]]:
+        return self._apply_phrasing(*self._create_noteblocks(_note))
 
-    def _resolve_multiple_notes(self, _note: T_MultipleNotes):
+    def _resolve_multiple_notes(self, _note: T_MultipleNotes) -> Iterable[Iterable[Note]]:
         individual_notes = strip_split(_note, ",")
-        return list(chain.from_iterable(map(self._resolve_regular_note, individual_notes)))
+        return chain.from_iterable(map(self._resolve_regular_note, individual_notes))
 
-    def _resolve_compound_note(self, _note: T_CompoundNote) -> list[list[Note]]:
+    def _resolve_compound_note(self, _note: T_CompoundNote) -> Iterable[Iterable[Note]]:
         note_stripped_parentheses = _note[1:-1]
         individual_notes = strip_split(note_stripped_parentheses, ",")
-        return self._apply_phrasing(*chain.from_iterable(map(self._create_note, individual_notes)))
+        return self._apply_phrasing(*chain.from_iterable(map(self._create_noteblocks, individual_notes)))
 
-    def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle) -> list[list[Note]]:
-        notes = self._create_note(note)
-        note_duration = len(notes)
-        trill_note, trill_duration = self._parse_note(trill)
+    def _resolve_trilled_note(
+        self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle
+    ) -> Iterable[Iterable[Note]]:
+        noteblocks = list(self._create_noteblocks(note))
+        note_duration = len(noteblocks)
+        trill_noteblock, trill_duration = self._parse_note(trill)
         if trill_duration < 0:
             trill_duration += note_duration
         # if a trill only lasted one pulse, it wouldn't be a trill,
         # unless the main note also lasts only one pulse
         trill_duration = max(trill_duration, min(note_duration, 2))
 
-        place_trill_note_here = (lambda i: i % 2 == 0) if trill_style == "alt" else (lambda i: i % 2 == 1)
+        place_trill_here = (lambda i: i % 2 == 0) if trill_style == "alt" else (lambda i: i % 2 == 1)
         for i in range(trill_duration):
-            if place_trill_note_here(i):
-                notes[i] = trill_note
-        return self._apply_phrasing(*notes)
+            if place_trill_here(i):
+                noteblocks[i] = trill_noteblock
+        return self._apply_phrasing(*noteblocks)
 
-    def _apply_phrasing(self, *notes: T_Positional[NoteBlock] | None) -> list[list[Note]]:
+    def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock] | None) -> Iterable[Iterable[Note]]:
         _delay = self.delay.resolve()
         _position = self.position.resolve()
         _beat = self.beat.resolve()
-        _sustain = self.sustain.resolve(beat=_beat, note_duration=len(notes))
-        _dynamic = self.dynamic.resolve(beat=_beat, sustain_duration=_sustain, note_duration=len(notes))
+        _sustain = self.sustain.resolve(beat=_beat, note_duration=len(noteblocks))
+        _dynamic = self.dynamic.resolve(beat=_beat, sustain_duration=_sustain, note_duration=len(noteblocks))
 
         def transform(*notes: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
-            def apply_delay_and_position(notes: Iterable[NoteBlock | None]) -> Iterable[Note]:
-                return (Note(noteblock=note, delay=_delay, position=position) for note in notes)
+            def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
+                return (
+                    Note(noteblock=nb, delay=_delay, position=position, voice_name=self.name, where=(1, 1))  # TODO
+                    for nb in noteblocks
+                )
 
-            def apply_dynamic(notes: Iterable[Note]) -> Iterable[list[Note]]:
+            def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            return list(apply_dynamic(apply_delay_and_position(notes)))
+            result = apply_dynamic(apply_delay_and_position(notes))
+            if TYPE_CHECKING:
+                # result is Iterable, this tells pyright it's specifically not T_Multivalue,
+                result = list(result)
+            return result
 
-        parallel_lines = positional_map(transform, *notes, dynamic=_dynamic, position=_position)
+        parallel_lines = positional_map(transform, *noteblocks, dynamic=_dynamic, position=_position)
         if type(parallel_lines) is T_MultiValue:
-            merged_line = [list(e) for e in map(chain.from_iterable, transpose(parallel_lines))]
+            merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return merged_line
         return parallel_lines
 
 
-class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
+class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
         # I don't know if this is a pydantic BUG?
         # but sometimes `src` is not converted into a T_Voice but remains a dict,
@@ -359,30 +375,37 @@ class SingleDivisionVoice(_BaseVoice, list[list["SingleDivisionNote"]]):
         src = T_SingleDivisionVoice.model_validate(src)
         self.position = SingleDivisionPosition(index)
         super().__init__(index, src, env)
-        self += self._resolve_sequential_notes(src.notes)
 
 
-class DoubleDivisionVoice(_BaseVoice, list[list["DoubleDivisionNote"]]):
+class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
         # See comment in SingleDivisionVoice.__init__
         src = T_DoubleDivisionVoice.model_validate(src)
         self.position = DoubleDivisionPosition(index)
         super().__init__(index, src, env)
-        self += self._resolve_sequential_notes(src.notes)
+
+
+Voice = SingleDivisionVoice | DoubleDivisionVoice
 
 
 @dataclass(kw_only=True, slots=True)
 class Note:
+    # run-time-significant attributes
     noteblock: NoteBlock | None
     delay: T_Delay
     position: T_Index
+    # for compile-time checks only
+    voice_name: str
+    where: tuple[int, int]
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
         if self.noteblock is None:
-            return [self]
+            return (self,)
         if dynamic > 0:
-            return [self] * dynamic
-        return [Note(noteblock=None, delay=self.delay, position=self.position)]
+            return repeat(self, dynamic)
+        # no need to copy, we only __mul__ a freshly-created note
+        self.noteblock = None
+        return (self,)
 
 
 class SingleDivisionNote(Protocol):
@@ -395,6 +418,3 @@ class DoubleDivisionNote(Protocol):
     note: NoteBlock | None
     delay: T_Delay
     position: T_DoubleIndex
-
-
-Section = SingleDivisionSection | DoubleDivisionSection
