@@ -147,6 +147,20 @@ T_BarDelimiter = Annotated[
         )
     ),
 ]
+T_Rest = Annotated[
+    str,  # format: R <duration>
+    Field(
+        pattern=(
+            "^"
+            "[rR]"  # R for rest
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")*"  # end duration
+            "$"
+        )
+    ),
+]
 T_NoteName = Annotated[
     str,  # format: <note> <duration>
     Field(
@@ -167,26 +181,14 @@ T_NoteName = Annotated[
         )
     ),
 ]
-T_Rest = Annotated[
-    str,  # format: R <duration>
-    Field(
-        pattern=(
-            "^"
-            "[rR]"  # R for rest
-            "("  # begin duration
-            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
-            ")*"  # end duration
-            "$"
-        )
-    ),
-]
-T_CompoundNote = Annotated[
+T_MultipleNotes = Annotated[
     str,  # format: <note> <duration>, <note> <duration>, etc.
     Field(
         pattern=(
             "^"
             "("  # begin repeat
+            "[rR]"  # R for rest
+            "|"  # or
             "[a-gA-G]"  # pitch A to G
             "(bb|b|s|ss)?"  # optional accidentals: double flats, flat, sharp, double sharps
             "("  # begin octave
@@ -200,6 +202,31 @@ T_CompoundNote = Annotated[
             ")*"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             "){2,}"  # repeat at least 2x
+            "$"
+        )
+    ),
+]
+T_CompoundNote = Annotated[
+    str,  # format: T_MultipleNotes, but no rests allowed, and must be enclosed in parentheses
+    Field(
+        pattern=(
+            "^"
+            "\\("  # opening parenthesis
+            "("  # begin repeat
+            "[a-gA-G]"  # pitch A to G
+            "(bb|b|s|ss)?"  # optional accidentals: double flats, flat, sharp, double sharps
+            "("  # begin octave
+            "[1-7]?"  # absolute: noteblock's octaves range from 1 to 7
+            "|"  # or
+            "(_*|\\^*)"  # relative to instrument's range: _ to lower, ^ to raise
+            ")"  # end octave
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")*"  # end duration
+            "(\\s*,\\s*|$)"  # "," or end of string
+            ")+"  # repeat
+            "\\)"  # closing parenthesis
             "$"
         )
     ),
@@ -297,7 +324,7 @@ class _BaseNote(_BaseNoteModel):
 
 
 class _BaseRegularNote(_BaseNote):
-    note: T_BarDelimiter | T_Rest | T_NoteName | T_CompoundNote
+    note: T_BarDelimiter | T_Rest | T_NoteName | T_MultipleNotes | T_CompoundNote
 
 
 class T_SingleDivisionRegularNote(_BaseRegularNote):

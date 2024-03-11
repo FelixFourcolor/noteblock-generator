@@ -41,6 +41,7 @@ from .typedefs import (
     T_Index,
     T_Level,
     T_LevelIndex,
+    T_MultipleNotes,
     T_MultiValue,
     T_NoteMeta,
     T_NoteName,
@@ -273,6 +274,8 @@ class _BaseVoice:
             return self._resolve_trilled_note(src.note, src.trill, trill_style)
         if is_typeform(note := src.note, T_BarDelimiter):
             return self._check_bar_assertion(note)
+        if is_typeform(note, T_MultipleNotes):
+            return self._resolve_multiple_notes(note)
         if is_typeform(note, T_CompoundNote):
             return self._resolve_compound_note(note)
         return self._resolve_regular_note(note)
@@ -299,8 +302,14 @@ class _BaseVoice:
     def _resolve_regular_note(self, _note: T_NoteName | T_Rest):
         return self._apply_phrasing(*self._create_note(_note))
 
+    def _resolve_multiple_notes(self, _note: T_MultipleNotes):
+        individual_notes = strip_split(_note, ",")
+        return list(chain.from_iterable(map(self._resolve_regular_note, individual_notes)))
+
     def _resolve_compound_note(self, _note: T_CompoundNote) -> list[list[Note]]:
-        return self._apply_phrasing(*chain.from_iterable(map(self._create_note, strip_split(_note, ","))))
+        note_stripped_parentheses = _note[1:-1]
+        individual_notes = strip_split(note_stripped_parentheses, ",")
+        return self._apply_phrasing(*chain.from_iterable(map(self._create_note, individual_notes)))
 
     def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle) -> list[list[Note]]:
         notes = self._create_note(note)
