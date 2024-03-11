@@ -272,7 +272,7 @@ class _LocalPosition(_PositionalProperty):
 
         def apply(self, modifier: T_Array[T_Position]):
             for mod in modifier:
-                self = super().transform(mod)
+                self = _PositionalProperty.transform(self, mod)
             return self._value
 
         self._value = positional_map(apply, self, value.resolve())
