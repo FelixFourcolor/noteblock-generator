@@ -211,7 +211,7 @@ T_MultipleNotes = Annotated[
     ),
 ]
 T_CompoundNote = Annotated[
-    str,  # format: T_MultipleNotes, but no rests allowed, and must be enclosed in parentheses
+    str,  # format: T_MultipleNotes, but no rests allowed, and enclosed in parentheses
     Field(
         pattern=(
             "^"
@@ -228,9 +228,8 @@ T_CompoundNote = Annotated[
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
             ")*"  # end duration
-            "(\\s*,\\s*|$)"  # "," or end of string
-            ")+"  # repeat
-            "\\)"  # closing parenthesis
+            "(\\s*,\\s*|\\))"  # "," or closing parenthesis
+            "){2,}"  # repeat at least 2x
             "$"
         )
     ),
