@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Protocol
+from typing import Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -337,29 +337,33 @@ class _BaseVoice:
         return self._apply_phrasing(*noteblocks)
 
     def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock] | None) -> Iterable[Iterable[Note]]:
-        _delay = self.delay.resolve()
-        _position = self.position.resolve()
-        _beat = self.beat.resolve()
-        _sustain = self.sustain.resolve(beat=_beat, note_duration=len(noteblocks))
-        _dynamic = self.dynamic.resolve(beat=_beat, sustain_duration=_sustain, note_duration=len(noteblocks))
+        # we apply phrasing to multiple notes at once,
+        # these c_variables (c stands for const) are properties that do not vary for each note
+        c_delay = self.delay.resolve()
+        c_position = self.position.resolve()
+        c_beat = self.beat.resolve()
+        c_sustain = self.sustain.resolve(beat=c_beat, note_duration=len(noteblocks))
+        c_dynamic = self.dynamic.resolve(beat=c_beat, sustain_duration=c_sustain, note_duration=len(noteblocks))
 
         def transform(*notes: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 return (
-                    Note(noteblock=nb, delay=_delay, position=position, voice_name=self.name, where=(1, 1))  # TODO
-                    for nb in noteblocks
+                    Note(
+                        noteblock=noteblock,
+                        delay=c_delay,
+                        position=position,
+                        voice_name=self.name,
+                        where=(1, 1),  # TODO
+                    )
+                    for noteblock in noteblocks
                 )
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            result = apply_dynamic(apply_delay_and_position(notes))
-            if TYPE_CHECKING:
-                # result is Iterable, this tells pyright it's specifically not T_Multivalue,
-                result = list(result)
-            return result
+            return apply_dynamic(apply_delay_and_position(notes))
 
-        parallel_lines = positional_map(transform, *noteblocks, dynamic=_dynamic, position=_position)
+        parallel_lines = positional_map(transform, *noteblocks, dynamic=c_dynamic, position=c_position)
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return merged_line
