@@ -344,7 +344,7 @@ class _BaseVoice:
             return list(apply_dynamic(apply_delay_and_position(notes)))
 
         parallel_lines = positional_map(transform, *notes, dynamic=_dynamic, position=_position)
-        if isinstance(parallel_lines, T_MultiValue):
+        if type(parallel_lines) is T_MultiValue:
             merged_line = [list(e) for e in map(chain.from_iterable, transpose(parallel_lines))]
             return merged_line
         return parallel_lines

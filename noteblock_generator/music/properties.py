@@ -191,7 +191,7 @@ class _PositionalProperty(
         return self._transform_core(current, modifier)
 
     def _prepare_transform(self, modifier: T_PositionalProperty[U]) -> T_PositionalProperty[U]:
-        if not isinstance(modifier, T_MultiValue):
+        if type(modifier) is not T_MultiValue:
             return modifier
 
         modifier_len = len(modifier)
@@ -229,7 +229,7 @@ class _PositionalProperty(
         modifier = self._prepare_transform(modifier)
 
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
-        if isinstance(new_value, T_MultiValue):
+        if type(new_value) is T_MultiValue:
             new_value = T_MultiValue(cast(T, e) for e in new_value if e is not None)
             if new_value:
                 self._value = new_value

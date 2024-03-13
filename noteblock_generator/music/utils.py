@@ -22,7 +22,7 @@ def typed_cache(func: CT) -> CT:
 def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue:
     def flatten_core() -> Iterator[T]:
         for i in nested_list:
-            if isinstance(i, T_MultiValue):
+            if type(i) is T_MultiValue:
                 yield from i
             else:
                 yield i
@@ -83,11 +83,11 @@ def strip_split(string: str, delimiter: str):
 
 
 def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
-    single_kwargs = {k: v for k, v in kwargs.items() if not isinstance(v, T_MultiValue)}
+    single_kwargs = {k: v for k, v in kwargs.items() if type(v) is not T_MultiValue}
     multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
     zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))
 
-    multi_args = [arg for arg in args if isinstance(arg, T_MultiValue)]
+    multi_args = [arg for arg in args if type(arg) is T_MultiValue]
     if not multi_args:
         if not multi_kwargs:
             return func(*args, **kwargs)

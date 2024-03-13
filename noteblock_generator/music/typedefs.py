@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Annotated, Any, Iterable, Literal, TypeVar
+from typing import Annotated, Any, Iterable, Literal, TypeVar, final
 
 from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic.alias_generators import to_camel
 from pydantic_core import core_schema
 
 
+@final
 class T_MultiValue(tuple["T", ...]):
     @classmethod
     def __get_pydantic_core_schema__(cls, src_type: Any, handler: GetCoreSchemaHandler):
