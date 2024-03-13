@@ -149,7 +149,7 @@ class _GlobalDefault:
 
 class _BaseSection:
     @classmethod
-    def new(cls, index: int, src: T_Section, env: _BaseSection | _GlobalDefault):
+    def new(cls, index: int, src: T_Section, env: _BaseSection | _GlobalDefault) -> Section | CompoundSection:
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, env)
         if isinstance(src, T_DoubleDivisionSection):
@@ -258,7 +258,7 @@ class _BaseVoice:
         merged_line = chain.from_iterable(sequential_lines)
         return merged_line
 
-    def _resolve_parallel_notes(self, src: T_ParallelNotes) -> Iterable[Iterable[Note]]:
+    def _resolve_parallel_notes(self, src: T_ParallelNotes):
         self = shallowcopy(self)
         self._transform(src)
 
@@ -400,12 +400,11 @@ class Note:
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
         if self.noteblock is None:
-            return (self,)
-        if dynamic > 0:
-            return repeat(self, dynamic)
-        # no need to copy, we only __mul__ a freshly-created note
-        self.noteblock = None
-        return (self,)
+            dynamic = 1
+        elif dynamic == 0:
+            # no need to copy, we only __mul__ a freshly-created note
+            self.noteblock = None
+        return repeat(self, dynamic)
 
 
 class SingleDivisionNote(Protocol):
