@@ -416,7 +416,7 @@ class Dynamic(
 ):
     _DEFAULT = (1,)
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_Array[T_Dynamic]:
         if is_typeform(modifier, T_AbsoluteDynamic):
             return (modifier,)
         return (*current, modifier)
