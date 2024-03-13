@@ -256,7 +256,7 @@ class GlobalPosition(
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_Array[T_Position]:
         if is_typeform(modifier, T_AbsoluteLevel):
             return (modifier,)
         return (*current, modifier)
@@ -270,7 +270,7 @@ class _LocalPosition:
     def apply_globals(self, modifier: GlobalPosition):
         self = shallowcopy(self)
 
-        def apply(self, modifier: T_Array[T_Position]):  # -> Any | T_MultiValue[Any]:
+        def apply(self, modifier: T_Array[T_Position]):
             for mod in modifier:
                 self = _PositionalProperty.transform(self, mod)
             return self._value
@@ -286,7 +286,7 @@ class SingleDivisionPosition(
     def __init__(self, index: T_LevelIndex):
         self._value = self._original_value = self._DEFAULT = index
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_LevelIndex:
         if is_typeform(modifier, T_AbsoluteLevel):
             return modifier
         assert is_typeform(modifier, T_RelativeLevel), modifier
@@ -322,14 +322,14 @@ class DoubleDivisionPosition(
             return None
         return cast(T_DivisionIndex, ["left", "right"].index(modifier))
 
-    def _transform_level(self, current: T_LevelIndex, modifier: T_Level | None):
+    def _transform_level(self, current: T_LevelIndex, modifier: T_Level | None) -> T_LevelIndex:
         if modifier is None:
             return current
         if is_typeform(modifier, T_AbsoluteLevel):
             return modifier
         return current + int(modifier)
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_Index:
         if isinstance(current, T_LevelIndex):
             origin_division, origin_level = None, current
         else:
@@ -478,7 +478,7 @@ class Dynamic(
 class Sustain(_PositionalProperty[T_Array[T_Sustain], T_Sustain, int]):
     _DEFAULT = (-1,)
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_Array[T_Sustain]:
         if is_typeform(modifier, T_AbsoluteSustain):
             return (modifier,)
         return (*current, modifier)
@@ -488,7 +488,7 @@ class Sustain(_PositionalProperty[T_Array[T_Sustain], T_Sustain, int]):
         current: T_Array[T_Sustain],
         beat: T_Beat,
         note_duration: T_Duration,
-    ):
+    ) -> int:
         out = 1
         for sustain in current:
             relative = False
