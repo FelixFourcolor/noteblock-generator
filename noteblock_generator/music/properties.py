@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import re
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from functools import reduce
 from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Protocol, TypeVar, cast
@@ -14,7 +14,6 @@ from .typedefs import (
     T_AbsoluteLevel,
     T_AbsoluteSustain,
     T_AbsoluteTranspose,
-    T_Array,
     T_Beat,
     T_CompoundPosition,
     T_Delay,
@@ -45,6 +44,7 @@ from .typedefs import (
     T_Time,
     T_Transpose,
     T_TrillStyle,
+    T_Tuple,
     T_VariableDynamic,
     T_Width,
 )
@@ -249,28 +249,32 @@ class _PositionalProperty(
 
 
 class GlobalPosition(
-    _PositionalProperty[T_Array[T_Position], T_Position, T_Array[T_Position]],
+    _PositionalProperty[
+        T_Tuple[T_Position],
+        T_Position,
+        T_Tuple[T_Position],
+    ]
 ):
     _DEFAULT = ()
 
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
 
-    def _transform_core(self, current, modifier) -> T_Array[T_Position]:
+    def _transform_core(self, current, modifier) -> T_Tuple[T_Position]:
         if is_typeform(modifier, T_AbsoluteLevel):
             return (modifier,)
         return (*current, modifier)
 
     if TYPE_CHECKING:
 
-        def resolve(self) -> T_Positional[T_Array[T_Position]]: ...
+        def resolve(self) -> T_Positional[T_Tuple[T_Position]]: ...
 
 
 class _LocalPosition:
     def apply_globals(self, modifier: GlobalPosition):
         self = shallowcopy(self)
 
-        def apply(self, modifier: T_Array[T_Position]):
+        def apply(self, modifier: T_Tuple[T_Position]):
             for mod in modifier:
                 self = _PositionalProperty.transform(self, mod)
             return self._value
@@ -281,7 +285,11 @@ class _LocalPosition:
 
 class SingleDivisionPosition(
     _LocalPosition,
-    _PositionalProperty[T_LevelIndex, T_SingleDivisionPosition, T_LevelIndex],
+    _PositionalProperty[
+        T_LevelIndex,
+        T_SingleDivisionPosition,
+        T_LevelIndex,
+    ],
 ):
     def __init__(self, index: T_LevelIndex):
         self._value = self._original_value = self._DEFAULT = index
@@ -299,7 +307,11 @@ class SingleDivisionPosition(
 
 class DoubleDivisionPosition(
     _LocalPosition,
-    _PositionalProperty[T_Index, T_Position, T_DoubleIndex],
+    _PositionalProperty[
+        T_Index,
+        T_Position,
+        T_DoubleIndex,
+    ],
 ):
     def __init__(self, index: T_LevelIndex):
         self._value = self._original_value = self._DEFAULT = index
@@ -367,7 +379,13 @@ class NoteBlock:
     instrument: str
 
 
-class Instrument(_PositionalProperty[T_Instrument, T_Instrument, NoteBlock]):
+class Instrument(
+    _PositionalProperty[
+        T_Instrument,
+        T_Instrument,
+        NoteBlock,
+    ]
+):
     _DEFAULT = "harp"
 
     def _resolve_core(
@@ -376,7 +394,7 @@ class Instrument(_PositionalProperty[T_Instrument, T_Instrument, NoteBlock]):
         current: T_Instrument,
         note_name: str,
         transpose: T_AbsoluteTranspose,
-    ):
+    ) -> NoteBlock:
         def parse_relative_octave(note_name: str, default_octave: int) -> tuple[str, int]:
             if note_name.endswith("^"):
                 note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
@@ -412,22 +430,26 @@ class Instrument(_PositionalProperty[T_Instrument, T_Instrument, NoteBlock]):
 
 
 class Dynamic(
-    _PositionalProperty[T_Array[T_Dynamic], T_Dynamic, list[T_StaticAbsoluteDynamic]],
+    _PositionalProperty[
+        T_Tuple[T_Dynamic],
+        T_Dynamic,
+        list[T_StaticAbsoluteDynamic],
+    ]
 ):
     _DEFAULT = (1,)
 
-    def _transform_core(self, current, modifier) -> T_Array[T_Dynamic]:
+    def _transform_core(self, current, modifier) -> T_Tuple[T_Dynamic]:
         if is_typeform(modifier, T_AbsoluteDynamic):
             return (modifier,)
         return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Array[T_Dynamic],
+        current: T_Tuple[T_Dynamic],
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
-    ):
+    ) -> list[T_StaticAbsoluteDynamic]:
         def parse(value: T_Dynamic) -> list[T_StaticDynamic]:
             if is_typeform(value, T_StaticDynamic):
                 return [value] * sustain_duration
@@ -457,8 +479,8 @@ class Dynamic(
             out = current + int(modifier)
             return min(max(out, low), high)
 
-        def transform(transformation: Iterable[T_StaticDynamic]):
-            return reduce(transform2, transformation, 1)
+        def transform(transformation: Iterable[T_StaticDynamic]) -> T_StaticAbsoluteDynamic:
+            return functools.reduce(transform2, transformation, 1)
 
         transformations = transpose(map(parse, current))
         result = list(map(transform, transformations))
@@ -475,17 +497,23 @@ class Dynamic(
         ) -> T_Positional[list[T_StaticAbsoluteDynamic]]: ...
 
 
-class Sustain(_PositionalProperty[T_Array[T_Sustain], T_Sustain, int]):
+class Sustain(
+    _PositionalProperty[
+        T_Tuple[T_Sustain],
+        T_Sustain,
+        int,
+    ]
+):
     _DEFAULT = (-1,)
 
-    def _transform_core(self, current, modifier) -> T_Array[T_Sustain]:
+    def _transform_core(self, current, modifier) -> T_Tuple[T_Sustain]:
         if is_typeform(modifier, T_AbsoluteSustain):
             return (modifier,)
         return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Array[T_Sustain],
+        current: T_Tuple[T_Sustain],
         beat: T_Beat,
         note_duration: T_Duration,
     ) -> int:
@@ -516,10 +544,16 @@ class Sustain(_PositionalProperty[T_Array[T_Sustain], T_Sustain, int]):
         ) -> T_Positional[int]: ...
 
 
-class Transpose(_PositionalProperty[T_AbsoluteTranspose, T_Transpose, T_AbsoluteTranspose]):
+class Transpose(
+    _PositionalProperty[
+        T_AbsoluteTranspose,
+        T_Transpose,
+        T_AbsoluteTranspose,
+    ]
+):
     _DEFAULT = 0
 
-    def _transform_core(self, current, modifier):
+    def _transform_core(self, current, modifier) -> T_AbsoluteTranspose:
         if isinstance(modifier, T_AbsoluteTranspose):
             return modifier
         return current + int(modifier)
@@ -529,7 +563,7 @@ class Transpose(_PositionalProperty[T_AbsoluteTranspose, T_Transpose, T_Absolute
         def resolve(self) -> T_Positional[T_AbsoluteTranspose]: ...
 
 
-def _generate_note_values():
+def _generate_note_values() -> dict[str, int]:
     notes = ["c", "cs", "d", "ds", "e", "f", "fs", "g", "gs", "a", "as", "b"]
     octaves = {1: {note: value for value, note in enumerate(notes)}}
     for name, value in dict(octaves[1]).items():

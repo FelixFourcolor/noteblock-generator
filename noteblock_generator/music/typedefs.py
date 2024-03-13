@@ -24,7 +24,7 @@ T_StaticProperty = T | T_Reset | None
 T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
-T_Array = tuple[T, ...]
+T_Tuple = tuple[T, ...]
 T_LevelIndex = int
 T_DivisionIndex = Literal[0, 1]
 T_DoubleIndex = tuple[T_DivisionIndex, T_LevelIndex]
@@ -350,17 +350,17 @@ class T_DoubleDivisionTrilledNote(_BaseTrilledNote):
 
 
 class T_SingleDivisionParallelNotes(_BaseNote):
-    note: T_Array[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    note: T_Tuple[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionParallelNotes(_BaseNote):
-    note: T_Array[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
+    note: T_Tuple[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class T_SingleDivisionSequentialNotes(_BaseNote):
-    note: T_Array[
+    note: T_Tuple[
         T_SingleDivisionRegularNote
         | T_SingleDivisionTrilledNote
         | T_SingleDivisionParallelNotes
@@ -370,7 +370,7 @@ class T_SingleDivisionSequentialNotes(_BaseNote):
 
 
 class T_DoubleDivisionSequentialNotes(_BaseNote):
-    note: T_Array[
+    note: T_Tuple[
         T_DoubleDivisionRegularNote
         | T_DoubleDivisionTrilledNote
         | T_DoubleDivisionParallelNotes
@@ -433,12 +433,12 @@ class _BaseSection(_BaseModel):
 
 
 class T_SingleDivisionSection(_BaseSection):
-    voices: T_Array[T_Positional[T_SingleDivisionVoice] | None]
+    voices: T_Tuple[T_Positional[T_SingleDivisionVoice] | None]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionSection(_BaseSection):
-    voices: T_Array[T_Positional[T_DoubleDivisionVoice] | None]
+    voices: T_Tuple[T_Positional[T_DoubleDivisionVoice] | None]
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
@@ -450,17 +450,17 @@ class _BaseCompoundSection(_BaseSection):
 
 
 class T_SingleDivisionCompoundSection(_BaseCompoundSection):
-    sections: T_Array[T_SingleDivisionSection | T_SingleDivisionCompoundSection]
+    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionCompoundSection]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionCompoundSection(_BaseCompoundSection):
-    sections: T_Array[T_DoubleDivisionSection | T_DoubleDivisionCompoundSection]
+    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionCompoundSection]
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
 class T_MixedCompoundSection(_BaseCompoundSection):
-    sections: T_Array[T_Section]
+    sections: T_Tuple[T_Section]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
