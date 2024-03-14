@@ -98,7 +98,7 @@ class Width:
     def transform(self, time: T_Time, value: T_Width | None):
         if value is not None:
             return Width(value)
-        elif self._value is None:
+        if self._value is None:
             return Width(self._resolve_time(time))
         return self
 
@@ -221,7 +221,8 @@ class _PositionalProperty(
                 outbound_modifiers = replace(working_modifier[original_len:], "$reset", "$del")
                 working_modifier = inbound_modifiers + list(outbound_modifiers)
 
-        return T_MultiValue(working_modifier)  # type: ignore # no idea why pyright complains
+        # no idea why pyright complains
+        return T_MultiValue(working_modifier)  # pyright: ignore[reportGeneralTypeIssues]
 
     @typed_cache
     def transform(self, modifier: T_PositionalProperty[U], *, save=False):

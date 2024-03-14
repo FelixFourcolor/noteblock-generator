@@ -113,7 +113,8 @@ def _find_path(path: Path):
                         return found
                     path = parent
                 path = Path(cwd)
-        elif match_name is None or match_name == path.stem:
+            return None
+        if match_name is None or match_name == path.stem:
             return path
 
     if not path.exists():
@@ -309,18 +310,16 @@ class _BaseVoice:
     def _resolve_regular_note(self, _note: T_NoteName | T_Rest) -> Iterable[Iterable[Note]]:
         return self._apply_phrasing(*self._create_noteblocks(_note))
 
-    def _resolve_multiple_notes(self, _note: T_MultipleNotes) -> Iterable[Iterable[Note]]:
+    def _resolve_multiple_notes(self, _note: T_MultipleNotes):
         individual_notes = strip_split(_note, ",")
         return chain.from_iterable(map(self._resolve_regular_note, individual_notes))
 
-    def _resolve_compound_note(self, _note: T_CompoundNote) -> Iterable[Iterable[Note]]:
+    def _resolve_compound_note(self, _note: T_CompoundNote):
         note_stripped_parentheses = _note[1:-1]
         individual_notes = strip_split(note_stripped_parentheses, ",")
         return self._apply_phrasing(*chain.from_iterable(map(self._create_noteblocks, individual_notes)))
 
-    def _resolve_trilled_note(
-        self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle
-    ) -> Iterable[Iterable[Note]]:
+    def _resolve_trilled_note(self, note: T_NoteName, trill: T_NoteName, trill_style: T_TrillStyle):
         noteblocks = list(self._create_noteblocks(note))
         note_duration = len(noteblocks)
         trill_noteblock, trill_duration = self._parse_note(trill)

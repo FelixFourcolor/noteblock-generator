@@ -34,9 +34,10 @@ def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValu
 def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     try:
         TypeAdapter(typeform).validate_python(obj, strict=strict)
-        return True
     except ValidationError:
         return False
+    else:
+        return True
 
 
 @typed_cache
@@ -74,8 +75,7 @@ def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
         raise ValueError("Cannot apply dotted rhythm to this note")  # TODO: error handling
     if duration.endswith("b"):
         return beat * int(duration[:-1])
-    else:
-        return int(duration)
+    return int(duration)
 
 
 def strip_split(string: str, delimiter: str):

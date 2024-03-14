@@ -35,8 +35,31 @@ target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
 line-length = 120
-lint.select = ["A", "C4", "E", "F", "I", "PTH", "RUF", "SIM", "SLF", "UP", "W"]
-lint.ignore = ["RUF013", "TCH", "UP007", "UP035"]
+lint.select = ["ALL"]
+lint.ignore = [
+    "ANN",
+    "ARG",
+    "B904",
+    "BLE",
+    "COM812",
+    "D",
+    "EM",
+    "ERA",
+    "INP",
+    "N",
+    "PLR0911",
+    "PLR2004",
+    "RET503",
+    "RET504",
+    "RUF013",
+    "S101",
+    "T201",
+    "TCH",
+    "TD",
+    "TRY",
+    "UP007",
+    "UP035",
+]
 
 [build-system]
 requires = ["poetry-core"]
