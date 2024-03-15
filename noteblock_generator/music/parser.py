@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
 from pathlib import Path
-from typing import Iterable, Protocol
+from typing import Iterable, Iterator, Protocol
 
 from pydantic import TypeAdapter
 
@@ -227,10 +227,67 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
-        self._notes = self._resolve_sequential_notes(src.notes)
+        self.current_bar = self.current_beat = 1
+        self._notes = _NotesFactory(self).resolve(src.notes)
 
     def __iter__(self):
         yield from self._notes
+
+
+class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
+        # I don't know if this is a pydantic BUG?
+        # but sometimes `src` is not converted into a T_Voice but remains a dict,
+        # so we force pydantic to convert the type again.
+        # Performance impact is negligible (if measureable at all), don't even think about it.
+        src = T_SingleDivisionVoice.model_validate(src)
+        self.position = SingleDivisionPosition(index)
+        super().__init__(index, src, env)
+
+
+class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
+        # See comment in SingleDivisionVoice.__init__
+        src = T_DoubleDivisionVoice.model_validate(src)
+        self.position = DoubleDivisionPosition(index)
+        super().__init__(index, src, env)
+
+
+Voice = SingleDivisionVoice | DoubleDivisionVoice
+
+
+class _NotesFactory:
+    def __init__(self, env: _BaseVoice):
+        self.name = env.name
+        self.time = env.time
+        self.delay = env.delay
+        self.beat = env.beat
+        self.trill_style = env.trill_style
+        self.position = env.position
+        self.instrument = env.instrument
+        self.dynamic = env.dynamic
+        self.sustain = env.sustain
+        self.transpose = env.transpose
+        self._env = env
+
+    @property
+    def current_bar(self):
+        return self._env.current_bar
+
+    @current_bar.setter
+    def current_bar(self, value: int):
+        self._env.current_bar = value
+
+    @property
+    def current_beat(self):
+        return self._env.current_beat
+
+    @current_beat.setter
+    def current_beat(self, value: int):
+        self._env.current_beat = value
+
+    def resolve(self, src: T_SequentialNotes):
+        return self._resolve_sequential_notes(src)
 
     def _transform(self, src: T_NoteMeta):
         self.time = self.time.transform(src.time)
@@ -336,78 +393,45 @@ class _BaseVoice:
         return self._apply_phrasing(*noteblocks)
 
     def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock] | None) -> Iterable[Iterable[Note]]:
-        # we apply phrasing to multiple notes at once,
-        # these c_variables (c stands for const) are properties that do not vary for each note
-        c_delay = self.delay.resolve()
-        c_position = self.position.resolve()
-        c_beat = self.beat.resolve()
-        c_sustain = self.sustain.resolve(beat=c_beat, note_duration=len(noteblocks))
-        c_dynamic = self.dynamic.resolve(beat=c_beat, sustain_duration=c_sustain, note_duration=len(noteblocks))
+        duration = len(noteblocks)
+        current_bar = self.current_bar
+        current_beat = self.current_beat
 
-        def transform(*notes: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
+        time = self.time.resolve()
+        beat = self.beat.resolve()
+        delay = self.delay.resolve()
+        position = self.position.resolve()
+        sustain = self.sustain.resolve(beat=beat, note_duration=duration)
+        dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=duration)
+
+        def transform(*noteblocks: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 return (
                     Note(
                         noteblock=noteblock,
-                        delay=c_delay,
+                        delay=delay,
                         position=position,
                         voice_name=self.name,
-                        where=(1, 1),  # TODO
+                        where=(current_bar + (current_beat + i) // time, (current_beat + i) % time),
                     )
-                    for noteblock in noteblocks
+                    for i, noteblock in enumerate(noteblocks)
                 )
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            return apply_dynamic(apply_delay_and_position(notes))
+            return apply_dynamic(apply_delay_and_position(noteblocks))
 
-        parallel_lines = positional_map(transform, *noteblocks, dynamic=c_dynamic, position=c_position)
+        parallel_lines = positional_map(transform, *noteblocks, dynamic=dynamic, position=position)
+        bar_offset, beat = divmod(current_beat + duration, time)
+        self.current_bar += bar_offset
+        self.current_beat = beat
+
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return merged_line
         return parallel_lines
-
-
-class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
-        # I don't know if this is a pydantic BUG?
-        # but sometimes `src` is not converted into a T_Voice but remains a dict,
-        # so we force pydantic to convert the type again.
-        # Performance impact is negligible (if measureable at all), don't even think about it.
-        src = T_SingleDivisionVoice.model_validate(src)
-        self.position = SingleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
-        # See comment in SingleDivisionVoice.__init__
-        src = T_DoubleDivisionVoice.model_validate(src)
-        self.position = DoubleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-Voice = SingleDivisionVoice | DoubleDivisionVoice
-
-
-@dataclass(kw_only=True, slots=True)
-class Note:
-    # run-time-significant attributes
-    noteblock: NoteBlock | None
-    delay: T_Delay
-    position: T_Index
-    # for compile-time checks only
-    voice_name: str
-    where: tuple[int, int]
-
-    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
-        if self.noteblock is None:
-            dynamic = 1
-        elif dynamic == 0:
-            # no need to copy, we only __mul__ a freshly-created note
-            self.noteblock = None
-        return repeat(self, dynamic)
+       
 
 
 class SingleDivisionNote(Protocol):
@@ -420,3 +444,21 @@ class DoubleDivisionNote(Protocol):
     note: NoteBlock | None
     delay: T_Delay
     position: T_DoubleIndex
+
+
+@dataclass(kw_only=True, slots=True)
+class Note:
+    # run-time-significant attributes
+    noteblock: NoteBlock | None
+    delay: T_Delay
+    position: T_Index
+    voice_name: str  # for error messages
+    where: tuple[int, int]  # for compile-time checks
+
+    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
+        if self.noteblock is None:
+            dynamic = 1
+        elif dynamic == 0:
+            # no need to copy, we only __mul__ a freshly-created note
+            self.noteblock = None
+        return repeat(self, dynamic)
