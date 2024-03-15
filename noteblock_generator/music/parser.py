@@ -423,29 +423,23 @@ class _NotesFactory:
         return self._apply_phrasing(*noteblocks)
 
     def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock] | None) -> Iterable[Iterable[Note]]:
-        duration = len(noteblocks)
-        current_bar = self.current_bar
-        current_beat = self.current_beat
-
+        note_duration = len(noteblocks)
         time = self.time.resolve()
         beat = self.beat.resolve()
         delay = self.delay.resolve()
         position = self.position.resolve()
-        sustain = self.sustain.resolve(beat=beat, note_duration=duration)
-        dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=duration)
+        sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
+        dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
 
         def transform(*noteblocks: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
-                return (
-                    Note(
-                        noteblock=noteblock,
-                        delay=delay,
-                        position=position,
-                        voice_name=self.name,
-                        where=(current_bar + (current_beat + i) // time, (current_beat + i) % time),
-                    )
-                    for i, noteblock in enumerate(noteblocks)
-                )
+                for noteblock in noteblocks:
+                    yield self._create_note(noteblock=noteblock, delay=delay, position=position)
+                    if (beat := self.current_beat + 1) < time:
+                        self.current_beat = beat
+                    else:
+                        self.current_beat = 0
+                        self.current_bar += 1
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
@@ -453,14 +447,19 @@ class _NotesFactory:
             return apply_dynamic(apply_delay_and_position(noteblocks))
 
         parallel_lines = positional_map(transform, *noteblocks, dynamic=dynamic, position=position)
-        bar_offset, beat = divmod(current_beat + duration, time)
-        self.current_bar += bar_offset
-        self.current_beat = beat
-
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return merged_line
         return parallel_lines
+
+    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_Index):
+        return Note(
+            noteblock=noteblock,
+            delay=delay,
+            position=position,
+            voice_name=self.name,
+            where=(self.current_bar, self.current_beat),
+        )
 
 
 class SingleDivisionNote(Protocol):
