@@ -70,21 +70,18 @@ class Name:
         if src is None:
             return ""
         if (name := src.name) is not None:
-            return name
+            return name.replace(" ", "_")
         if (path := src.path) is not None:
-            return str(path.with_suffix(""))
-        return f"{type(src).__name__} {index}"
+            return path.stem
+        return f"{type(src).__name__}-{index}"
 
     def __init__(self):
         self._value = self._init_core()
 
     def transform(self, index: T_Index, src: SupportsName) -> Name:
         self = shallowcopy(self)
-        if (name := src.name) is None:
-            name = self._init_core(index, src)
-        if self._value:
-            self._value += "/"
-        self._value += name
+        name = self._init_core(index, src)
+        self._value += f"/{name}"
         return self
 
     def resolve(self) -> T_Name:
