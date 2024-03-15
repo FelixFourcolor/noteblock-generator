@@ -8,7 +8,7 @@ from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
 from pathlib import Path
-from typing import Iterable, Iterator, Protocol
+from typing import Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -227,7 +227,7 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
-        self.current_bar = self.current_beat = 1
+        self.current_bar = self.current_beat = 0
         self._notes = _NotesFactory(self).resolve(src.notes)
 
     def __iter__(self):
@@ -338,15 +338,45 @@ class _NotesFactory:
             trill_style = self.trill_style.resolve()
             return self._resolve_trilled_note(src.note, src.trill, trill_style)
         if is_typeform(note := src.note, T_BarDelimiter):
-            return self._check_bar_assertion(note)
+            return self._resolve_bar_delimiter(note)
         if is_typeform(note, T_MultipleNotes):
             return self._resolve_multiple_notes(note)
         if is_typeform(note, T_CompoundNote):
             return self._resolve_compound_note(note)
         return self._resolve_regular_note(note)
 
-    def _check_bar_assertion(self, src: T_BarDelimiter) -> Iterable[Iterable[Note]]:
-        return ()  # TODO
+    def _resolve_bar_delimiter(self, src: T_BarDelimiter) -> Iterable[Iterable[Note]]:
+        # TODO: error handling
+
+        if src.startswith("||"):
+            rest = True
+            src = src[2:].lstrip()
+        else:
+            rest = False
+            src = src[1:].lstrip()
+
+        if src.endswith("!"):
+            force_assertion = True
+            asserted_bar_number = src[:-1]
+        else:
+            force_assertion = False
+            asserted_bar_number = src
+
+        if not is_typeform(asserted_bar_number, int, strict=False):
+            raise ValueError(f"bar number must be an int, found {asserted_bar_number}")
+        asserted_bar_number = int(asserted_bar_number)
+
+        if force_assertion:
+            self.current_beat = 0
+            self.current_bar = asserted_bar_number
+        elif self.current_beat != 0:
+            raise ValueError("wrong barline location")
+        elif self.current_bar + 1 != asserted_bar_number:
+            raise ValueError("wrong bar number")
+
+        if rest:
+            return self._resolve_regular_note(f"r {self.time.resolve()}")
+        return ()
 
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
         tokens = parse_timedvalue(src)
@@ -431,7 +461,6 @@ class _NotesFactory:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return merged_line
         return parallel_lines
-       
 
 
 class SingleDivisionNote(Protocol):
