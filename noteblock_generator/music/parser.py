@@ -185,12 +185,19 @@ def _process_voices(voices: Iterable[Voice]):
     for step_iter in merged_line:
         # step_iter is guaranteed to have at least one element (see _Note.__mul__)
         parallel_notes = [first := next(step_iter)]
+        positional_slots: dict[T_Index, list[Note]] = {first.position: [first]}
         for note in step_iter:
             if first.delay != note.delay:
                 raise ValueError(f"inconsistent delays: {first}(delay={first.delay}) and {note}(delay={note.delay})")
             if first.where != note.where:
                 raise ValueError(f"inconsistent placements: {first} and {note}")
             parallel_notes.append(note)
+            if (slot := note.position) not in positional_slots:
+                positional_slots[slot] = [note]
+            else:
+                positional_slots[note.position].append(note)
+        if any(len(bad_slot := slot) > 4 for slot in positional_slots.values()):
+            raise ValueError(f"maximum 4 notes allowed per slot, found {len(bad_slot)}:\n{bad_slot}")
         sequential_notes.append(parallel_notes)
     return sequential_notes
 
