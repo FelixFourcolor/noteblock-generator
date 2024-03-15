@@ -39,7 +39,6 @@ from .typedefs import (
     T_DoubleIndex,
     T_Duration,
     T_Index,
-    T_Level,
     T_LevelIndex,
     T_MultipleNotes,
     T_MultiValue,
@@ -179,16 +178,24 @@ class CompoundSection(_BaseSection, list["Section | CompoundSection"]):
             self.append(self.new(index, subsection, self))
 
 
-class _BaseSingleSection(_BaseSection):
-    def _process_voices(self, voices: Iterable[SingleDivisionVoice | DoubleDivisionVoice]):
-        # voices are NOT necesarily of equal length, pad them with empty notes
-        merged_voice = [list(e) for e in map(chain.from_iterable, zip_longest(*voices, fillvalue=[]))]
-        if not all(unit.delay == step[0].delay for step in merged_voice for unit in step[1:]):
-            raise ValueError("inconsistent delay")  # TODO: report where exactly
-        return merged_voice
+def _process_voices(voices: Iterable[Voice]):
+    sequential_notes: list[list[Note]] = []
+    # voices are not necesarily of equal length, pad them with empty notes
+    merged_line = map(chain.from_iterable, zip_longest(*voices, fillvalue=[]))
+    for step_iter in merged_line:
+        # step_iter is guaranteed to have at least one element (see _Note.__mul__)
+        parallel_notes = [first := next(step_iter)]
+        for note in step_iter:
+            if first.delay != note.delay:
+                raise ValueError(f"inconsistent delays: {first}(delay={first.delay}) and {note}(delay={note.delay})")
+            if first.where != note.where:
+                raise ValueError(f"inconsistent placements: {first} and {note}")
+            parallel_notes.append(note)
+        sequential_notes.append(parallel_notes)
+    return sequential_notes
 
 
-class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]):
+class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
     def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
@@ -196,10 +203,10 @@ class SingleDivisionSection(_BaseSingleSection, list[list["SingleDivisionNote"]]
             for i, voice in enumerate(src.voices)
             if voice is not None
         )
-        self += self._process_voices(voices)
+        self += _process_voices(voices)
 
 
-class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]):
+class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalDefault):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
@@ -207,7 +214,7 @@ class DoubleDivisionSection(_BaseSingleSection, list[list["DoubleDivisionNote"]]
             for i, voice in enumerate(src.voices)
             if voice is not None
         )
-        self += self._process_voices(voices)
+        self += _process_voices(voices)
 
 
 Section = SingleDivisionSection | DoubleDivisionSection
@@ -227,7 +234,8 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
-        self.current_bar = self.current_beat = 0
+        self.current_bar = 1  # bar indexing starts from 1
+        self.current_beat = 0  # but beat starts from 0
         self._notes = _NotesFactory(self).resolve(src.notes)
 
     def __iter__(self):
@@ -371,7 +379,7 @@ class _NotesFactory:
             self.current_bar = asserted_bar_number
         elif self.current_beat != 0:
             raise ValueError("wrong barline location")
-        elif self.current_bar + 1 != asserted_bar_number:
+        elif self.current_bar != asserted_bar_number:
             raise ValueError("wrong bar number")
 
         if rest:
@@ -452,35 +460,23 @@ class _NotesFactory:
             return merged_line
         return parallel_lines
 
-    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_Index):
-        return Note(
+    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_Index) -> Note:
+        return _Note(
             noteblock=noteblock,
             delay=delay,
             position=position,
-            voice_name=self.name,
+            voice=self.name,
             where=(self.current_bar, self.current_beat),
-        )
-
-
-class SingleDivisionNote(Protocol):
-    noteblock: NoteBlock | None
-    delay: T_Delay
-    position: T_Level
-
-
-class DoubleDivisionNote(Protocol):
-    note: NoteBlock | None
-    delay: T_Delay
-    position: T_DoubleIndex
+        )  # pyright: ignore[reportGeneralTypeIssues]
 
 
 @dataclass(kw_only=True, slots=True)
-class Note:
+class _Note:
     # run-time-significant attributes
     noteblock: NoteBlock | None
     delay: T_Delay
     position: T_Index
-    voice_name: str  # for error messages
+    voice: str  # for error messages
     where: tuple[int, int]  # for compile-time checks
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
@@ -490,3 +486,25 @@ class Note:
             # no need to copy, we only __mul__ a freshly-created note
             self.noteblock = None
         return repeat(self, dynamic)
+
+    def __repr__(self):
+        return f"{self.voice}@{self.where}"
+
+
+class SingleDivisionNote(Protocol):
+    noteblock: NoteBlock | None
+    delay: T_Delay
+    position: T_LevelIndex
+    voice: str
+    where: tuple[int, int]
+
+
+class DoubleDivisionNote(Protocol):
+    noteblock: NoteBlock | None
+    delay: T_Delay
+    position: T_DoubleIndex
+    voice: str
+    where: tuple[int, int]
+
+
+Note = SingleDivisionNote | DoubleDivisionNote
