@@ -423,7 +423,7 @@ class Instrument(
             str_transpose = ""
         else:
             str_transpose = f"+{transpose}"
-        raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")
+        raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
     def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock]:
