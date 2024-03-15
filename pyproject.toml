@@ -35,11 +35,11 @@ target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
 exclude = [
-    "cli.py",
-    "generator_backend.py",
-    "generator_utils.py",
-    "generator.py",
-    "parser.py",
+    "noteblock_generator/cli.py",
+    "noteblock_generator/generator_backend.py",
+    "noteblock_generator/generator_utils.py",
+    "noteblock_generator/generator.py",
+    "noteblock_generator/parser.py",
 ] # temporarily ignore files currently not in development
 line-length = 120
 lint.select = ["ALL"]
