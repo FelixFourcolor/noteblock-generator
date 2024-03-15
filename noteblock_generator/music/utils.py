@@ -19,7 +19,7 @@ def typed_cache(func: CT) -> CT:
     return cache(func)
 
 
-def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue:
+def mutivalue_flatten(nested_list: Iterable[T | T_MultiValue[T]]) -> T_MultiValue[T]:
     def flatten_core() -> Iterator[T]:
         for i in nested_list:
             if type(i) is T_MultiValue:
