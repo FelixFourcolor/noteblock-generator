@@ -11,6 +11,8 @@ from pydantic_core import core_schema
 
 @final
 class T_MultiValue(tuple["T", ...]):
+    __slots__ = ()
+
     @classmethod
     def __get_pydantic_core_schema__(cls, src_type: Any, handler: GetCoreSchemaHandler):
         return core_schema.no_info_after_validator_function(cls, handler(tuple))
