@@ -34,6 +34,13 @@ strictParameterNoneValue = false
 target-version = "py310"
 show-fixes = true
 cache-dir = "~/.cache/ruff"
+exclude = [
+    "cli.py",
+    "generator_backend.py",
+    "generator_utils.py",
+    "generator.py",
+    "parser.py",
+] # temporarily ignore files currently not in development
 line-length = 120
 lint.select = ["ALL"]
 lint.ignore = [
