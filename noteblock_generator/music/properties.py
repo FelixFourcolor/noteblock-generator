@@ -466,11 +466,12 @@ class Dynamic(
             timed_values = map(parse_timedvalue, tokens)
             transformations = map(parse_variable_dynamic, timed_values)
             out = list(chain(*transformations))
-            if (remaining_duration := sustain_duration - len(out)) < 0:
-                raise ValueError("Incompatible sustain and duration")  # TODO: error handling
-            return out + ["+0"] * remaining_duration
+            if sustain_duration < len(out):
+                raise ValueError("Incompatible sustain and dynamic")  # TODO: error handling
+            padding = ["+0"] * (sustain_duration - len(out))
+            return out + padding
 
-        def transform2(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
+        def binary_transform(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
             if is_typeform(modifier, T_StaticAbsoluteDynamic):
                 return modifier
             low, high = min(1, current), 4
@@ -478,11 +479,11 @@ class Dynamic(
             return min(max(out, low), high)
 
         def transform(transformation: Iterable[T_StaticDynamic]) -> T_StaticAbsoluteDynamic:
-            return functools.reduce(transform2, transformation, 1)
+            return functools.reduce(binary_transform, transformation, 1)
 
         transformations = transpose(map(parse, current))
         result = list(map(transform, transformations))
-        padding = [0 for _ in range(note_duration - sustain_duration)]
+        padding = [0] * (note_duration - sustain_duration)
         return result + padding
 
     if TYPE_CHECKING:
