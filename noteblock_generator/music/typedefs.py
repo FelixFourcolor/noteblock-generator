@@ -424,10 +424,10 @@ class _BaseSection(_BaseModel):
     beat: T_StaticProperty[T_Beat] = None
     tick: T_StaticProperty[T_Tick] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
-    instrument: T_StaticProperty[T_Instrument] = None
-    dynamic: T_StaticProperty[T_Dynamic] = None
-    transpose: T_StaticProperty[T_Transpose] = None
-    sustain: T_StaticProperty[T_Sustain] = None
+    instrument: T_PositionalProperty[T_Instrument] = None
+    dynamic: T_PositionalProperty[T_Dynamic] = None
+    transpose: T_PositionalProperty[T_Transpose] = None
+    sustain: T_PositionalProperty[T_Sustain] = None
 
     @model_validator(mode="before")
     @classmethod
