@@ -1,0 +1,32 @@
+{
+    "noteName": {
+        "title": "Note",
+        "description": "Format: [pitch] [(optional) duration]",
+        "type": "string",
+        "pattern": "^[a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*$"
+    },
+    "rest": {
+        "title": "Rest",
+        "description": "Format: R [(optional) duration]",
+        "type": "string",
+        "pattern": "^[rR]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*$"
+    },
+    "multipleNotes": {
+        "title": "Syntactic sugar to write multiple notes",
+        "description": "Format: note 1, note 2, etc.",
+        "type": "string",
+        "pattern": "^([rR]|[a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*(\\s*,\\s*|$)){2,}$"
+    },
+    "compoundNote": {
+        "title": "Compound note: multiple pitches but is treated as one note",
+        "description": "Format: (note 1, note 2, etc.)",
+        "type": "string",
+        "pattern": "^\\(([a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*(\\s*,\\s*|\\))){2,}$"
+    },
+    "barDelimiter": {
+        "title": "Bar delimiter",
+        "description": "| to assert bar line, another | to rest for the entire bar, optionally followed by a bar number, optionally followed by ! to force assertion.",
+        "type": "string",
+        "pattern": "^\\|{1,2}(\\s*\\d+)?\\!?$"
+    }
+}

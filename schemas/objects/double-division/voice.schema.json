@@ -1,7 +1,7 @@
 {
     "oneOf": [
         { "$ref": "#/$def/voice" },
-        { "$ref": "../../properties/meta.schema.json#/reference" }
+        { "$ref": "../../types/meta.schema.json#/reference" }
     ],
     "$def": {
         "voice": {
@@ -11,15 +11,15 @@
             "required": [ "notes" ],
             "properties": {
                 "notes": { "$ref": "notes.schema.json#" },
-                "name": { "$ref": "../../properties/globals.schema.json#/name" },
-                "time": { "$ref": "../../properties/globals.schema.json#/time" },
-                "beat": { "$ref": "../../properties/globals.schema.json#/beat" },
-                "trillStyle": { "$ref": "../../properties/globals.schema.json#/trillStyle" },
-                "position": { "$ref": "../../properties/voices.schema.json#/doubleDivisionPosition" },
-                "instrument": { "$ref": "../../properties/voices.schema.json#/instrument" },
-                "dynamic": { "$ref": "../../properties/voices.schema.json#/dynamic" },
-                "transpose": { "$ref": "../../properties/voices.schema.json#/transpose" },
-                "sustain": { "$ref": "../../properties/voices.schema.json#/sustain" }
+                "name": { "$ref": "../../types/properties.schema.json#/name" },
+                "time": { "$ref": "../../types/properties.schema.json#/time" },
+                "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
             }
         }
     }

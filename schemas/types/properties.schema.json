@@ -1,0 +1,295 @@
+{
+    "name": {
+        "name": "Object's name",
+        "oneOf": [
+            {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9\\s]+$"
+            },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "width": {
+        "title": "Structure's width",
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 8,
+                "maximum": 16
+            },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "time": {
+        "title": "How many redstone pulses in each bar.",
+        "oneOf": [
+            {
+                "type": "integer",
+                "exclusiveMinimum": 0
+            },
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "delay": {
+        "title": "How many redstone ticks between each pulse",
+        "oneOf": [
+            {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4
+            },
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "beat": {
+        "title": "How many pulses in each beat",
+        "oneOf": [
+            {
+                "type": "integer",
+                "exclusiveMinimum": 0
+            },
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "tick": {
+        "title": "Game tick rate",
+        "oneOf": [
+            {
+                "type": "number",
+                "exclusiveMinimum": 0
+            },
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "trillStyle": {
+        "title": "Whether trills start on the main note or the trill note",
+        "oneOf": [
+            { "const": "normal" },
+            { "const": "alt" },
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
+    "singleDivisionPosition": {
+        "title": "Where to place the noteblocks",
+        "oneOf": [
+            { "$ref": "#/singleDivisionPosition/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/singleDivisionPosition/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+                "oneOf": [
+                    {
+                        "description": "Level of placement; higher == closer to the player.",
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                    },
+                    {
+                        "description": "Level of placement relative to environment",
+                        "type": "string",
+                        "pattern": "^[+-]\\d+$"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    },
+    "doubleDivisionPosition": {
+        "title": "Where to place the noteblocks",
+        "oneOf": [
+            { "$ref": "#/doubleDivisionPosition/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/doubleDivisionPosition/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+                "oneOf": [
+                    { "$ref": "#/singleDivisionPosition/$def/value" },
+                    {
+                        "description": "Which side relative to the player.",
+                        "type": "string",
+                        "pattern": "^(left|right|bothsides)$"
+                    },
+                    {
+                        "description": "Switch side: left becomes right, right becomes left.",
+                        "const": "switch"
+                    },
+                    {
+                        "description": "Control both level of placement and which side relative to the player.",
+                        "type": "string",
+                        "pattern": "^(left|right|bothsides|switch)\\s*[+-]?\\d+$"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    },
+    "instrument": {
+        "title": "Noteblock instrument",
+        "oneOf": [
+            { "$ref": "#/instrument/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/instrument/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+
+                "oneOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^(?!.*(.+)(\\s*/\\s*.+)*\\s*/\\s*\\1)((bass|didgeridoo|guitar|banjo|bit|harp|iron_xylophone|pling|cow_bell|flute|bell|chime|xylophone|basedrum|hat|snare)(\\s*/\\s*|$))+$"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    },
+    "dynamic": {
+        "title": "How many noteblocks to play each note.",
+
+        "oneOf": [
+            { "$ref": "#/dynamic/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/dynamic/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+
+                "anyOf": [
+                    {
+                        "description": "Constant loudness",
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 4
+                    },
+                    {
+                        "description": "Variable louness",
+                        "type": "string",
+                        "pattern": "^([0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                    },
+                    {
+                        "description": "Loudness relative to environment",
+                        "type": "string",
+                        "pattern": "^[+-][0-4]$"
+                    },
+                    {
+                        "description": "Variable loudness",
+                        "type": "string",
+                        "pattern": "^([+-]?[0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    },
+    "sustain": {
+        "title": "Sustain level",
+        "oneOf": [
+            { "$ref": "#/sustain/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/sustain/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+
+                "oneOf": [
+                    {
+                        "description": "Sustain notes for its full duration.",
+                        "const": true
+                    },
+                    {
+                        "description": "No sustain",
+                        "const": false
+                    },
+                    {
+                        "description": "Sustain notes for this precise duration",
+                        "oneOf": [
+                            {
+                                "type": "integer",
+                                "exclusiveMinimum": 0
+                            },
+                            {
+                                "type": "string",
+                                "pattern": "^(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)$"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Sustain notes for their full duration, minus this.",
+                        "type": "integer",
+                        "exclusiveMaximum": 0
+                    },
+                    {
+                        "description": "Sustain duration relative to environment.",
+                        "type": "string",
+                        "pattern": "^[+-](([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    },
+    "transpose": {
+        "title": "Transpose",
+        "oneOf": [
+            { "$ref": "#/transpose/$def/value" },
+            {
+                "title": "Multiple placements",
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/transpose/$def/value" }
+            }
+        ],
+        "$def": {
+            "value": {
+
+                "oneOf": [
+                    { "type": "integer" },
+                    {
+                        "description": "Transpose relative to environment.",
+                        "type": "string",
+                        "pattern": "^[+-]\\d+$"
+                    },
+                    { "$ref": "meta.schema.json#/reset" },
+                    { "$ref": "meta.schema.json#/delete" },
+                    { "$ref": "meta.schema.json#/default" }
+                ]
+            }
+        }
+    }
+}

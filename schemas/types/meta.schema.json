@@ -1,0 +1,19 @@
+{
+    "default": {
+        "description": "Placeholder for no data",
+        "const": null
+    },
+    "reference": {
+        "title": "Data defined in another file",
+        "type": "string",
+        "pattern": "^file://.+$"
+    },
+    "reset": {
+        "description": "Reset value to environment's default.",
+        "const": "$reset"
+    },
+    "delete": {
+        "description": "Delete this slot (only applicable in multi-valued properties)",
+        "const": "$del"
+    }
+}

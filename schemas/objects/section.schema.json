@@ -15,16 +15,17 @@
                     "required": [ "sections" ],
                     "properties": {
                         "sections": { "$ref": "#/$def/compoundSection/$def/sections" },
-                        "name": { "$ref": "../properties/globals.schema.json#/name" },
-                        "time": { "$ref": "../properties/globals.schema.json#/time" },
-                        "width": { "$ref": "../properties/globals.schema.json#/width" },
-                        "beat": { "$ref": "../properties/globals.schema.json#/beat" },
-                        "tick": { "$ref": "../properties/globals.schema.json#/tick" },
-                        "trillStyle": { "$ref": "../properties/globals.schema.json#/trillStyle" },
-                        "instrument": { "$ref": "../properties/globals.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../properties/globals.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../properties/globals.schema.json#/transpose" },
-                        "sustain": { "$ref": "../properties/globals.schema.json#/sustain" }
+                        "name": { "$ref": "../types/properties.schema.json#/name" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
+                        "width": { "$ref": "../types/properties.schema.json#/width" },
+                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                        "tick": { "$ref": "../types/properties.schema.json#/tick" },
+                        "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                        "position": { "$ref": "../types/properties.schema.json#/singleDivisionPosition" },
+                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
                     }
                 }
             ],
@@ -36,7 +37,7 @@
                     "items": {
                         "oneOf": [
                             { "$ref": "#" },
-                            { "$ref": "../properties/meta.schema.json#/reference" }
+                            { "$ref": "../types/meta.schema.json#/reference" }
                         ]
                     }
                 }

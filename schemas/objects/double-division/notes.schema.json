@@ -1,7 +1,7 @@
 {
     "oneOf": [
         { "$ref": "#/$def/sequentialNotes" },
-        { "$ref": "../../properties/meta.schema.json#/reference" }
+        { "$ref": "../../types/meta.schema.json#/reference" }
     ],
     "$def": {
         "notesModifier": {
@@ -9,15 +9,15 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                "beat": { "$ref": "../../properties/notes.schema.json#/beat" },
-                "trillStyle": { "$ref": "../../properties/notes.schema.json#/trillStyle" },
-                "position": { "$ref": "../../properties/notes.schema.json#/doubleDivisionPosition" },
-                "instrument": { "$ref": "../../properties/notes.schema.json#/instrument" },
-                "dynamic": { "$ref": "../../properties/notes.schema.json#/dynamic" },
-                "transpose": { "$ref": "../../properties/notes.schema.json#/transpose" },
-                "sustain": { "$ref": "../../properties/notes.schema.json#/sustain" }
+                "time": { "$ref": "../../types/properties.schema.json#/time" },
+                "delay": { "$ref": "../../types/properties.schema.json#/delay" },
+                "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
             }
         },
         "regularNote": {
@@ -31,22 +31,23 @@
                     "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/regularNote/$def/note" },
-                        "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                        "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                        "beat": { "$ref": "../../properties/notes.schema.json#/beat" },
-                        "position": { "$ref": "../../properties/notes.schema.json#/doubleDivisionPosition" },
-                        "instrument": { "$ref": "../../properties/notes.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../../properties/notes.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../../properties/notes.schema.json#/transpose" },
-                        "sustain": { "$ref": "../../properties/notes.schema.json#/sustain" }
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                        "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
                     }
                 }
             ],
             "$def": {
                 "note": {
                     "oneOf": [
-                        { "$ref": "../../properties/notes.schema.json#/noteName" },
-                        { "$ref": "../../properties/notes.schema.json#/compoundNote" }
+                        { "$ref": "../../types/notes.schema.json#/noteName" },
+                        { "$ref": "../../types/notes.schema.json#/multipleNotes" },
+                        { "$ref": "../../types/notes.schema.json#/compoundNote" }
                     ]
                 }
             }
@@ -62,17 +63,17 @@
                     "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/emptyNote/$def/note" },
-                        "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                        "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                        "beat": { "$ref": "../../properties/notes.schema.json#/beat" }
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
+                        "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                        "delay": { "$ref": "../../types/properties.schema.json#/delay" }
                     }
                 }
             ],
             "$def": {
                 "note": {
                     "oneOf": [
-                        { "$ref": "../../properties/notes.schema.json#/rest" },
-                        { "$ref": "../../properties/notes.schema.json#/barDelimiter" }
+                        { "$ref": "../../types/notes.schema.json#/rest" },
+                        { "$ref": "../../types/notes.schema.json#/barDelimiter" }
                     ]
                 }
             }
@@ -83,17 +84,17 @@
             "additionalProperties": false,
             "required": [ "note", "trill" ],
             "properties": {
-                "note": { "$ref": "../../properties/notes.schema.json#/noteName" },
-                "trill": { "$ref": "../../properties/notes.schema.json#/noteName" },
-                "trillStyle": { "$ref": "../../properties/notes.schema.json#/trillStyle" },
-                "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                "beat": { "$ref": "../../properties/notes.schema.json#/beat" },
-                "position": { "$ref": "../../properties/notes.schema.json#/doubleDivisionPosition" },
-                "instrument": { "$ref": "../../properties/notes.schema.json#/instrument" },
-                "dynamic": { "$ref": "../../properties/notes.schema.json#/dynamic" },
-                "transpose": { "$ref": "../../properties/notes.schema.json#/transpose" },
-                "sustain": { "$ref": "../../properties/notes.schema.json#/sustain" }
+                "note": { "$ref": "../../types/notes.schema.json#/noteName" },
+                "trill": { "$ref": "../../types/notes.schema.json#/noteName" },
+                "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                "time": { "$ref": "../../types/properties.schema.json#/time" },
+                "delay": { "$ref": "../../types/properties.schema.json#/delay" },
+                "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
             }
         },
         "singleNote": {
@@ -104,7 +105,7 @@
             ]
         },
         "parallelNotes": {
-            "title": "Sequential notes",
+            "title": "Double-division sequential notes",
             "oneOf": [
                 { "$ref": "#/$def/sequentialNotes/$def/note" },
                 {
@@ -113,15 +114,15 @@
                     "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/sequentialNotes/$def/note" },
-                        "trillStyle": { "$ref": "../../properties/notes.schema.json#/trillStyle" },
-                        "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                        "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                        "beat": { "$ref": "../../properties/notes.schema.json#/beat" },
-                        "position": { "$ref": "../../properties/notes.schema.json#/doubleDivisionPosition" },
-                        "instrument": { "$ref": "../../properties/notes.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../../properties/notes.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../../properties/notes.schema.json#/transpose" },
-                        "sustain": { "$ref": "../../properties/notes.schema.json#/sustain" }
+                        "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                        "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
                     }
                 }
             ],
@@ -148,15 +149,15 @@
                     "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/sequentialNotes/$def/note" },
-                        "trillStyle": { "$ref": "../../properties/notes.schema.json#/trillStyle" },
-                        "time": { "$ref": "../../properties/notes.schema.json#/time" },
-                        "delay": { "$ref": "../../properties/notes.schema.json#/delay" },
-                        "beat": { "$ref": "../../properties/notes.schema.json#/beat" },
-                        "position": { "$ref": "../../properties/notes.schema.json#/doubleDivisionPosition" },
-                        "instrument": { "$ref": "../../properties/notes.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../../properties/notes.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../../properties/notes.schema.json#/transpose" },
-                        "sustain": { "$ref": "../../properties/notes.schema.json#/sustain" }
+                        "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                        "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
                     }
                 }
             ],

@@ -1,7 +1,8 @@
 {
     "oneOf": [
         { "$ref": "#/$def/section" },
-        { "$ref": "../../properties/meta.schema.json#/reference" }
+        { "$ref": "#/$def/compoundSection" },
+        { "$ref": "../../types/meta.schema.json#/reference" }
     ],
     "$def": {
         "section": {
@@ -27,21 +28,60 @@
                             },
                             {
                                 "title": "Empty voice",
-                                "$ref": "../../properties/meta.schema.json#/default"
+                                "$ref": "../../types/meta.schema.json#/default"
                             }
                         ]
                     }
                 },
-                "name": { "$ref": "../../properties/globals.schema.json#/name" },
-                "time": { "$ref": "../../properties/globals.schema.json#/time" },
-                "width": { "$ref": "../../properties/globals.schema.json#/width" },
-                "beat": { "$ref": "../../properties/globals.schema.json#/beat" },
-                "tick": { "$ref": "../../properties/globals.schema.json#/tick" },
-                "trillStyle": { "$ref": "../../properties/globals.schema.json#/trillStyle" },
-                "instrument": { "$ref": "../../properties/globals.schema.json#/instrument" },
-                "dynamic": { "$ref": "../../properties/globals.schema.json#/dynamic" },
-                "transpose": { "$ref": "../../properties/globals.schema.json#/transpose" },
-                "sustain": { "$ref": "../../properties/globals.schema.json#/sustain" }
+                "name": { "$ref": "../../types/properties.schema.json#/name" },
+                "time": { "$ref": "../../types/properties.schema.json#/time" },
+                "width": { "$ref": "../../types/properties.schema.json#/width" },
+                "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                "tick": { "$ref": "../../types/properties.schema.json#/tick" },
+                "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
+            }
+        },
+        "compoundSection": {
+            "title": "Double-division compound section",
+            "oneOf": [
+                { "$ref": "#/$def/compoundSection/$def/sections" },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [ "sections" ],
+                    "properties": {
+                        "sections": { "$ref": "#/$def/compoundSection/$def/sections" },
+                        "name": { "$ref": "../../types/properties.schema.json#/name" },
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
+                        "width": { "$ref": "../../types/properties.schema.json#/width" },
+                        "beat": { "$ref": "../../types/properties.schema.json#/beat" },
+                        "tick": { "$ref": "../../types/properties.schema.json#/tick" },
+                        "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
+                        "position": { "$ref": "../../types/properties.schema.json#/doubleDivisionPosition" },
+                        "instrument": { "$ref": "../../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
+                    }
+                }
+            ],
+            "$def": {
+                "sections": {
+                    "title": "List of sections to be played sequentially",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#" },
+                            { "$ref": "../../types/meta.schema.json#/reference" }
+                        ]
+                    }
+                }
             }
         }
     }
