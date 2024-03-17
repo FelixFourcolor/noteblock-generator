@@ -490,6 +490,7 @@ class _Note:
         if self.noteblock is None:
             dynamic = 1
         elif dynamic == 0:
+            dynamic = 1
             # no need to copy, we only __mul__ a freshly-created note
             self.noteblock = None
         return repeat(self, dynamic)
