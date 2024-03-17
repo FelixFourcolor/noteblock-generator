@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, Pos
 from pydantic.alias_generators import to_camel
 from pydantic_core import core_schema
 
+from .loader import dereference
+
 
 @final
 class T_MultiValue(tuple["T", ...]):
@@ -285,12 +287,12 @@ T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 
 
-def _to_dict(data: Any, *, key: str) -> dict:
+def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
     if isinstance(data, dict):
         if key in data:
             return data
         with contextlib.suppress(KeyError):
-            return {key: data.pop("data")}
+            return {key: dereference(data)}
     return {key: data}
 
 
