@@ -343,9 +343,6 @@ class _NotesFactory:
         tokens = parse_timedvalue(src)
         note_name = tokens[0].lower()
         note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
-
-        if note_name == "r":
-            return None, note_duration
         note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
         return note, note_duration
 
@@ -392,7 +389,7 @@ class _NotesFactory:
         sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
 
-        def transform(*noteblocks: NoteBlock | None, dynamic: list[T_StaticAbsoluteDynamic], position: T_Index):
+        def transform(*noteblocks: NoteBlock | None, dynamic: Iterable[T_StaticAbsoluteDynamic], position: T_Index):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 for noteblock in noteblocks:
                     yield self._create_note(noteblock=noteblock, delay=delay, position=position)

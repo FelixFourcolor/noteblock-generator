@@ -5,7 +5,7 @@ import functools
 import re
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from itertools import chain
+from itertools import chain, repeat
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Protocol, TypeVar, cast
 
@@ -156,6 +156,10 @@ class TrillStyle(_StaticProperty[T_TrillStyle]):
     _DEFAULT = "normal"
 
 
+def _is_empty(positional_value: T_Positional):
+    return type(positional_value) is T_MultiValue and not positional_value
+
+
 class _PositionalProperty(
     Generic[
         T,  # internal representation type
@@ -164,6 +168,7 @@ class _PositionalProperty(
     ]
 ):
     _DEFAULT: T
+    _NULL_VALUE: V
     _original_value: T_Positional[T]
     _value: T_Positional[T]
 
@@ -178,13 +183,13 @@ class _PositionalProperty(
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
 
-    def _transform_core_wrapper(self, origin: T, current: T, modifier: U | T_Reset | T_Delete | None) -> T | None:
+    def _transform_core_wrapper(self, origin: T, current: T, modifier: U | T_Reset | T_Delete | None) -> T | T_Delete:
         if modifier is None:
             return current
         if modifier == "$reset":
             return origin
         if modifier == "$del":
-            return None
+            return "$del"
         return self._transform_core(current, modifier)
 
     def _prepare_transform(self, modifier: T_PositionalProperty[U]) -> T_PositionalProperty[U]:
@@ -228,13 +233,9 @@ class _PositionalProperty(
 
         new_value = positional_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
         if type(new_value) is T_MultiValue:
-            new_value = T_MultiValue(cast(T, e) for e in new_value if e is not None)
-            if new_value:
-                self._value = new_value
-            else:
-                self._value = self._DEFAULT
-        elif new_value is None:
-            self._value = self._DEFAULT
+            self._value = T_MultiValue(e for e in new_value if e != "$del")
+        elif new_value == "$del":
+            self._value = T_MultiValue()
         else:
             self._value = new_value
         if save:
@@ -243,7 +244,9 @@ class _PositionalProperty(
 
     @typed_cache
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
-        return positional_map(self._resolve_core, self._value, *args, **kwargs)
+        if _is_empty(out := positional_map(self._resolve_core, self._value, *args, **kwargs)):
+            return self._NULL_VALUE
+        return out
 
 
 class GlobalPosition(
@@ -254,6 +257,7 @@ class GlobalPosition(
     ]
 ):
     _DEFAULT = ()
+    _NULL_VALUE = T_MultiValue()
 
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
@@ -290,7 +294,7 @@ class SingleDivisionPosition(
     ],
 ):
     def __init__(self, index: T_LevelIndex):
-        self._value = self._original_value = self._DEFAULT = index
+        self._value = self._original_value = self._DEFAULT = self._NULL_VALUE = index
 
     def _transform_core(self, current, modifier) -> T_LevelIndex:
         if is_typeform(modifier, T_AbsoluteLevel):
@@ -312,7 +316,7 @@ class DoubleDivisionPosition(
     ],
 ):
     def __init__(self, index: T_LevelIndex):
-        self._value = self._original_value = self._DEFAULT = index
+        self._value = self._original_value = self._DEFAULT = _NULL_VALUE = index
 
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
         match = re.search("left|right|switch", value)
@@ -366,6 +370,8 @@ class DoubleDivisionPosition(
                 return T_MultiValue(((0, current), (1, current)))
             return current
 
+        if _is_empty(self._value):
+            return self._NULL_VALUE
         if type(self._value) is T_MultiValue:
             return mutivalue_flatten(map(handle_bothsides, self._value))
         return handle_bothsides(self._value)
@@ -381,10 +387,11 @@ class Instrument(
     _PositionalProperty[
         T_Instrument,
         T_Instrument,
-        NoteBlock,
+        NoteBlock | None,
     ]
 ):
     _DEFAULT = "harp"
+    _NULL_VALUE = None
 
     def _resolve_core(
         self,
@@ -423,7 +430,9 @@ class Instrument(
         raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
-    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock]:
+    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock] | None:
+        if note_name == "r" or _is_empty(self._value) or _is_empty(transpose):
+            return self._NULL_VALUE
         return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
 
 
@@ -435,6 +444,7 @@ class Dynamic(
     ]
 ):
     _DEFAULT = (1,)
+    _NULL_VALUE = repeat(0)
 
     def _transform_core(self, current, modifier) -> T_Tuple[T_Dynamic]:
         if is_typeform(modifier, T_AbsoluteDynamic):
@@ -494,7 +504,7 @@ class Dynamic(
             beat: T_Positional[T_Beat],
             sustain_duration: T_Positional[T_Duration],
             note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[list[T_StaticAbsoluteDynamic]]: ...
+        ) -> T_Positional[Iterable[T_StaticAbsoluteDynamic]]: ...
 
 
 class Sustain(
@@ -505,6 +515,7 @@ class Sustain(
     ]
 ):
     _DEFAULT = (-1,)
+    _NULL_VALUE = 1
 
     def _transform_core(self, current, modifier) -> T_Tuple[T_Sustain]:
         if is_typeform(modifier, T_AbsoluteSustain):
@@ -552,6 +563,7 @@ class Transpose(
     ]
 ):
     _DEFAULT = 0
+    _NULL_VALUE = 0
 
     def _transform_core(self, current, modifier) -> T_AbsoluteTranspose:
         if isinstance(modifier, T_AbsoluteTranspose):
