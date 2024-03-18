@@ -431,7 +431,7 @@ class Dynamic(
     _PositionalProperty[
         T_Tuple[T_Dynamic],
         T_Dynamic,
-        list[T_StaticAbsoluteDynamic],
+        Iterable[T_StaticAbsoluteDynamic],
     ]
 ):
     _DEFAULT = (1,)
@@ -447,29 +447,30 @@ class Dynamic(
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
-    ) -> list[T_StaticAbsoluteDynamic]:
-        def parse(value: T_Dynamic) -> list[T_StaticDynamic]:
-            if is_typeform(value, T_StaticDynamic):
-                return [value] * sustain_duration
-            assert is_typeform(value, T_VariableDynamic), value
-
-            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> list[T_StaticDynamic]:
+    ) -> Iterable[T_StaticAbsoluteDynamic]:
+        def parse(value: T_Dynamic) -> Iterable[T_StaticDynamic]:
+            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> Iterable[T_StaticDynamic]:
                 dynamic = tokens[0]
                 if not dynamic.startswith(("+", "-")):
                     dynamic = int(dynamic)
                 duration = parse_duration(*tokens[1:], beat=beat)
                 if duration < 0:
                     duration += sustain_duration
-                return [dynamic] * duration
+                return repeat(dynamic, duration)
+
+            if is_typeform(value, T_StaticDynamic):
+                return repeat(value, sustain_duration)
+            assert is_typeform(value, T_VariableDynamic), value
 
             tokens = strip_split(value, ",")
             timed_values = map(parse_timedvalue, tokens)
             transformations = map(parse_variable_dynamic, timed_values)
-            out = list(chain(*transformations))
-            if sustain_duration < len(out):
+            main = tuple(chain(*transformations))
+            if sustain_duration < len(main):
                 raise ValueError("Incompatible sustain and dynamic")  # TODO: error handling
-            padding = ["+0"] * (sustain_duration - len(out))
-            return out + padding
+
+            padding = repeat("+0", sustain_duration - len(main))
+            return chain(main, padding)
 
         def binary_transform(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
             if is_typeform(modifier, T_StaticAbsoluteDynamic):
@@ -482,9 +483,9 @@ class Dynamic(
             return functools.reduce(binary_transform, transformation, 1)
 
         transformations = transpose(map(parse, current))
-        result = list(map(transform, transformations))
-        padding = [0] * (note_duration - sustain_duration)
-        return result + padding
+        main = map(transform, transformations)
+        padding = repeat(0, note_duration - sustain_duration)
+        return tuple(chain(main, padding))  # must convert to tuple in order to cache result
 
     if TYPE_CHECKING:
 
