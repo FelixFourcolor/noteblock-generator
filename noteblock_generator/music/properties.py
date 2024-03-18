@@ -194,7 +194,7 @@ class _PositionalProperty(
         modifier_len = len(modifier)
         working_modifier = list(modifier)  # convert to list to allow mutation
 
-        if isinstance(self._value, T_MultiValue):
+        if type(self._value) is T_MultiValue:
             current_len = len(self._value)
             # fewer modifiers than current values -> implicit delete
             if modifier_len < current_len:
@@ -210,7 +210,7 @@ class _PositionalProperty(
                 else:
                     yield element
 
-        if isinstance(self._original_value, T_MultiValue):
+        if type(self._original_value) is T_MultiValue:
             original_len = len(self._original_value)
             # replace every "$reset" modifier with "$del" if it overflows original value
             if modifier_len > original_len:
@@ -366,7 +366,7 @@ class DoubleDivisionPosition(
                 return T_MultiValue(((0, current), (1, current)))
             return current
 
-        if isinstance(self._value, T_MultiValue):
+        if type(self._value) is T_MultiValue:
             return mutivalue_flatten(map(handle_bothsides, self._value))
         return handle_bothsides(self._value)
 
