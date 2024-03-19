@@ -339,14 +339,14 @@ class _NotesFactory:
             return self._resolve_regular_note(f"r {self.time.resolve()}")
         return ()
 
-    def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock] | None, T_Duration]:
+    def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock | None], T_Duration]:
         tokens = parse_timedvalue(src)
         note_name = tokens[0].lower()
         note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
         note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
         return note, note_duration
 
-    def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock] | None]:
+    def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock | None]]:
         note, duration = self._parse_note(src)
         if duration <= 0:
             raise ValueError("Note duration must be positive")  # TODO error handling
@@ -380,7 +380,7 @@ class _NotesFactory:
                 noteblocks[i] = trill_noteblock
         return self._apply_phrasing(*noteblocks)
 
-    def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock] | None) -> Iterable[Iterable[Note]]:
+    def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock | None]) -> Iterable[Iterable[Note]]:
         note_duration = len(noteblocks)
         time = self.time.resolve()
         beat = self.beat.resolve()

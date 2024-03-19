@@ -168,7 +168,7 @@ class _PositionalProperty(
     ]
 ):
     _DEFAULT: T
-    _NULL_VALUE: V
+    _NULL_VALUE: T_Positional[V] = T_MultiValue()
     _original_value: T_Positional[T]
     _value: T_Positional[T]
 
@@ -257,7 +257,6 @@ class GlobalPosition(
     ]
 ):
     _DEFAULT = ()
-    _NULL_VALUE = T_MultiValue()
 
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
@@ -430,7 +429,7 @@ class Instrument(
         raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
-    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock] | None:
+    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock | None]:
         if note_name == "r" or _is_empty(self._value) or _is_empty(transpose):
             return self._NULL_VALUE
         return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
@@ -515,7 +514,6 @@ class Sustain(
     ]
 ):
     _DEFAULT = (-1,)
-    _NULL_VALUE = 1
 
     def _transform_core(self, current, modifier) -> T_Tuple[T_Sustain]:
         if is_typeform(modifier, T_AbsoluteSustain):
@@ -563,7 +561,6 @@ class Transpose(
     ]
 ):
     _DEFAULT = 0
-    _NULL_VALUE = 0
 
     def _transform_core(self, current, modifier) -> T_AbsoluteTranspose:
         if isinstance(modifier, T_AbsoluteTranspose):
