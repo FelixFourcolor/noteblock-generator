@@ -1,7 +1,7 @@
 {
     "oneOf": [
         { "$ref": "#/$def/section" },
-        { "$ref": "#/$def/compoundSection" },
+        { "$ref": "#/$def/multiSection" },
         { "$ref": "../../types/meta.schema.json#/reference" }
     ],
     "$def": {
@@ -46,19 +46,20 @@
                 "sustain": { "$ref": "../../types/properties.schema.json#/sustain" }
             }
         },
-        "compoundSection": {
-            "title": "Single-division compound section",
+        "multiSection": {
+            "title": "Single-division multi-section",
             "oneOf": [
-                { "$ref": "#/$def/compoundSection/$def/sections" },
+                { "$ref": "#/$def/multiSection/$def/sections" },
                 {
                     "type": "object",
                     "additionalProperties": false,
                     "required": [ "sections" ],
                     "properties": {
-                        "sections": { "$ref": "#/$def/compoundSection/$def/sections" },
+                        "sections": { "$ref": "#/$def/multiSection/$def/sections" },
                         "name": { "$ref": "../../types/properties.schema.json#/name" },
-                        "time": { "$ref": "../../types/properties.schema.json#/time" },
                         "width": { "$ref": "../../types/properties.schema.json#/width" },
+                        "continuous": { "$ref": "../../types/properties.schema.json#/continuous" },
+                        "time": { "$ref": "../../types/properties.schema.json#/time" },
                         "beat": { "$ref": "../../types/properties.schema.json#/beat" },
                         "tick": { "$ref": "../../types/properties.schema.json#/tick" },
                         "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },

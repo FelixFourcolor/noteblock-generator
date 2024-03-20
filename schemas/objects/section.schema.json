@@ -2,22 +2,23 @@
     "anyOf": [
         { "$ref": "single-division/section.schema.json#" },
         { "$ref": "double-division/section.schema.json#" },
-        { "$ref": "#/$def/compoundSection" }
+        { "$ref": "#/$def/multiSection" }
     ],
     "$def": {
-        "compoundSection": {
-            "title": "Compound section",
+        "multiSection": {
+            "title": "Multi-section",
             "oneOf": [
-                { "$ref": "#/$def/compoundSection/$def/sections" },
+                { "$ref": "#/$def/multiSection/$def/sections" },
                 {
                     "type": "object",
                     "additionalProperties": false,
                     "required": [ "sections" ],
                     "properties": {
-                        "sections": { "$ref": "#/$def/compoundSection/$def/sections" },
+                        "sections": { "$ref": "#/$def/multiSection/$def/sections" },
                         "name": { "$ref": "../types/properties.schema.json#/name" },
-                        "time": { "$ref": "../types/properties.schema.json#/time" },
                         "width": { "$ref": "../types/properties.schema.json#/width" },
+                        "continuous": { "$ref": "../types/properties.schema.json#/continuous" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
                         "beat": { "$ref": "../types/properties.schema.json#/beat" },
                         "tick": { "$ref": "../types/properties.schema.json#/tick" },
                         "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },

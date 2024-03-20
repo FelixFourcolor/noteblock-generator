@@ -20,6 +20,14 @@
             { "$ref": "meta.schema.json#/default" }
         ]
     },
+    "continuous": {
+        "title": "Play subsections continuously",
+        "oneOf": [
+            { "type": "boolean"},
+            { "$ref": "meta.schema.json#/reset" },
+            { "$ref": "meta.schema.json#/default" }
+        ]
+    },
     "time": {
         "title": "How many redstone pulses in each bar.",
         "oneOf": [
