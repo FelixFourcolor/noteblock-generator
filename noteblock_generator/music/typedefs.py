@@ -37,6 +37,7 @@ T_Index = T_LevelIndex | T_DoubleIndex
 T_Duration = int
 T_NoteValue = int
 T_Name = str
+T_Continuous = bool
 T_Time = PositiveInt
 T_Width = Annotated[int, Field(ge=8, le=16)]
 T_Delay = Annotated[int, Field(ge=1, le=4)]
@@ -447,24 +448,26 @@ class T_DoubleDivisionSection(_BaseSection):
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
-class _BaseCompoundSection(_BaseSection):
+class _BaseMultiSections(_BaseSection):
+    continuous: T_StaticProperty[T_Continuous] = None
+
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         return _to_dict(data, key="sections")
 
 
-class T_SingleDivisionCompoundSection(_BaseCompoundSection):
-    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionCompoundSection]
+class T_SingleDivisionMultiSections(_BaseMultiSections):
+    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionMultiSections]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
-class T_DoubleDivisionCompoundSection(_BaseCompoundSection):
-    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionCompoundSection]
+class T_DoubleDivisionMultiSections(_BaseMultiSections):
+    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionMultiSections]
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
-class T_MixedCompoundSection(_BaseCompoundSection):
+class T_MixedMultiSections(_BaseMultiSections):
     sections: T_Tuple[T_Section]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
@@ -479,5 +482,5 @@ T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
 T_NoteMeta = T_NotesModifier | T_Note
 T_Voice = T_SingleDivisionVoice | T_DoubleDivisionVoice
 T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
-T_CompoundSection = T_SingleDivisionCompoundSection | T_DoubleDivisionCompoundSection | T_MixedCompoundSection
-T_Section = T_SingleSection | T_CompoundSection
+T_MultiSections = T_SingleDivisionMultiSections | T_DoubleDivisionMultiSections | T_MixedMultiSections
+T_Section = T_SingleSection | T_MultiSections

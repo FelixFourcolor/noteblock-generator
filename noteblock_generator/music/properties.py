@@ -16,6 +16,7 @@ from .typedefs import (
     T_AbsoluteTranspose,
     T_Beat,
     T_CompoundPosition,
+    T_Continuous,
     T_Delay,
     T_Delete,
     T_Division,
@@ -134,6 +135,10 @@ class _StaticProperty(Generic[T]):
 
     def resolve(self) -> T:
         return self._value
+
+
+class Continuous(_StaticProperty[T_Continuous]):
+    _DEFAULT = False
 
 
 class Time(_StaticProperty[T_Time]):

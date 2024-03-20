@@ -4,12 +4,13 @@ import operator
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
-from typing import Iterable, Protocol
+from typing import Iterable, Iterator, Protocol
 
 from pydantic import TypeAdapter
 
 from .properties import (
     Beat,
+    Continuous,
     Delay,
     DoubleDivisionPosition,
     Dynamic,
@@ -28,7 +29,6 @@ from .properties import (
 from .typedefs import (
     T_BarDelimiter,
     T_CompoundNote,
-    T_CompoundSection,
     T_Delay,
     T_DoubleDivisionSection,
     T_DoubleDivisionVoice,
@@ -37,6 +37,7 @@ from .typedefs import (
     T_Index,
     T_LevelIndex,
     T_MultipleNotes,
+    T_MultiSections,
     T_MultiValue,
     T_NoteMeta,
     T_NoteName,
@@ -65,23 +66,17 @@ from .utils import (
 )
 
 
-def parse(rawdata: str) -> list[Section]:
-    def flatten(section: CompoundSection | Section) -> list[Section]:
-        if isinstance(section, Section):
-            return [section]
-        out = []
-        for subsection in section:
-            out += flatten(subsection)
-        return out
-
+def parse(rawdata: str) -> MultipleSections:
     validated_data = TypeAdapter(T_Section).validate_json(rawdata)  # TODO: error handling
-    return flatten(_BaseSection.new(0, validated_data, _GlobalDefault()))
+    parsed_data = MultiSections.parse(validated_data)  # TODO: error handling
+    return parsed_data
 
 
-class _GlobalDefault:
+class _GlobalEnvironment:
     name = Name()
-    time = Time()
     width = Width()
+    continuous = Continuous()
+    time = Time()
     delay = Delay()
     beat = Beat()
     tick = Tick()
@@ -94,15 +89,7 @@ class _GlobalDefault:
 
 
 class _BaseSection:
-    @classmethod
-    def new(cls, index: int, src: T_Section, env: _BaseSection | _GlobalDefault) -> Section | CompoundSection:
-        if isinstance(src, T_SingleDivisionSection):
-            return SingleDivisionSection(index, src, env)
-        if isinstance(src, T_DoubleDivisionSection):
-            return DoubleDivisionSection(index, src, env)
-        return CompoundSection(index, src, env)
-
-    def __init__(self, index: int, src: T_Section, env: _BaseSection | _GlobalDefault):
+    def __init__(self, index: int, src: T_Section, env: _BaseSection | _GlobalEnvironment):
         self.name = env.name.transform(index, src)
         self.time = env.time.transform(src.time)
         self.width = env.width.transform(self.time.resolve(), src.width)
@@ -117,11 +104,46 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class CompoundSection(_BaseSection, list["Section | CompoundSection"]):
-    def __init__(self, index: int, src: T_CompoundSection, env: _BaseSection | _GlobalDefault):
+class MultiSections(_BaseSection, Iterable["CompoundSection"]):
+    @classmethod
+    def parse(cls, src: T_Section) -> MultipleSections:
+        obj = cls._subsection(_GlobalEnvironment(), 0, src)
+        out = [[obj]] if isinstance(obj, SingleSection) else list(obj)
+        cls._normalize_placement_levels(out)
+        return out
+
+    def __init__(self, index: int, src: T_MultiSections, env: MultiSections | _GlobalEnvironment):
         super().__init__(index, src, env)
-        for index, subsection in enumerate(src.sections):
-            self.append(self.new(index, subsection, self))
+        self.continuous = env.continuous.transform(src.continuous)
+        self._sections = (self._subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
+
+    def __iter__(self) -> Iterator[CompoundSection]:
+        # flatten nested sections,
+        # organize into compound (continuous) vs multiple (discontinuous) sections
+        for subsection in self._sections:
+            if isinstance(subsection, SingleSection):
+                yield [subsection]
+            elif subsection.continuous.resolve():
+                yield list(chain(*subsection))
+            else:
+                yield from subsection
+
+    def _subsection(
+        self: MultiSections | _GlobalEnvironment,
+        index: int,
+        src: T_Section,
+    ) -> SingleSection | MultiSections:
+        if isinstance(src, T_SingleDivisionSection):
+            return SingleDivisionSection(index, src, self)
+        if isinstance(src, T_DoubleDivisionSection):
+            return DoubleDivisionSection(index, src, self)
+        return MultiSections(index, src, self)
+
+    def _normalize_placement_levels(self: Iterable[CompoundSection]):
+        global_min_level = min(section.get_min_level() for compound_section in self for section in compound_section)
+        for compound_section in self:
+            for section in compound_section:
+                section.normalize_level(global_min_level)
 
 
 def _process_voices(voices: Iterable[Voice]):
@@ -142,7 +164,7 @@ def _process_voices(voices: Iterable[Voice]):
 
 
 class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
-    def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalDefault):
+    def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalEnvironment):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
@@ -151,9 +173,17 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
+    def get_min_level(self) -> int:
+        return min(note.position for beat in self for note in beat)
+
+    def normalize_level(self, min_level: int):
+        for beat in self:
+            for note in beat:
+                note.position -= min_level
+
 
 class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
-    def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalDefault):
+    def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalEnvironment):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
@@ -162,14 +192,24 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
+    def get_min_level(self) -> int:
+        return min(note.position[1] for beat in self for note in beat)
 
-Section = SingleDivisionSection | DoubleDivisionSection
+    def normalize_level(self, min_level: int):
+        for beat in self:
+            for note in beat:
+                note.position = (note.position[0], note.position[1] - min_level)
+
+
+SingleSection = SingleDivisionSection | DoubleDivisionSection
+CompoundSection = list[SingleSection]
+MultipleSections = list[CompoundSection]
 
 
 class _BaseVoice:
     position: SingleDivisionPosition | DoubleDivisionPosition
 
-    def __init__(self, index: T_LevelIndex, src: T_Voice, env: Section):
+    def __init__(self, index: T_LevelIndex, src: T_Voice, env: SingleSection):
         self.name = env.name.transform(index, src).resolve()
         self.time = env.time.transform(src.time, save=True)
         self.delay = env.delay.transform(None, save=True)
