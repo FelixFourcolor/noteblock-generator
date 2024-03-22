@@ -149,7 +149,7 @@ class MultiSections(_BaseSection, Iterable["CompoundSection"]):
 def _process_voices(voices: Iterable[Voice]):
     sequential_notes: list[list[Note]] = []
     # voices are not necesarily of equal length, pad them with empty notes
-    merged_line = map(chain.from_iterable, zip_longest(*voices, fillvalue=[]))
+    merged_line = map(chain.from_iterable, zip_longest(*voices, fillvalue=()))
     for step_iter in merged_line:
         # step_iter is guaranteed to have at least one element (see _Note.__mul__)
         parallel_notes = [first := next(step_iter)]
