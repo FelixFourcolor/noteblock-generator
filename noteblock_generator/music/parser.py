@@ -72,7 +72,23 @@ def parse(rawdata: str) -> MultipleSections:
     return parsed_data
 
 
-class _GlobalEnvironment:
+class _GlobalEnvironment(Protocol):
+    name: Name
+    width: Width
+    continuous: Continuous
+    time: Time
+    delay: Delay
+    beat: Beat
+    tick: Tick
+    trill_style: TrillStyle
+    position: GlobalPosition
+    instrument: Instrument
+    dynamic: Dynamic
+    sustain: Sustain
+    transpose: Transpose
+
+
+class _DefaultEnvironment:
     name = Name()
     width = Width()
     continuous = Continuous()
@@ -89,7 +105,7 @@ class _GlobalEnvironment:
 
 
 class _BaseSection:
-    def __init__(self, index: int, src: T_Section, env: _BaseSection | _GlobalEnvironment):
+    def __init__(self, index: int, src: T_Section, env: _GlobalEnvironment):
         self.name = env.name.transform(index, src)
         self.time = env.time.transform(src.time)
         self.width = env.width.transform(self.time.resolve(), src.width)
@@ -107,12 +123,12 @@ class _BaseSection:
 class MultiSections(_BaseSection, Iterable["CompoundSection"]):
     @classmethod
     def parse(cls, src: T_Section) -> MultipleSections:
-        obj = cls._subsection(_GlobalEnvironment(), 0, src)
+        obj = cls._subsection(_DefaultEnvironment(), 0, src)
         out = [[obj]] if isinstance(obj, SingleSection) else list(obj)
         cls._normalize_placement_levels(out)
         return out
 
-    def __init__(self, index: int, src: T_MultiSections, env: MultiSections | _GlobalEnvironment):
+    def __init__(self, index: int, src: T_MultiSections, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         self.continuous = env.continuous.transform(src.continuous)
         self._sections = (self._subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
@@ -128,11 +144,7 @@ class MultiSections(_BaseSection, Iterable["CompoundSection"]):
             else:
                 yield from subsection
 
-    def _subsection(
-        self: MultiSections | _GlobalEnvironment,
-        index: int,
-        src: T_Section,
-    ) -> SingleSection | MultiSections:
+    def _subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | MultiSections:
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, self)
         if isinstance(src, T_DoubleDivisionSection):
@@ -164,7 +176,7 @@ def _process_voices(voices: Iterable[Voice]):
 
 
 class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
-    def __init__(self, index: int, src: T_SingleDivisionSection, env: _BaseSection | _GlobalEnvironment):
+    def __init__(self, index: int, src: T_SingleDivisionSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
@@ -183,7 +195,7 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
 
 
 class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
-    def __init__(self, index: int, src: T_DoubleDivisionSection, env: _BaseSection | _GlobalEnvironment):
+    def __init__(self, index: int, src: T_DoubleDivisionSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         voices = mutivalue_flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
