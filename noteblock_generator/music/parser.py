@@ -68,7 +68,7 @@ from .utils import (
 
 def parse(rawdata: str) -> MultiSection:
     validated_data = TypeAdapter(T_Section).validate_json(rawdata)  # TODO: error handling
-    parsed_data = _MultiSection.parse(validated_data)  # TODO: error handling
+    parsed_data = MultiSection.parse(validated_data)  # TODO: error handling
     return parsed_data
 
 
@@ -120,18 +120,11 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class _MultiSection(_BaseSection, Iterable["CompoundSection"]):
-    @classmethod
-    def parse(cls, src: T_Section) -> MultiSection:
-        obj = cls._subsection(_DefaultEnvironment(), 0, src)
-        out = [[obj]] if isinstance(obj, SingleSection) else list(obj)
-        cls._normalize_placement_levels(out)
-        return out
-
+class _BaseMultiSection(_BaseSection, Iterable["CompoundSection"]):
     def __init__(self, index: int, src: T_MultiSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         self.continuous = env.continuous.transform(src.continuous)
-        self._sections = (self._subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
+        self._sections = (self.subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
 
     def __iter__(self) -> Iterator[CompoundSection]:
         # flatten nested sections,
@@ -144,18 +137,12 @@ class _MultiSection(_BaseSection, Iterable["CompoundSection"]):
             else:
                 yield from subsection
 
-    def _subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | _MultiSection:
+    def subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | _BaseMultiSection:
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, self)
         if isinstance(src, T_DoubleDivisionSection):
             return DoubleDivisionSection(index, src, self)
-        return _MultiSection(index, src, self)
-
-    def _normalize_placement_levels(self: Iterable[CompoundSection]):
-        global_min_level = min(section.get_min_level() for compound_section in self for section in compound_section)
-        for compound_section in self:
-            for section in compound_section:
-                section.normalize_level(global_min_level)
+        return _BaseMultiSection(index, src, self)
 
 
 def _process_voices(voices: Iterable[Voice]):
@@ -188,6 +175,9 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
     def get_min_level(self) -> int:
         return min(note.position for beat in self for note in beat)
 
+    def get_max_level(self) -> int:
+        return max(note.position for beat in self for note in beat)
+
     def normalize_level(self, min_level: int):
         for beat in self:
             for note in beat:
@@ -207,6 +197,9 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
     def get_min_level(self) -> int:
         return min(note.position[1] for beat in self for note in beat)
 
+    def get_max_level(self) -> int:
+        return max(note.position[1] for beat in self for note in beat)
+
     def normalize_level(self, min_level: int):
         for beat in self:
             for note in beat:
@@ -215,7 +208,29 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
 CompoundSection = list[SingleSection]
-MultiSection = list[CompoundSection]
+
+
+class MultiSection(list[CompoundSection]):
+    @classmethod
+    def parse(cls, src: T_Section) -> MultiSection:
+        obj = _BaseMultiSection.subsection(_DefaultEnvironment(), 0, src)
+        self = cls([[obj]] if isinstance(obj, SingleSection) else obj)
+        self._normalize_placement_levels()
+        return self
+
+    def _normalize_placement_levels(self):
+        min_max = tuple(
+            transpose(
+                (section.get_min_level(), section.get_max_level())
+                for compound_section in self
+                for section in compound_section
+            )
+        )
+        min_level, max_level = min(min_max[0]), max(min_max[1])
+        for compound_section in self:
+            for section in compound_section:
+                section.normalize_level(min_level)
+        self.max_level = max_level - min_level
 
 
 class _BaseVoice:
