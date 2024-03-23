@@ -37,7 +37,7 @@ from .typedefs import (
     T_Index,
     T_LevelIndex,
     T_MultipleNotes,
-    T_MultiSections,
+    T_MultiSection,
     T_MultiValue,
     T_NoteMeta,
     T_NoteName,
@@ -66,9 +66,9 @@ from .utils import (
 )
 
 
-def parse(rawdata: str) -> MultipleSections:
+def parse(rawdata: str) -> MultiSection:
     validated_data = TypeAdapter(T_Section).validate_json(rawdata)  # TODO: error handling
-    parsed_data = MultiSections.parse(validated_data)  # TODO: error handling
+    parsed_data = _MultiSection.parse(validated_data)  # TODO: error handling
     return parsed_data
 
 
@@ -120,22 +120,22 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class MultiSections(_BaseSection, Iterable["CompoundSection"]):
+class _MultiSection(_BaseSection, Iterable["CompoundSection"]):
     @classmethod
-    def parse(cls, src: T_Section) -> MultipleSections:
+    def parse(cls, src: T_Section) -> MultiSection:
         obj = cls._subsection(_DefaultEnvironment(), 0, src)
         out = [[obj]] if isinstance(obj, SingleSection) else list(obj)
         cls._normalize_placement_levels(out)
         return out
 
-    def __init__(self, index: int, src: T_MultiSections, env: _GlobalEnvironment):
+    def __init__(self, index: int, src: T_MultiSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         self.continuous = env.continuous.transform(src.continuous)
         self._sections = (self._subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
 
     def __iter__(self) -> Iterator[CompoundSection]:
         # flatten nested sections,
-        # organize into compound (continuous) vs multiple (discontinuous) sections
+        # organize into lists of continuous sections (compound sections)
         for subsection in self._sections:
             if isinstance(subsection, SingleSection):
                 yield [subsection]
@@ -144,12 +144,12 @@ class MultiSections(_BaseSection, Iterable["CompoundSection"]):
             else:
                 yield from subsection
 
-    def _subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | MultiSections:
+    def _subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | _MultiSection:
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, self)
         if isinstance(src, T_DoubleDivisionSection):
             return DoubleDivisionSection(index, src, self)
-        return MultiSections(index, src, self)
+        return _MultiSection(index, src, self)
 
     def _normalize_placement_levels(self: Iterable[CompoundSection]):
         global_min_level = min(section.get_min_level() for compound_section in self for section in compound_section)
@@ -215,7 +215,7 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
 CompoundSection = list[SingleSection]
-MultipleSections = list[CompoundSection]
+MultiSection = list[CompoundSection]
 
 
 class _BaseVoice:
