@@ -23,7 +23,7 @@
     "continuous": {
         "title": "Play subsections continuously",
         "oneOf": [
-            { "type": "boolean"},
+            { "type": "boolean" },
             { "$ref": "meta.schema.json#/reset" },
             { "$ref": "meta.schema.json#/default" }
         ]
@@ -162,7 +162,6 @@
         ],
         "$def": {
             "value": {
-
                 "oneOf": [
                     {
                         "type": "string",
@@ -177,7 +176,6 @@
     },
     "dynamic": {
         "title": "How many noteblocks to play each note.",
-
         "oneOf": [
             { "$ref": "#/dynamic/$def/value" },
             {
@@ -189,7 +187,6 @@
         ],
         "$def": {
             "value": {
-
                 "anyOf": [
                     {
                         "description": "Constant loudness",
@@ -232,7 +229,6 @@
         ],
         "$def": {
             "value": {
-
                 "oneOf": [
                     {
                         "description": "Sustain notes for its full duration.",
@@ -285,7 +281,6 @@
         ],
         "$def": {
             "value": {
-
                 "oneOf": [
                     { "type": "integer" },
                     {
