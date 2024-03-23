@@ -4,7 +4,7 @@ import operator
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
-from typing import Iterable, Iterator, Protocol
+from typing import TYPE_CHECKING, Iterable, Protocol
 
 from pydantic import TypeAdapter
 
@@ -30,14 +30,16 @@ from .typedefs import (
     T_BarDelimiter,
     T_CompoundNote,
     T_Delay,
+    T_DoubleDivisionMultiSection,
     T_DoubleDivisionSection,
     T_DoubleDivisionVoice,
     T_DoubleIndex,
     T_Duration,
     T_Index,
     T_LevelIndex,
+    T_MixedMultiSection,
     T_MultipleNotes,
-    T_MultiSections,
+    T_MultiSection,
     T_MultiValue,
     T_NoteMeta,
     T_NoteName,
@@ -47,6 +49,7 @@ from .typedefs import (
     T_Rest,
     T_Section,
     T_SequentialNotes,
+    T_SingleDivisionMultiSection,
     T_SingleDivisionSection,
     T_SingleDivisionVoice,
     T_SingleNote,
@@ -66,9 +69,14 @@ from .utils import (
 )
 
 
-def parse(rawdata: str) -> MultipleSections:
-    validated_data = TypeAdapter(T_Section).validate_json(rawdata)  # TODO: error handling
-    parsed_data = MultiSections.parse(validated_data)  # TODO: error handling
+def parse(rawdata: str) -> MultiSection:
+    validated_data = TypeAdapter(T_Section).validate_json(rawdata)
+    if isinstance(validated_data, T_SingleDivisionSection | T_SingleDivisionMultiSection):
+        parsed_data = _SingleDivisionMultiSection.parse(validated_data)
+    elif isinstance(validated_data, T_DoubleDivisionSection | T_DoubleDivisionMultiSection):
+        parsed_data = _DoubleDivisionMultiSection.parse(validated_data)
+    else:
+        parsed_data = _MixedDivisionMultiSection.parse(validated_data)
     return parsed_data
 
 
@@ -120,20 +128,23 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class MultiSections(_BaseSection, Iterable["CompoundSection"]):
+class _BaseMultiSection(_BaseSection):
     @classmethod
-    def parse(cls, src: T_Section) -> MultipleSections:
-        obj = cls._subsection(_DefaultEnvironment(), 0, src)
+    def parse(cls, src: T_Section):
+        obj = cls.subsection(_DefaultEnvironment(), 0, src)
         out = [[obj]] if isinstance(obj, SingleSection) else list(obj)
-        cls._normalize_placement_levels(out)
+        global_min_level = min(section.get_min_level() for compound_section in out for section in compound_section)
+        for compound_section in out:
+            for section in compound_section:
+                section.normalize_level(global_min_level)
         return out
 
-    def __init__(self, index: int, src: T_MultiSections, env: _GlobalEnvironment):
+    def __init__(self, index: int, src: T_MultiSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         self.continuous = env.continuous.transform(src.continuous)
-        self._sections = (self._subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
+        self._sections = (self.subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
 
-    def __iter__(self) -> Iterator[CompoundSection]:
+    def __iter__(self):
         # flatten nested sections,
         # organize into compound (continuous) vs multiple (discontinuous) sections
         for subsection in self._sections:
@@ -144,18 +155,33 @@ class MultiSections(_BaseSection, Iterable["CompoundSection"]):
             else:
                 yield from subsection
 
-    def _subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | MultiSections:
+    def subsection(self: _GlobalEnvironment, index: int, src: T_Section):
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, self)
         if isinstance(src, T_DoubleDivisionSection):
             return DoubleDivisionSection(index, src, self)
-        return MultiSections(index, src, self)
+        return _BaseMultiSection(index, src, self)
 
-    def _normalize_placement_levels(self: Iterable[CompoundSection]):
-        global_min_level = min(section.get_min_level() for compound_section in self for section in compound_section)
-        for compound_section in self:
-            for section in compound_section:
-                section.normalize_level(global_min_level)
+
+class _SingleDivisionMultiSection(_BaseMultiSection):
+    if TYPE_CHECKING:
+
+        @classmethod
+        def parse(cls, src: T_SingleDivisionSection | T_SingleDivisionMultiSection) -> SingleDivisionMultiSection: ...
+
+
+class _DoubleDivisionMultiSection(_BaseMultiSection):
+    if TYPE_CHECKING:
+
+        @classmethod
+        def parse(cls, src: T_DoubleDivisionSection | T_DoubleDivisionMultiSection) -> DoubleDivisionMultiSection: ...
+
+
+class _MixedDivisionMultiSection(_BaseMultiSection):
+    if TYPE_CHECKING:
+
+        @classmethod
+        def parse(cls, src: T_MixedMultiSection) -> MixedMultiSection: ...
 
 
 def _process_voices(voices: Iterable[Voice]):
@@ -214,8 +240,13 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
 
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
-CompoundSection = list[SingleSection]
-MultipleSections = list[CompoundSection]
+SingleDivisionCompoundSection = list[SingleDivisionSection]
+DoubleDivisionCompoundSection = list[DoubleDivisionSection]
+CompoundSection = SingleDivisionCompoundSection | DoubleDivisionCompoundSection
+SingleDivisionMultiSection = list[SingleDivisionCompoundSection]
+DoubleDivisionMultiSection = list[DoubleDivisionCompoundSection]
+MixedMultiSection = list[CompoundSection]
+MultiSection = SingleDivisionMultiSection | DoubleDivisionMultiSection | MixedMultiSection
 
 
 class _BaseVoice:

@@ -449,26 +449,27 @@ class T_DoubleDivisionSection(_BaseSection):
 
 
 class _BaseMultiSections(_BaseSection):
-    continuous: T_StaticProperty[T_Continuous] = None
-
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
         return _to_dict(data, key="sections")
 
 
-class T_SingleDivisionMultiSections(_BaseMultiSections):
-    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionMultiSections]
+class T_SingleDivisionMultiSection(_BaseMultiSections):
+    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionMultiSection]
+    continuous: T_StaticProperty[T_Continuous] = None
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
-class T_DoubleDivisionMultiSections(_BaseMultiSections):
-    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionMultiSections]
+class T_DoubleDivisionMultiSection(_BaseMultiSections):
+    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionMultiSection]
+    continuous: T_StaticProperty[T_Continuous] = None
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
-class T_MixedMultiSections(_BaseMultiSections):
+class T_MixedMultiSection(_BaseMultiSections):
     sections: T_Tuple[T_Section]
+    continuous: T_StaticProperty[Literal[False]] = None
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
@@ -482,5 +483,5 @@ T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
 T_NoteMeta = T_NotesModifier | T_Note
 T_Voice = T_SingleDivisionVoice | T_DoubleDivisionVoice
 T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
-T_MultiSections = T_SingleDivisionMultiSections | T_DoubleDivisionMultiSections | T_MixedMultiSections
-T_Section = T_SingleSection | T_MultiSections
+T_MultiSection = T_SingleDivisionMultiSection | T_DoubleDivisionMultiSection | T_MixedMultiSection
+T_Section = T_SingleSection | T_MultiSection

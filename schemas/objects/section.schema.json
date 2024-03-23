@@ -6,7 +6,7 @@
     ],
     "$def": {
         "multiSection": {
-            "title": "Multi-section",
+            "title": "Mixed multi-section",
             "oneOf": [
                 { "$ref": "#/$def/multiSection/$def/sections" },
                 {
@@ -17,7 +17,7 @@
                         "sections": { "$ref": "#/$def/multiSection/$def/sections" },
                         "name": { "$ref": "../types/properties.schema.json#/name" },
                         "width": { "$ref": "../types/properties.schema.json#/width" },
-                        "continuous": { "$ref": "../types/properties.schema.json#/continuous" },
+                        "continuous": {"$ref": "#/$def/multiSection/$def/continuous"},
                         "time": { "$ref": "../types/properties.schema.json#/time" },
                         "beat": { "$ref": "../types/properties.schema.json#/beat" },
                         "tick": { "$ref": "../types/properties.schema.json#/tick" },
@@ -41,6 +41,14 @@
                             { "$ref": "../types/meta.schema.json#/reference" }
                         ]
                     }
+                },
+                "continuous": {
+                    "title": "Play subsections continuously",
+                    "oneOf": [
+                        { "const": false },
+                        { "$ref": "meta.schema.json#/reset" },
+                        { "$ref": "meta.schema.json#/default" }
+                    ]
                 }
             }
         }
