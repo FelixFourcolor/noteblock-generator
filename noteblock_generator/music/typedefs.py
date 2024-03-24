@@ -356,12 +356,20 @@ class T_DoubleDivisionTrilledNote(_BaseTrilledNote):
 
 
 class T_SingleDivisionParallelNotes(_BaseNote):
-    note: T_Tuple[T_SingleDivisionRegularNote | T_SingleDivisionTrilledNote | T_SingleDivisionSequentialNotes]
+    note: T_Tuple[
+        T_SingleDivisionRegularNote  #
+        | T_SingleDivisionTrilledNote
+        | T_SingleDivisionSequentialNotes
+    ]
     position: T_PositionalProperty[T_SingleDivisionPosition] = None
 
 
 class T_DoubleDivisionParallelNotes(_BaseNote):
-    note: T_Tuple[T_DoubleDivisionRegularNote | T_DoubleDivisionTrilledNote | T_DoubleDivisionSequentialNotes]
+    note: T_Tuple[
+        T_DoubleDivisionRegularNote  #
+        | T_DoubleDivisionTrilledNote
+        | T_DoubleDivisionSequentialNotes
+    ]
     position: T_PositionalProperty[T_DoubleDivisionPosition] = None
 
 
