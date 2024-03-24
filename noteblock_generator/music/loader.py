@@ -3,9 +3,11 @@ import os
 import re
 from pathlib import Path
 
+import yaml
 
-def load(path: str):
-    return _resolve_references(f'"file://{path}"', prefix=Path.cwd())  # TODO: error handling
+
+def load(src_path: str):
+    return _resolve_references(f'"file://{src_path}"', prefix=Path.cwd())
 
 
 def dereference(data: dict):
@@ -55,8 +57,8 @@ def _find_path(path: Path):
 
 def _load_reference(path: Path):
     text = _resolve_references(path.read_text(), prefix=path.parent)
-    if isinstance(obj := json.loads(text), dict):
+    if isinstance(obj := yaml.safe_load(text), dict):
         obj["path"] = str(path)
     else:
         obj = {"path": str(path), _REF_KEYWORD: obj}
-    return json.dumps(obj)
+    return json.dumps(obj)  # we load yaml but dump json otherwise it doesn't work
