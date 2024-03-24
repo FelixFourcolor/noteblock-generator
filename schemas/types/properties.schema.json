@@ -99,7 +99,7 @@
                     {
                         "description": "Level of placement; higher == closer to the player.",
                         "type": "integer",
-                        "exclusiveMinimum": 0
+                        "inclusiveMinimum": 0
                     },
                     {
                         "description": "Level of placement relative to environment",

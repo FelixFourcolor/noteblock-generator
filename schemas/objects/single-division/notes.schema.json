@@ -105,7 +105,7 @@
             ]
         },
         "parallelNotes": {
-            "title": "Single-division sequential notes",
+            "title": "Single-division parallel notes",
             "oneOf": [
                 { "$ref": "#/$def/sequentialNotes/$def/note" },
                 {
@@ -169,7 +169,7 @@
                         "oneOf": [
                             { "$ref": "#/$def/singleNote" },
                             { "$ref": "#/$def/notesModifier" },
-                            { "$ref": "#/$def/sequentialNotes" }
+                            { "$ref": "#/$def/parallelNotes" }
                         ]
                     }
                 }
