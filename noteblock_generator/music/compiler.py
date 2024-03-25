@@ -67,7 +67,7 @@ class SingleDivision(list[list[Unit]]):
             delay = parallel_notes[0].delay
             return (
                 Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
-                for level in range(max_level)
+                for level in range(max_level + 1)
             )
 
         self.width = sequential_notes.width.resolve()
@@ -93,7 +93,7 @@ class DoubleDivision(
                     filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
                     delay=delay,
                 )
-                for level in range(max_level)
+                for level in range(max_level + 1)
             )
 
         def assign_levels_right(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
@@ -104,7 +104,7 @@ class DoubleDivision(
                     filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
                     delay=delay,
                 )
-                for level in range(max_level)
+                for level in range(max_level + 1)
             )
 
         left_division = [list(e) for e in transpose(map(assign_levels_left, sequential_notes))]
