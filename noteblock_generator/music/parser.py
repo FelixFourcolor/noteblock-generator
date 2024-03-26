@@ -67,9 +67,7 @@ from .utils import (
 
 
 def parse(rawdata: str) -> MultiSection:
-    validated_data = TypeAdapter(T_Section).validate_json(rawdata)  # TODO: error handling
-    parsed_data = MultiSection.parse(validated_data)  # TODO: error handling
-    return parsed_data
+    return MultiSection.parse(rawdata)  # TODO: error handling
 
 
 class _GlobalEnvironment(Protocol):
@@ -172,16 +170,8 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
-    def get_min_level(self) -> int:
-        return min(note.position for beat in self for note in beat)
-
-    def get_max_level(self) -> int:
-        return max(note.position for beat in self for note in beat)
-
-    def normalize_level(self, min_level: int):
-        for beat in self:
-            for note in beat:
-                note.position -= min_level
+    def get_levels(self) -> Iterable[T_LevelIndex]:
+        return (note.position for beat in self for note in beat)
 
 
 class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
@@ -194,16 +184,8 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
-    def get_min_level(self) -> int:
-        return min(note.position[1] for beat in self for note in beat)
-
-    def get_max_level(self) -> int:
-        return max(note.position[1] for beat in self for note in beat)
-
-    def normalize_level(self, min_level: int):
-        for beat in self:
-            for note in beat:
-                note.position = (note.position[0], note.position[1] - min_level)
+    def get_levels(self) -> Iterable[T_LevelIndex]:
+        return (note.position[1] for beat in self for note in beat)
 
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
@@ -211,26 +193,18 @@ CompoundSection = list[SingleSection]
 
 
 class MultiSection(list[CompoundSection]):
-    @classmethod
-    def parse(cls, src: T_Section) -> MultiSection:
-        obj = _BaseMultiSection.subsection(_DefaultEnvironment(), 0, src)
-        self = cls([[obj]] if isinstance(obj, SingleSection) else obj)
-        self._normalize_placement_levels()
-        return self
+    min_level: int
+    max_level: int
 
-    def _normalize_placement_levels(self):
-        min_max = tuple(
-            transpose(
-                (section.get_min_level(), section.get_max_level())
-                for compound_section in self
-                for section in compound_section
-            )
-        )
-        min_level, max_level = min(min_max[0]), max(min_max[1])
-        for compound_section in self:
-            for section in compound_section:
-                section.normalize_level(min_level)
-        self.max_level = max_level - min_level
+    @classmethod
+    def parse(cls, rawdata: str) -> MultiSection:
+        validated_data = TypeAdapter(T_Section).validate_json(rawdata)
+        parsed_data = _BaseMultiSection.subsection(_DefaultEnvironment(), 0, validated_data)
+        self = cls([[parsed_data]] if isinstance(parsed_data, SingleSection) else parsed_data)
+
+        levels = tuple(chain.from_iterable(subsection.get_levels() for section in self for subsection in section))
+        self.min_level, self.max_level = min(levels), max(levels)
+        return self
 
 
 class _BaseVoice:

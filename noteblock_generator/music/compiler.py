@@ -45,7 +45,7 @@ class SingleDivision(list[list[Unit]]):
     width: T_Width
     tick: T_Tick
 
-    def __init__(self, sequential_notes: SingleDivisionSection, max_level: int):
+    def __init__(self, sequential_notes: SingleDivisionSection, *, min_level: int, max_level: int):
         def assign_levels(parallel_notes: list[SingleDivisionNote]) -> Iterable[Unit]:
             # parser guarantees that:
             #    - all parallel notes have at least one element
@@ -53,7 +53,7 @@ class SingleDivision(list[list[Unit]]):
             delay = parallel_notes[0].delay
             return (
                 Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
-                for level in range(max_level + 1)
+                for level in range(min_level, max_level + 1)
             )
 
         self.width = sequential_notes.width.resolve()
@@ -70,7 +70,7 @@ class DoubleDivision(
     width: T_Width
     tick: T_Tick
 
-    def __new__(cls, sequential_notes: DoubleDivisionSection, max_level: int):
+    def __new__(cls, sequential_notes: DoubleDivisionSection, *, min_level: int, max_level: int):
         def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
             delay = parallel_notes[0].delay
             return (
@@ -79,7 +79,7 @@ class DoubleDivision(
                     filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
                     delay=delay,
                 )
-                for level in range(max_level + 1)
+                for level in range(min_level, max_level + 1)
             )
 
         def assign_levels_right(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
@@ -90,7 +90,7 @@ class DoubleDivision(
                     filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
                     delay=delay,
                 )
-                for level in range(max_level + 1)
+                for level in range(min_level, max_level + 1)
             )
 
         left_division = [list(e) for e in transpose(map(assign_levels_left, sequential_notes))]
@@ -102,17 +102,16 @@ class DoubleDivision(
 
 
 class Section(list[SingleDivision | DoubleDivision]):
-    def __init__(self, src: CompoundSection, nax_level: int):
+    def __init__(self, src: CompoundSection, *, min_level: int, max_level: int):
         # TODO: initial padding
         for subsection in src:
             if isinstance(subsection, SingleDivisionSection):
-                self.append(SingleDivision(subsection, nax_level))
+                self.append(SingleDivision(subsection, min_level=min_level, max_level=max_level))
             else:
-                self.append(DoubleDivision(subsection, nax_level))
+                self.append(DoubleDivision(subsection, min_level=min_level, max_level=max_level))
 
 
 class Music(list[Section]):
     def __init__(self, src: MultiSection):
-        max_level = src.max_level
         for section in src:
-            self.append(Section(section, max_level))
+            self.append(Section(section, min_level=src.min_level, max_level=src.max_level))
