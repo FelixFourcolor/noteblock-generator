@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import chain, repeat
 from typing import Iterable
 
 from .parser import (
@@ -13,7 +12,7 @@ from .parser import (
     SingleDivisionSection,
 )
 from .properties import NoteBlock
-from .typedefs import T_Delay, T_Tick, T_Width
+from .typedefs import T_Delay, T_Tick, T_Tuple, T_Width
 from .utils import transpose
 
 
@@ -21,33 +20,20 @@ def compile(parsed_data: MultiSection) -> Music:  # noqa: A001
     return Music(parsed_data)  # TODO: error handling
 
 
-class Unit(
-    tuple[
-        NoteBlock | None,
-        NoteBlock | None,
-        NoteBlock | None,
-        NoteBlock | None,
-    ]
-):
+class Unit(T_Tuple[NoteBlock]):
     delay: T_Delay
 
     def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
-        MAX_SLOT_COUNT = 4
+        MAX_SIZE = 4
 
-        def collect_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock | None]:
-            skip_None = False
+        def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
             for note in notes:
-                if (noteblock := note.noteblock) is None:
-                    if skip_None:
-                        continue
-                    skip_None = True
-                yield noteblock
+                if (noteblock := note.noteblock) is not None:
+                    yield noteblock
 
-        noteblocks = tuple(collect_noteblocks(notes := tuple(notes)))
-        if (L := len(noteblocks)) > MAX_SLOT_COUNT:
+        self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
+        if len(self) > MAX_SIZE:
             raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
-        padding = repeat(None, MAX_SLOT_COUNT - L)
-        self = super().__new__(cls, chain(noteblocks, padding))
         self.delay = delay
         return self  # TODO: optimization: not every unit needs to be rendered
 
