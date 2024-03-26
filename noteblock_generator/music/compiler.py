@@ -18,7 +18,7 @@ from .utils import transpose
 
 
 def compile(parsed_data: MultiSection) -> Music:  # noqa: A001
-    return Music(parsed_data)
+    return Music(parsed_data)  # TODO: error handling
 
 
 class Unit(

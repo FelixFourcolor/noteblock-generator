@@ -486,6 +486,7 @@ class _Note:
     noteblock: NoteBlock | None
     delay: T_Delay
     position: T_Index
+    # ---------------
     voice: str  # for error messages
     where: tuple[int, int]  # for compile-time checks
 

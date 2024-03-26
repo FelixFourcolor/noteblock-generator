@@ -7,7 +7,7 @@ import yaml
 
 
 def load(src_path: str):
-    return _resolve_references(f'"file://{src_path}"', prefix=Path.cwd())
+    return _resolve_references(f'"file://{src_path}"', prefix=Path.cwd())  # TODO: error handling
 
 
 def dereference(data: dict):
