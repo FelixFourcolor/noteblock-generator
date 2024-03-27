@@ -323,22 +323,22 @@ class DoubleDivisionPosition(
         self._value = self._original_value = self._DEFAULT = _NULL_VALUE = index
 
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
-        match = re.search("left|right|switch", value)
+        match = re.search("L|R|A", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
         division = cast(T_Division, match.group())
-        level = value[match.end() :].strip()
+        level = value[match.end() :]
         return division, level
 
     def _transform_division(self, current: T_DivisionIndex | None, modifier: T_Division | None):
         if modifier is None:
             return current
-        if modifier == "switch":
+        if modifier == "A":
             if current is None:
                 return None
             return (current + 1) % 2
-        if modifier == "bothsides":
+        if modifier == "LR":
             return None
-        return cast(T_DivisionIndex, ["left", "right"].index(modifier))
+        return cast(T_DivisionIndex, ["L", "R"].index(modifier))
 
     def _transform_level(self, current: T_LevelIndex, modifier: T_Level | None) -> T_LevelIndex:
         if modifier is None:
