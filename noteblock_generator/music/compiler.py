@@ -8,10 +8,10 @@ from .parser import (
     DoubleDivisionSection,
     MultiSection,
     Note,
+    NoteBlock,
     SingleDivisionNote,
     SingleDivisionSection,
 )
-from .properties import NoteBlock
 from .typedefs import T_Delay, T_Tick, T_Tuple, T_Width
 from .utils import transpose
 
