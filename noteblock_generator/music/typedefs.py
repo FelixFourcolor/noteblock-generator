@@ -254,16 +254,15 @@ T_RelativeLevel = Annotated[
     ),
 ]
 T_Level = T_AbsoluteLevel | T_RelativeLevel
-T_AbsoluteDivision = Literal["left", "right", "bothsides"]
-T_RelativeDivision = Literal["switch"]
+T_AbsoluteDivision = Literal["L", "R", "LR"]  # left, right, both
+T_RelativeDivision = Literal["A"]  # switch
 T_Division = T_AbsoluteDivision | T_RelativeDivision
 T_AbsoluteCompoundPosition = Annotated[
     str,
     Field(
         pattern=(
             "^"
-            "(left|right|bothsides)"  # which side relative to the player
-            "\\s*"
+            "(L|R|LR)"  # which side relative to the player
             "\\d+"  # level: higher is closer to the player
             "$"
         )
@@ -274,8 +273,7 @@ T_RelativeCompoundPosition = Annotated[
     Field(
         pattern=(
             "^"
-            "(left|right|bothsides|switch)"  # which side relative to the player
-            "\\s*"
+            "(L|R|LR|A)"  # which side relative to the player
             "[+-]?"  # optionally relative level: + to raise, - to lower
             "\\d+"  # value
             "$"

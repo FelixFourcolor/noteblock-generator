@@ -131,16 +131,16 @@
                     {
                         "description": "Which side relative to the player.",
                         "type": "string",
-                        "pattern": "^(left|right|bothsides)$"
+                        "pattern": "^(L|R|LR)$"
                     },
                     {
                         "description": "Switch side: left becomes right, right becomes left.",
-                        "const": "switch"
+                        "const": "A"
                     },
                     {
                         "description": "Control both level of placement and which side relative to the player.",
                         "type": "string",
-                        "pattern": "^(left|right|bothsides|switch)\\s*[+-]?\\d+$"
+                        "pattern": "^(L|R|LR|A)[+-]?\\d+$"
                     },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },
