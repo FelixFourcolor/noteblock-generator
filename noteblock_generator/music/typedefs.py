@@ -241,8 +241,26 @@ T_CompoundNote = Annotated[
     ),
 ]
 T_TrillStyle = Literal["normal", "alt"]
-T_AbsoluteLevel = NonNegativeInt
-T_RelativeLevel = Annotated[
+T_StaticAbsoluteLevel = NonNegativeInt
+T_VariableAbsoluteLevel = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^"
+            "("  # begin repeat
+            "\\d+"  # a value
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")+"  # end duration
+            "(\\s*,\\s*|$)"  # "," or end of string
+            ")+"  # end repeat
+            "$"
+        )
+    ),
+]
+T_AbsoluteLevel = T_StaticAbsoluteLevel | T_VariableAbsoluteLevel
+T_StaticRelativeLevel = Annotated[
     str,
     Field(
         pattern=(
@@ -253,7 +271,28 @@ T_RelativeLevel = Annotated[
         )
     ),
 ]
-T_Level = T_AbsoluteLevel | T_RelativeLevel
+T_VariableRelativeLevel = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^"
+            "("  # begin repeat
+            "[+-]"  # + to raise, - to lower
+            "\\d+"  # value
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")+"  # end duration
+            "(\\s*,\\s*|$)"  # "," or end of string
+            ")+"  # end repeat
+            "$"
+        )
+    ),
+]
+T_RelativeLevel = T_StaticRelativeLevel | T_VariableRelativeLevel
+T_StaticLevel = T_StaticAbsoluteLevel | T_StaticRelativeLevel
+T_VariableLevel = T_VariableAbsoluteLevel | T_VariableRelativeLevel
+T_Level = T_StaticLevel | T_VariableLevel
 T_AbsoluteDivision = Literal["L", "R", "LR"]  # left, right, both
 T_RelativeDivision = Literal["A"]  # switch
 T_Division = T_AbsoluteDivision | T_RelativeDivision
@@ -283,6 +322,7 @@ T_RelativeCompoundPosition = Annotated[
 T_CompoundPosition = T_AbsoluteCompoundPosition | T_RelativeCompoundPosition
 T_SingleDivisionPosition = T_Level
 T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
+T_StaticPosition = T_StaticLevel | T_Division | T_CompoundPosition
 T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
 
 

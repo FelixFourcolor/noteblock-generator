@@ -41,7 +41,7 @@ def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
 
 
 @typed_cache
-def parse_timedvalue(value: str) -> list[str]:
+def split_timedvalue(value: str) -> list[str]:
     def append(element: str):
         if element:
             out.append(element)
