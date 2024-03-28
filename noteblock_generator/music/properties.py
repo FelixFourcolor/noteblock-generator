@@ -537,14 +537,14 @@ class Sustain(
             if isinstance(sustain, bool):
                 duration = note_duration if sustain else 1
             elif isinstance(sustain, int):
-                duration = sustain if sustain > 0 else note_duration + sustain
+                duration = sustain if sustain >= 0 else note_duration + sustain
             else:
                 duration = parse_duration(sustain, beat=beat)
                 relative = sustain.startswith(("+", "-"))
             if relative:
                 out += duration
             else:
-                out = duration if duration > 0 else note_duration + duration
+                out = duration if duration >= 0 else note_duration + duration
 
         low, high = 1, note_duration
         return min(max(out, low), high)
