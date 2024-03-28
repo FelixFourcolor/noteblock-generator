@@ -57,7 +57,7 @@ from .typedefs import (
 )
 from .utils import (
     is_typeform,
-    mutivalue_flatten,
+    multivalue_flatten,
     parse_duration,
     parse_timedvalue,
     positional_map,
@@ -163,7 +163,7 @@ def _process_voices(voices: Iterable[Voice]):
 class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
     def __init__(self, index: int, src: T_SingleDivisionSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
-        voices = mutivalue_flatten(
+        voices = multivalue_flatten(
             positional_map(SingleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
             if voice is not None
@@ -177,7 +177,7 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
 class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
     def __init__(self, index: int, src: T_DoubleDivisionSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
-        voices = mutivalue_flatten(
+        voices = multivalue_flatten(
             positional_map(DoubleDivisionVoice, i, voice, self)
             for i, voice in enumerate(src.voices)
             if voice is not None

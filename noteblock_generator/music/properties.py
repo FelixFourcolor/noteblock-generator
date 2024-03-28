@@ -51,7 +51,7 @@ from .typedefs import (
 )
 from .utils import (
     is_typeform,
-    mutivalue_flatten,
+    multivalue_flatten,
     parse_duration,
     parse_timedvalue,
     positional_map,
@@ -377,7 +377,7 @@ class DoubleDivisionPosition(
         if _is_empty(self._value):
             return self._NULL_VALUE
         if type(self._value) is T_MultiValue:
-            return mutivalue_flatten(map(handle_bothsides, self._value))
+            return multivalue_flatten(map(handle_bothsides, self._value))
         return handle_bothsides(self._value)
 
 
