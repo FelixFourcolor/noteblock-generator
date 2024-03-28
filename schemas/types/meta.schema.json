@@ -6,7 +6,7 @@
     "reference": {
         "title": "Data defined in another file",
         "type": "string",
-        "pattern": "^file://.+$"
+        "pattern": "^file://[^\",]+$"
     },
     "reset": {
         "description": "Reset value to environment's default.",

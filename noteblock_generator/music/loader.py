@@ -7,14 +7,14 @@ import yaml
 
 
 def load(src_path: str):
-    return _resolve_references(f'"file://{src_path}"', prefix=Path.cwd())  # TODO: error handling
+    return _resolve_references(f"file://{src_path}", prefix=Path.cwd())  # TODO: error handling
 
 
 def dereference(data: dict):
     return data.pop(_REF_KEYWORD)
 
 
-_URI_PATTERN = re.compile(r'"file://([^"]+)"')
+_URI_PATTERN = re.compile('["]?file://([^",\\n]+)["]?')
 _REF_KEYWORD = "$ref"
 
 
