@@ -29,6 +29,7 @@ ruff = ">=0.3"
 [tool.pyright]
 pythonVersion = "3.10"
 reportIncompatibleMethodOverride = false
+reportIncompatibleVariableOverride = false
 strictParameterNoneValue = false
 
 [tool.ruff]
