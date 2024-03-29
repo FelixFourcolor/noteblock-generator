@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import re
+from collections import deque
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat
@@ -26,7 +27,6 @@ from .typedefs import (
     T_Dynamic,
     T_Index,
     T_Instrument,
-    T_Level,
     T_LevelIndex,
     T_MultiValue,
     T_Name,
@@ -34,12 +34,15 @@ from .typedefs import (
     T_Position,
     T_Positional,
     T_PositionalProperty,
-    T_RelativeLevel,
     T_Reset,
     T_SingleDivisionPosition,
     T_StaticAbsoluteDynamic,
+    T_StaticAbsoluteLevel,
     T_StaticDynamic,
+    T_StaticLevel,
+    T_StaticPosition,
     T_StaticProperty,
+    T_StaticRelativeLevel,
     T_Sustain,
     T_Tick,
     T_Time,
@@ -47,14 +50,15 @@ from .typedefs import (
     T_TrillStyle,
     T_Tuple,
     T_VariableDynamic,
+    T_VariableLevel,
     T_Width,
 )
 from .utils import (
     is_typeform,
     multivalue_flatten,
     parse_duration,
-    parse_timedvalue,
     positional_map,
+    split_timedvalue,
     strip_split,
     transpose,
     typed_cache,
@@ -277,6 +281,16 @@ class GlobalPosition(
 
 
 class _LocalPosition:
+    _NULL_VALUE: Iterable[None] = repeat(None)
+
+    def __init__(self, index: T_LevelIndex):
+        self._value = self._original_value = self._DEFAULT = (index,)
+
+    def _transform_core(self, current, modifier):
+        if is_typeform(modifier, T_AbsoluteLevel):
+            return (modifier,)
+        return (*current, modifier)
+
     def apply_globals(self, modifier: GlobalPosition):
         self = shallowcopy(self)
 
@@ -292,37 +306,77 @@ class _LocalPosition:
 class SingleDivisionPosition(
     _LocalPosition,
     _PositionalProperty[
-        T_LevelIndex,
+        T_Tuple[T_StaticLevel],
         T_SingleDivisionPosition,
-        T_LevelIndex,
+        Iterable[T_LevelIndex] | Iterable[None],
     ],
 ):
-    def __init__(self, index: T_LevelIndex):
-        self._value = self._original_value = self._DEFAULT = self._NULL_VALUE = index
+    def _resolve_core(
+        self,
+        current: T_Tuple[T_StaticLevel],
+        beat: T_Beat,
+        sustain_duration: T_Duration,
+        note_duration: T_Duration,
+    ) -> Iterable[T_LevelIndex]:
+        def parse(value: T_StaticLevel) -> Iterable[T_StaticLevel]:
+            def parse_timed_level(timedvalue: list[T_VariableLevel]) -> Iterable[T_StaticLevel]:
+                level = timedvalue[0]
+                if not level.startswith(("+", "-")):
+                    level = int(level)
+                duration = parse_duration(*timedvalue[1:], beat=beat)
+                if duration < 0:
+                    duration += sustain_duration
+                return repeat(level, duration)
 
-    def _transform_core(self, current, modifier) -> T_LevelIndex:
-        if is_typeform(modifier, T_AbsoluteLevel):
-            return modifier
-        assert is_typeform(modifier, T_RelativeLevel), modifier
-        return current + int(modifier)
+            if is_typeform(value, T_StaticLevel):
+                return repeat(value, note_duration)
+            assert is_typeform(value, T_VariableLevel), value
+
+            tokens = strip_split(value, ",")
+            timed_values = map(split_timedvalue, tokens)
+            transformations = map(parse_timed_level, timed_values)
+            main = tuple(chain.from_iterable(transformations))
+            if sustain_duration < len(main):
+                raise ValueError("Incompatible sustain and position")  # TODO: error handling
+
+            padding = repeat("+0", sustain_duration - len(main))
+            return chain(main, padding)
+
+        def binary_transform(current: T_StaticAbsoluteLevel, modifier: T_StaticLevel) -> T_StaticAbsoluteLevel:
+            if is_typeform(modifier, T_StaticAbsoluteLevel):
+                return modifier
+            return current + int(modifier)
+
+        def transform(transformation: Iterable[T_StaticLevel]) -> T_StaticAbsoluteLevel:
+            # first element of transformation is guaranteed to be absolute
+            return functools.reduce(binary_transform, transformation)  # pyright: ignore[reportGeneralTypeIssues]
+
+        transformations = transpose(map(parse, current))
+        main = map(transform, transformations)
+        # 0 is arbitrary, position doesn't matter for notes outside of sustain duration
+        padding = repeat(0, note_duration - sustain_duration)
+        return deque(chain(main, padding))  # must exhaust the iterator to cache the result
 
     if TYPE_CHECKING:
 
-        def resolve(self) -> T_Positional[T_LevelIndex]: ...
+        def resolve(
+            self,
+            *,
+            beat: T_Positional[T_Beat],
+            sustain_duration: T_Positional[T_Duration],
+            note_duration: T_Positional[T_Duration],
+        ) -> T_Positional[Iterable[T_LevelIndex]]: ...
 
 
 class DoubleDivisionPosition(
     _LocalPosition,
     _PositionalProperty[
-        T_Index,
+        T_Tuple[T_Position],
         T_Position,
-        T_DoubleIndex,
+        Iterable[T_DoubleIndex] | Iterable[None],
     ],
 ):
-    def __init__(self, index: T_LevelIndex):
-        self._value = self._original_value = self._DEFAULT = _NULL_VALUE = index
-
-    def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_Level]:
+    def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_StaticLevel]:
         match = re.search("L|R|A", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
         division = cast(T_Division, match.group())
@@ -340,45 +394,101 @@ class DoubleDivisionPosition(
             return None
         return cast(T_DivisionIndex, ["L", "R"].index(modifier))
 
-    def _transform_level(self, current: T_LevelIndex, modifier: T_Level | None) -> T_LevelIndex:
+    def _transform_level(self, current: T_LevelIndex, modifier: T_StaticLevel | None) -> T_LevelIndex:
         if modifier is None:
             return current
-        if is_typeform(modifier, T_AbsoluteLevel):
+        if is_typeform(modifier, T_StaticAbsoluteLevel):
             return modifier
+        assert is_typeform(modifier, T_StaticRelativeLevel)
         return current + int(modifier)
 
-    def _transform_core(self, current, modifier) -> T_Index:
-        if isinstance(current, T_LevelIndex):
-            origin_division, origin_level = None, current
-        else:
-            origin_division, origin_level = current
-        # ---
-        if is_typeform(modifier, T_Level):
-            transformation_division, transformation_level = None, modifier
-        elif is_typeform(modifier, T_Division):
-            transformation_division, transformation_level = cast(T_Division, modifier), None
-        else:
-            assert is_typeform(modifier, T_CompoundPosition), modifier
-            transformation_division, transformation_level = self._split_division_and_level(modifier)
-        # ---
-        division = self._transform_division(origin_division, transformation_division)
-        level = self._transform_level(origin_level, transformation_level)
-        if division is None:
-            return level
-        return division, level
+    def _resolve_core(  # refactor, too complex
+        self,
+        current: T_Tuple[T_Position],
+        beat: T_Beat,
+        sustain_duration: T_Duration,
+        note_duration: T_Duration,
+    ) -> Iterable[T_Index]:
+        # TODO: refactor, this has lots of duplicate code with its SingleDivision counterpart
+        def parse(value: T_Position) -> Iterable[T_StaticPosition]:
+            def parse_timed_level(timedvalue: list[T_VariableLevel]) -> Iterable[T_StaticLevel]:
+                level = timedvalue[0]
+                if not level.startswith(("+", "-")):
+                    level = int(level)
+                duration = parse_duration(*timedvalue[1:], beat=beat)
+                if duration < 0:
+                    duration += sustain_duration
+                return repeat(level, duration)
+
+            if is_typeform(value, T_StaticPosition):
+                return repeat(value, sustain_duration)
+            assert is_typeform(value, T_VariableLevel), value
+
+            tokens = strip_split(value, ",")
+            timed_values = map(split_timedvalue, tokens)
+            transformations = map(parse_timed_level, timed_values)
+            main = tuple(chain.from_iterable(transformations))
+            if sustain_duration < len(main):
+                raise ValueError("Incompatible sustain and position")  # TODO: error handling
+
+            padding = repeat("+0", sustain_duration - len(main))
+            return chain(main, padding)
+
+        def binary_transform(current: T_Index, modifier: T_StaticPosition) -> T_Index:
+            if isinstance(current, T_LevelIndex):
+                origin_division, origin_level = None, current
+            else:
+                origin_division, origin_level = current
+            # ---------
+            if is_typeform(modifier, T_StaticLevel):
+                transformation_division, transformation_level = None, modifier
+            elif is_typeform(modifier, T_Division):
+                transformation_division, transformation_level = cast(T_Division, modifier), None
+            else:
+                assert is_typeform(modifier, T_CompoundPosition), modifier
+                transformation_division, transformation_level = self._split_division_and_level(modifier)
+            # ---------
+            division = self._transform_division(origin_division, transformation_division)
+            level = self._transform_level(origin_level, transformation_level)
+            if division is None:
+                return level
+            return division, level
+
+        def transform(transformation: Iterable[T_StaticPosition]) -> T_Index:
+            # first element of transformation is guaranteed to be absolute
+            return functools.reduce(binary_transform, transformation)  # pyright: ignore[reportGeneralTypeIssues]
+
+        transformations = transpose(map(parse, current))
+        main = deque(map(transform, transformations))
+        # (0, 0) is arbitrary, position doesn't matter for notes outside of sustain duration
+        padding = repeat((0, 0), note_duration - sustain_duration)
+        return chain(main, padding)
 
     @typed_cache
-    def resolve(self) -> T_Positional[T_DoubleIndex]:
-        def handle_bothsides(current: T_Index) -> T_Positional[T_DoubleIndex]:
-            if isinstance(current, T_LevelIndex):
-                return T_MultiValue(((0, current), (1, current)))
-            return current
+    def resolve(
+        self,
+        *,
+        beat: T_Positional[T_Beat],
+        sustain_duration: T_Positional[T_Duration],
+        note_duration: T_Positional[T_Duration],
+    ) -> T_Positional[Iterable[T_DoubleIndex]] | Iterable[None]:
+        def convert_to_bothsides(value: Iterable[T_Index]):
+            def transform(index: T_Index) -> tuple[T_DoubleIndex, T_DoubleIndex]:
+                if isinstance(index, tuple):
+                    return (index, index)
+                return ((0, index), (1, index))
 
-        if _is_empty(self._value):
+            value = tuple(value)  # exhaust the iterable to be able to reuse it, a tuple so that it's hashable
+            if is_typeform(value, T_Tuple[T_DoubleIndex]):
+                return value
+            return T_MultiValue(transpose(map(transform, value)))
+
+        out = positional_map(self._resolve_core, self._value, beat, sustain_duration, note_duration)
+        if type(out) is not T_MultiValue:
+            return convert_to_bothsides(out)
+        if not out:
             return self._NULL_VALUE
-        if type(self._value) is T_MultiValue:
-            return multivalue_flatten(map(handle_bothsides, self._value))
-        return handle_bothsides(self._value)
+        return multivalue_flatten(map(convert_to_bothsides, out))
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
@@ -434,7 +544,12 @@ class Instrument(
         raise ValueError(f"{note_name}{str_transpose} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
-    def resolve(self, note_name: str, transpose: T_Positional[T_AbsoluteTranspose]) -> T_Positional[NoteBlock | None]:
+    def resolve(
+        self,
+        note_name: str,
+        *,
+        transpose: T_Positional[T_AbsoluteTranspose],
+    ) -> T_Positional[NoteBlock | None]:
         if note_name == "r" or _is_empty(self._value) or _is_empty(transpose):
             return self._NULL_VALUE
         return positional_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
@@ -447,7 +562,7 @@ class Dynamic(
         Iterable[T_StaticAbsoluteDynamic],
     ]
 ):
-    _DEFAULT = (1,)
+    _DEFAULT: T_Tuple[T_StaticAbsoluteDynamic] = (1,)
     _NULL_VALUE = repeat(0)
 
     def _transform_core(self, current, modifier) -> T_Tuple[T_Dynamic]:
@@ -462,12 +577,13 @@ class Dynamic(
         sustain_duration: T_Duration,
         note_duration: T_Duration,
     ) -> Iterable[T_StaticAbsoluteDynamic]:
+        # TODO: refactor, this is almost identical to SingleDivision._resolve_core
         def parse(value: T_Dynamic) -> Iterable[T_StaticDynamic]:
-            def parse_variable_dynamic(tokens: list[T_VariableDynamic]) -> Iterable[T_StaticDynamic]:
-                dynamic = tokens[0]
+            def parse_timed_dynamic(timedvalue: list[T_VariableDynamic]) -> Iterable[T_StaticDynamic]:
+                dynamic = timedvalue[0]
                 if not dynamic.startswith(("+", "-")):
                     dynamic = int(dynamic)
-                duration = parse_duration(*tokens[1:], beat=beat)
+                duration = parse_duration(*timedvalue[1:], beat=beat)
                 if duration < 0:
                     duration += sustain_duration
                 return repeat(dynamic, duration)
@@ -477,9 +593,9 @@ class Dynamic(
             assert is_typeform(value, T_VariableDynamic), value
 
             tokens = strip_split(value, ",")
-            timed_values = map(parse_timedvalue, tokens)
-            transformations = map(parse_variable_dynamic, timed_values)
-            main = tuple(chain(*transformations))
+            timed_values = map(split_timedvalue, tokens)
+            transformations = map(parse_timed_dynamic, timed_values)
+            main = tuple(chain.from_iterable(transformations))
             if sustain_duration < len(main):
                 raise ValueError("Incompatible sustain and dynamic")  # TODO: error handling
 
@@ -494,17 +610,19 @@ class Dynamic(
             return min(max(out, low), high)
 
         def transform(transformation: Iterable[T_StaticDynamic]) -> T_StaticAbsoluteDynamic:
-            return functools.reduce(binary_transform, transformation, 1)
+            return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
         main = map(transform, transformations)
+        # 0 is arbitrary, dynamic doesn't matter for notes outside of sustain duration
         padding = repeat(0, note_duration - sustain_duration)
-        return tuple(chain(main, padding))  # must convert to tuple in order to cache result
+        return deque(chain(main, padding))  # must exhaust the iterator to cache the result
 
     if TYPE_CHECKING:
 
         def resolve(
             self,
+            *,
             beat: T_Positional[T_Beat],
             sustain_duration: T_Positional[T_Duration],
             note_duration: T_Positional[T_Duration],
@@ -553,6 +671,7 @@ class Sustain(
 
         def resolve(
             self,
+            *,
             beat: T_Positional[T_Beat],
             note_duration: T_Positional[T_Duration],
         ) -> T_Positional[int]: ...

@@ -95,16 +95,26 @@
         ],
         "$def": {
             "value": {
-                "oneOf": [
+                "anyOf": [
                     {
                         "description": "Level of placement; higher == closer to the player.",
                         "type": "integer",
                         "inclusiveMinimum": 0
                     },
                     {
+                        "description": "Variable levelent",
+                        "type": "string",
+                        "pattern": "^(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                    },
+                    {
                         "description": "Level of placement relative to environment",
                         "type": "string",
                         "pattern": "^[+-]\\d+$"
+                    },
+                    {
+                        "description": "Variable level, relative to environment",
+                        "type": "string",
+                        "pattern": "^([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
                     },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },
@@ -205,7 +215,7 @@
                         "pattern": "^[+-][0-4]$"
                     },
                     {
-                        "description": "Variable loudness",
+                        "description": "Variable loudness, relative to environment",
                         "type": "string",
                         "pattern": "^([+-]?[0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
                     },

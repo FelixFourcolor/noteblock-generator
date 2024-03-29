@@ -59,8 +59,8 @@ from .utils import (
     is_typeform,
     multivalue_flatten,
     parse_duration,
-    parse_timedvalue,
     positional_map,
+    split_timedvalue,
     strip_split,
     transpose,
 )
@@ -374,7 +374,7 @@ class _NotesFactory:
         return ()
 
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock | None], T_Duration]:
-        tokens = parse_timedvalue(src)
+        tokens = split_timedvalue(src)
         note_name = tokens[0].lower()
         note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
         note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
@@ -419,14 +419,22 @@ class _NotesFactory:
         time = self.time.resolve()
         beat = self.beat.resolve()
         delay = self.delay.resolve()
-        position = self.position.resolve()
         sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
+        position = self.position.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
 
-        def transform(*noteblocks: NoteBlock | None, dynamic: Iterable[T_StaticAbsoluteDynamic], position: T_Index):
+        def transform(
+            *noteblocks: NoteBlock | None,
+            dynamic: Iterable[T_StaticAbsoluteDynamic],
+            position: Iterable[T_Index | None],
+        ):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
+                position_iter = iter(position)
                 for noteblock in noteblocks:
-                    yield self._create_note(noteblock=noteblock, delay=delay, position=position)
+                    if (this_position := next(position_iter)) is None:
+                        this_position = 0  # arbitrary value, doesn't matter
+                        noteblock = None  # noqa: PLW2901
+                    yield self._create_note(noteblock=noteblock, delay=delay, position=this_position)
                     if (beat := self.current_beat + 1) < time:
                         self.current_beat = beat
                     else:
