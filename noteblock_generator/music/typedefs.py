@@ -26,7 +26,7 @@ class T_MultiValue(tuple["T", ...]):
 T = TypeVar("T")
 T_Reset = Literal["$reset"]
 T_StaticProperty = T | T_Reset | None
-T_Positional = T | Annotated[T_MultiValue[T], Field(min_length=1)]
+T_Positional = Annotated[T_MultiValue[T], Field(min_length=1)] | T
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 T_Tuple = tuple[T, ...]
