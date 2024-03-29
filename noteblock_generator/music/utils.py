@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from functools import cache, partial
 from itertools import repeat
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -31,7 +31,7 @@ def multivalue_flatten(nested_iterable: Iterable[T_Positional[T]]) -> T_MultiVal
 
 
 @typed_cache
-def is_typeform(obj: Any, typeform: type[T], *, strict=True) -> TypeGuard[T]:
+def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     try:
         TypeAdapter(typeform).validate_python(obj, strict=strict)
     except ValidationError:
