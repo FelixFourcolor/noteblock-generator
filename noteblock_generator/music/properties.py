@@ -281,8 +281,6 @@ class GlobalPosition(
 
 
 class _LocalPosition:
-    _NULL_VALUE: Iterable[None] = repeat(None)
-
     def __init__(self, index: T_LevelIndex):
         self._value = self._original_value = self._DEFAULT = (index,)
 
@@ -311,6 +309,8 @@ class SingleDivisionPosition(
         Iterable[T_LevelIndex] | Iterable[None],
     ],
 ):
+    _NULL_VALUE: Iterable[None] = repeat(None)
+
     def _resolve_core(
         self,
         current: T_Tuple[T_StaticLevel],
@@ -373,9 +373,11 @@ class DoubleDivisionPosition(
     _PositionalProperty[
         T_Tuple[T_Position],
         T_Position,
-        Iterable[T_DoubleIndex] | Iterable[None],
+        Iterable[T_DoubleIndex] | Iterable[tuple[None, None]],
     ],
 ):
+    _NULL_VALUE: Iterable[tuple[None, None]] = repeat((None, None))
+
     def _split_division_and_level(self, value: T_CompoundPosition) -> tuple[T_Division, T_StaticLevel]:
         match = re.search("L|R|A", value)
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
@@ -471,7 +473,7 @@ class DoubleDivisionPosition(
         beat: T_Positional[T_Beat],
         sustain_duration: T_Positional[T_Duration],
         note_duration: T_Positional[T_Duration],
-    ) -> T_Positional[Iterable[T_DoubleIndex]] | Iterable[None]:
+    ) -> T_Positional[Iterable[T_DoubleIndex]] | Iterable[tuple[None, None]]:
         def convert_to_bothsides(value: Iterable[T_Index]):
             def transform(index: T_Index) -> tuple[T_DoubleIndex, T_DoubleIndex]:
                 if isinstance(index, tuple):

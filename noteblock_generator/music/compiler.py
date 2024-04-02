@@ -72,11 +72,12 @@ class DoubleDivision(
 
     def __new__(cls, sequential_notes: DoubleDivisionSection, *, min_level: int, max_level: int):
         def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
+            # see comment in SingleDivision counterpart
             delay = parallel_notes[0].delay
             return (
                 Unit(
                     # pyright bug
-                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
+                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore  # noqa: PGH003
                     delay=delay,
                 )
                 for level in range(min_level, max_level + 1)
@@ -87,7 +88,7 @@ class DoubleDivision(
             return (
                 Unit(
                     # pyright bug
-                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # pyright: ignore[reportGeneralTypeIssues]
+                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore  # noqa: PGH003
                     delay=delay,
                 )
                 for level in range(min_level, max_level + 1)

@@ -170,8 +170,11 @@ class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
-    def get_levels(self) -> Iterable[T_LevelIndex]:
-        return (note.position for beat in self for note in beat)
+    def levels_iter(self) -> Iterator[T_LevelIndex]:
+        for beat in self:
+            for note in beat:
+                if (level := note.position) is not None:
+                    yield level
 
 
 class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
@@ -184,8 +187,11 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
         )
         self += _process_voices(voices)
 
-    def get_levels(self) -> Iterable[T_LevelIndex]:
-        return (note.position[1] for beat in self for note in beat)
+    def levels_iter(self) -> Iterator[T_LevelIndex]:
+        for beat in self:
+            for note in beat:
+                if (level := note.position[1]) is not None:
+                    yield level
 
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
@@ -202,8 +208,10 @@ class MultiSection(list[CompoundSection]):
         parsed_data = _BaseMultiSection.subsection(_DefaultEnvironment(), 0, validated_data)
         self = cls([[parsed_data]] if isinstance(parsed_data, SingleSection) else parsed_data)
 
-        levels = tuple(chain.from_iterable(subsection.get_levels() for section in self for subsection in section))
-        self.min_level, self.max_level = min(levels), max(levels)
+        if levels := tuple(chain.from_iterable(subsection.levels_iter() for section in self for subsection in section)):
+            self.min_level, self.max_level = min(levels), max(levels)
+        else:
+            self.min_level = self.max_level = 0
         return self
 
 
@@ -429,12 +437,8 @@ class _NotesFactory:
             position: Iterable[T_Index | None],
         ):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
-                position_iter = iter(position)
-                for noteblock in noteblocks:
-                    if (this_position := next(position_iter)) is None:
-                        this_position = 0  # arbitrary value, doesn't matter
-                        noteblock = None  # noqa: PLW2901
-                    yield self._create_note(noteblock=noteblock, delay=delay, position=this_position)
+                for noteblock, note_position in zip(noteblocks, position, strict=False):
+                    yield self._create_note(noteblock=noteblock, delay=delay, position=note_position)
                     if (beat := self.current_beat + 1) < time:
                         self.current_beat = beat
                     else:
@@ -452,7 +456,13 @@ class _NotesFactory:
             return merged_line
         return parallel_lines
 
-    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_Index) -> Note:
+    def _create_note(
+        self,
+        *,
+        noteblock: NoteBlock | None,
+        delay: T_Delay,
+        position: T_Index | None | tuple[None, None],
+    ) -> Note:
         return _Note(
             noteblock=noteblock,
             delay=delay,
@@ -467,18 +477,20 @@ class _Note:
     # run-time-significant attributes
     noteblock: NoteBlock | None
     delay: T_Delay
-    position: T_Index
+    position: T_Index | None | tuple[None, None]
     # ---------------
     voice: str  # for error messages
     where: tuple[int, int]  # for compile-time checks
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
-        if self.noteblock is None:
-            dynamic = 1
-        elif dynamic == 0:
+        if self.noteblock is None or dynamic == 0:
             dynamic = 1
             # no need to copy, we only __mul__ a freshly-created note
             self.noteblock = None
+            if isinstance(self.position, int):
+                self.position = None
+            elif isinstance(self.position, int):
+                self.position = (None, None)
         return repeat(self, dynamic)
 
     def __repr__(self):
@@ -488,7 +500,7 @@ class _Note:
 class SingleDivisionNote(Protocol):
     noteblock: NoteBlock | None
     delay: T_Delay
-    position: T_LevelIndex
+    position: T_LevelIndex | None
     voice: str
     where: tuple[int, int]
 
@@ -496,7 +508,7 @@ class SingleDivisionNote(Protocol):
 class DoubleDivisionNote(Protocol):
     noteblock: NoteBlock | None
     delay: T_Delay
-    position: T_DoubleIndex
+    position: T_DoubleIndex | tuple[None, None]
     voice: str
     where: tuple[int, int]
 
