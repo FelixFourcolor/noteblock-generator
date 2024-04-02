@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
-from typing import Annotated, Any, Iterable, Literal, TypeVar, final
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal, TypeVar, final
 
-from pydantic import BaseModel, Field, GetCoreSchemaHandler, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
+from pydantic import AfterValidator, BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic.alias_generators import to_camel
-from pydantic_core import core_schema
 
 from .loader import dereference
 
@@ -15,10 +14,6 @@ from .loader import dereference
 class T_MultiValue(tuple["T", ...]):
     __slots__ = ()
 
-    @classmethod
-    def __get_pydantic_core_schema__(cls, src_type: Any, handler: GetCoreSchemaHandler):
-        return core_schema.no_info_after_validator_function(cls, handler(tuple))
-
     def __add__(self, other: Iterable[T]):
         return T_MultiValue(super().__add__(tuple(other)))
 
@@ -26,7 +21,10 @@ class T_MultiValue(tuple["T", ...]):
 T = TypeVar("T")
 T_Reset = Literal["$reset"]
 T_StaticProperty = T | T_Reset | None
-T_Positional = Annotated[T_MultiValue[T], Field(min_length=1)] | T
+if TYPE_CHECKING:
+    T_Positional = T | T_MultiValue[T]
+else:
+    T_Positional = T | Annotated[list[T], Field(min_length=1), AfterValidator(lambda x: T_MultiValue(x))]
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 T_Tuple = tuple[T, ...]

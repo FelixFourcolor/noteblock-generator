@@ -239,19 +239,12 @@ class _BaseVoice:
 
 class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
-        # I don't know if this is a pydantic BUG?
-        # but sometimes `src` is not converted into a T_Voice but remains a dict,
-        # so we force pydantic to convert the type again.
-        # Performance impact is negligible (if measureable at all), don't even think about it.
-        src = T_SingleDivisionVoice.model_validate(src)
         self.position = SingleDivisionPosition(index)
         super().__init__(index, src, env)
 
 
 class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
     def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
-        # See comment in SingleDivisionVoice.__init__
-        src = T_DoubleDivisionVoice.model_validate(src)
         self.position = DoubleDivisionPosition(index)
         super().__init__(index, src, env)
 
