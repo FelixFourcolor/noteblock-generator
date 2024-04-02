@@ -136,7 +136,7 @@
         ],
         "$def": {
             "value": {
-                "oneOf": [
+                "anyOf": [
                     { "$ref": "#/singleDivisionPosition/$def/value" },
                     {
                         "description": "Which side relative to the player.",
