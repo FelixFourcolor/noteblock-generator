@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import operator
+from collections import deque
+from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
-from typing import Iterable, Iterator, Protocol
+from typing import Iterable, Iterator, Protocol, cast
 
 from pydantic import TypeAdapter
 
@@ -146,11 +148,10 @@ class _BaseMultiSection(_BaseSection, Iterable["CompoundSection"]):
 def _process_voices(voices: Iterable[Voice]):
     sequential_notes: list[list[Note]] = []
     # voices are not necesarily of equal length, pad them with empty notes
-    merged_line = map(chain.from_iterable, zip_longest(*voices, fillvalue=()))
-    for step_iter in merged_line:
+    for beat in map(chain.from_iterable, zip_longest(*voices, fillvalue=())):
         # step_iter is guaranteed to have at least one element (see _Note.__mul__)
-        parallel_notes = [first := next(step_iter)]
-        for note in step_iter:
+        parallel_notes = [first := next(beat)]
+        for note in beat:
             if first.delay != note.delay:
                 raise ValueError(f"inconsistent delays: {first}(delay={first.delay}) and {note}(delay={note.delay})")
             if first.where != note.where:
@@ -219,6 +220,7 @@ class _BaseVoice:
     position: SingleDivisionPosition | DoubleDivisionPosition
 
     def __init__(self, index: T_LevelIndex, src: T_Voice, env: SingleSection):
+        # --- setup env ---
         self.name = env.name.transform(index, src).resolve()
         self.time = env.time.transform(src.time, save=True)
         self.delay = env.delay.transform(None, save=True)
@@ -229,63 +231,15 @@ class _BaseVoice:
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
+        # --- parse notes ---
         self.current_bar = 1  # bar indexing starts from 1
         self.current_beat = 0  # but beat starts from 0
-        self._notes = _NotesFactory(self).resolve(src.notes)
+        self._notes = self._resolve_sequential_notes(src.notes)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Iterable[Note]]:
         yield from self._notes
 
-
-class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
-        self.position = SingleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
-        self.position = DoubleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-Voice = SingleDivisionVoice | DoubleDivisionVoice
-
-
-class _NotesFactory:
-    def __init__(self, env: _BaseVoice):
-        self.name = env.name
-        self.time = env.time
-        self.delay = env.delay
-        self.beat = env.beat
-        self.trill_style = env.trill_style
-        self.position = env.position
-        self.instrument = env.instrument
-        self.dynamic = env.dynamic
-        self.sustain = env.sustain
-        self.transpose = env.transpose
-        self._env = env
-
-    @property
-    def current_bar(self):
-        return self._env.current_bar
-
-    @current_bar.setter
-    def current_bar(self, value: int):
-        self._env.current_bar = value
-
-    @property
-    def current_beat(self):
-        return self._env.current_beat
-
-    @current_beat.setter
-    def current_beat(self, value: int):
-        self._env.current_beat = value
-
-    def resolve(self, src: T_SequentialNotes):
-        return self._resolve_sequential_notes(src)
-
-    def _transform(self, src: T_NoteMeta):
+    def _transform_core(self, src: T_NoteMeta):
         self.time = self.time.transform(src.time)
         self.delay = self.delay.transform(src.delay)
         self.beat = self.beat.transform(src.beat)
@@ -296,50 +250,57 @@ class _NotesFactory:
         self.sustain = self.sustain.transform(src.sustain)
         self.transpose = self.transpose.transform(src.transpose)
 
-    def _resolve_sequential_notes(self, src: T_SequentialNotes):
-        self = shallowcopy(self)
-        self._transform(src)
+    @contextmanager
+    def _transform(self, src: T_NoteMeta):
+        self_copy = shallowcopy(self)
+        self_copy._transform_core(src)  # noqa: SLF001
+        try:
+            yield self_copy
+        finally:
+            self.current_bar = self_copy.current_bar
+            self.current_beat = self_copy.current_beat
 
+    def _resolve_sequential_notes(self, src: T_SequentialNotes):
         def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             if isinstance(note, T_ParallelNotes):
                 return self._resolve_parallel_notes(note)
-            self._transform(note)
+            self._transform_core(note)
             return ()
 
-        sequential_lines = map(_resolve_core, src.note)
-        merged_line = chain.from_iterable(sequential_lines)
-        return merged_line
+        with self._transform(src) as self:
+            sequential_lines = map(_resolve_core, src.note)
+            merged_line = chain.from_iterable(sequential_lines)
+            return deque(merged_line)
 
     def _resolve_parallel_notes(self, src: T_ParallelNotes):
-        self = shallowcopy(self)
-        self._transform(src)
+        current_bar, current_beat = self.current_bar, self.current_beat
 
         def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[Note]]:
+            self.current_bar, self.current_beat = current_bar, current_beat
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
-        parallel_lines = map(_resolve_core, src.note)
-        # fail if parallel lines written by the user are not of the same length # TODO: error handling
-        merged_line = map(chain.from_iterable, transpose(parallel_lines))
-        return merged_line
+        with self._transform(src) as self:
+            parallel_lines = map(_resolve_core, src.note)
+            # fail if parallel lines written by the user are not of the same length # TODO: error handling
+            merged_line = map(chain.from_iterable, transpose(parallel_lines))
+            return deque(merged_line)
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[Note]]:
-        self = shallowcopy(self)
-        self._transform(src)
-
-        if isinstance(src, T_TrilledNote):
-            trill_style = self.trill_style.resolve()
-            return self._resolve_trilled_note(src.note, src.trill, trill_style)
-        if is_typeform(note := src.note, T_BarDelimiter):
-            return self._resolve_bar_delimiter(note)
-        if is_typeform(note, T_MultipleNotes):
-            return self._resolve_multiple_notes(note)
-        if is_typeform(note, T_CompoundNote):
-            return self._resolve_compound_note(note)
-        return self._resolve_regular_note(note)
+        with self._transform(src) as self:
+            if isinstance(src, T_TrilledNote):
+                trill_style = self.trill_style.resolve()
+                return self._resolve_trilled_note(src.note, src.trill, trill_style)
+            if is_typeform(note := src.note, T_BarDelimiter):
+                return self._resolve_bar_delimiter(note)
+            if is_typeform(note, T_MultipleNotes):
+                return self._resolve_multiple_notes(note)
+            if is_typeform(note, T_CompoundNote):
+                return self._resolve_compound_note(note)
+            return self._resolve_regular_note(note)
 
     def _resolve_bar_delimiter(self, src: T_BarDelimiter) -> Iterable[Iterable[Note]]:
         # TODO: error handling
@@ -387,12 +348,12 @@ class _NotesFactory:
             raise ValueError("Note duration must be positive")  # TODO error handling
         return repeat(note, duration)
 
-    def _resolve_regular_note(self, _note: T_NoteName | T_Rest) -> Iterable[Iterable[Note]]:
-        return self._apply_phrasing(*self._create_noteblocks(_note))
-
     def _resolve_multiple_notes(self, _note: T_MultipleNotes):
         individual_notes = strip_split(_note, ",")
-        return chain.from_iterable(map(self._resolve_regular_note, individual_notes))
+        return deque(chain.from_iterable(map(self._resolve_regular_note, individual_notes)))
+
+    def _resolve_regular_note(self, _note: T_NoteName | T_Rest) -> Iterable[Iterable[Note]]:
+        return self._apply_phrasing(*self._create_noteblocks(_note))
 
     def _resolve_compound_note(self, _note: T_CompoundNote):
         note_stripped_parentheses = _note[1:-1]
@@ -423,6 +384,7 @@ class _NotesFactory:
         sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
         position = self.position.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
+        current_bar, current_beat = self.current_bar, self.current_beat
 
         def transform(
             *noteblocks: NoteBlock | None,
@@ -441,13 +403,14 @@ class _NotesFactory:
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
+            self.current_bar, self.current_beat = current_bar, current_beat
             return apply_dynamic(apply_delay_and_position(noteblocks))
 
         parallel_lines = positional_map(transform, *noteblocks, dynamic=dynamic, position=position)
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
-            return merged_line
-        return parallel_lines
+            return deque(merged_line)
+        return deque(parallel_lines)
 
     def _create_note(
         self,
@@ -456,13 +419,31 @@ class _NotesFactory:
         delay: T_Delay,
         position: T_Index | None | tuple[None, None],
     ) -> Note:
-        return _Note(
-            noteblock=noteblock,
-            delay=delay,
-            position=position,
-            voice=self.name,
-            where=(self.current_bar, self.current_beat),
-        )  # pyright: ignore[reportGeneralTypeIssues]
+        return cast(
+            Note,
+            _Note(
+                noteblock=noteblock,
+                delay=delay,
+                position=position,
+                voice=self.name,
+                where=(self.current_bar, self.current_beat),
+            ),
+        )
+
+
+class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
+        self.position = SingleDivisionPosition(index)
+        super().__init__(index, src, env)
+
+
+class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
+    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
+        self.position = DoubleDivisionPosition(index)
+        super().__init__(index, src, env)
+
+
+Voice = SingleDivisionVoice | DoubleDivisionVoice
 
 
 @dataclass(kw_only=True, slots=True)
