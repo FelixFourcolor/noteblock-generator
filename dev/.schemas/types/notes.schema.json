@@ -15,7 +15,7 @@
         "title": "Syntactic sugar to write multiple notes",
         "description": "Format: note 1, note 2, etc.",
         "type": "string",
-        "pattern": "^([rR]|[a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*(\\s*,\\s*|$)){2,}$"
+        "pattern": "^(([rR]|[a-gA-G](bb|b|s|ss)?([1-7]?|(_*|\\^*)))((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))*(\\s*,\\s*|$)){2,}$"
     },
     "compoundNote": {
         "title": "Compound note: multiple pitches but is treated as one note",

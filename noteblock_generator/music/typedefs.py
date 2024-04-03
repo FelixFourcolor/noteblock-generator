@@ -195,6 +195,7 @@ T_MultipleNotes = Annotated[
         pattern=(
             "^"
             "("  # begin repeat
+            "("  # begin note name
             "[rR]"  # R for rest
             "|"  # or
             "[a-gA-G]"  # pitch A to G
@@ -204,6 +205,7 @@ T_MultipleNotes = Annotated[
             "|"  # or
             "(_*|\\^*)"  # relative to instrument's range: _ to lower, ^ to raise
             ")"  # end octave
+            ")"  # end note name
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
