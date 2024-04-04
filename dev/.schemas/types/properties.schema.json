@@ -202,22 +202,22 @@
                         "description": "Constant loudness",
                         "type": "integer",
                         "minimum": 0,
-                        "maximum": 4
+                        "maximum": 6
                     },
                     {
                         "description": "Variable louness",
                         "type": "string",
-                        "pattern": "^([0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                        "pattern": "^([0-6]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
                     },
                     {
                         "description": "Loudness relative to environment",
                         "type": "string",
-                        "pattern": "^[+-][0-4]$"
+                        "pattern": "^[+-][0-6]$"
                     },
                     {
                         "description": "Variable loudness, relative to environment",
                         "type": "string",
-                        "pattern": "^([+-]?[0-4]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                        "pattern": "^([+-]?[0-6]((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
                     },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },

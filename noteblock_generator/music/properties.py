@@ -564,6 +564,7 @@ class Dynamic(
         Iterable[T_StaticAbsoluteDynamic],
     ]
 ):
+    MAX = 6
     _DEFAULT: T_Tuple[T_StaticAbsoluteDynamic] = (1,)
     _NULL_VALUE = repeat(0)
 
@@ -607,7 +608,7 @@ class Dynamic(
         def binary_transform(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
             if is_typeform(modifier, T_StaticAbsoluteDynamic):
                 return modifier
-            low, high = min(1, current), 4
+            low, high = min(1, current), self.MAX
             out = current + int(modifier)
             return min(max(out, low), high)
 

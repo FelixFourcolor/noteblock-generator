@@ -65,7 +65,7 @@ T_VariableAbsoluteDynamic = Annotated[
         pattern=(
             "^"
             "("  # begin repeat
-            "[0-4]"  # dynamic value: 0 to 4
+            "[0-6]"  # dynamic value: 0 to 6
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
@@ -82,7 +82,7 @@ T_StaticRelativeDynamic = Annotated[
         pattern=(
             "^"
             "[+-]"  # + to raise, - to lower
-            "[0-4]"  # a value from 0 to 4
+            "[0-6]"  # a value from 0 to 6
             "$"
         )
     ),
@@ -94,7 +94,7 @@ T_VariableRelativeDynamic = Annotated[
             "^"
             "("  # begin repeat
             "[+-]?"  # optionally relative: + to raise, - to lower
-            "[0-4]"  # a value from 0 to 4
+            "[0-4]"  # a value from 0 to 6
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats

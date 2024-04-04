@@ -6,6 +6,7 @@ from .parser import (
     CompoundSection,
     DoubleDivisionNote,
     DoubleDivisionSection,
+    Dynamic,
     MultiSection,
     Note,
     NoteBlock,
@@ -24,15 +25,13 @@ class Unit(T_Tuple[NoteBlock]):
     delay: T_Delay
 
     def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
-        MAX_SIZE = 4
-
         def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
             for note in notes:
                 if (noteblock := note.noteblock) is not None:
                     yield noteblock
 
         self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
-        if len(self) > MAX_SIZE:
+        if len(self) > Dynamic.MAX:
             raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
         self.delay = delay
         return self  # TODO: optimization: not every unit needs to be rendered
