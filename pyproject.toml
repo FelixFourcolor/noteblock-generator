@@ -65,6 +65,7 @@ lint.ignore = [
     "SLOT001",
     "T201",
     "TCH",
+    "TID252",
     "TD",
     "TRY",
     "UP007",
