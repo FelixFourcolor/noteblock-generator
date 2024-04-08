@@ -1,24 +1,31 @@
 from __future__ import annotations
 
-from typing import Iterable
+from contextlib import contextmanager
+from enum import Enum
+from functools import singledispatchmethod
+from itertools import pairwise
+from typing import Iterable, Literal, final
+
+from multimethod import multidispatch
 
 from .parser import (
     CompoundSection,
     DoubleDivisionNote,
     DoubleDivisionSection,
-    Dynamic,
     MultiSection,
     Note,
     NoteBlock,
     SingleDivisionNote,
     SingleDivisionSection,
 )
-from .typedefs import T_Delay, T_Tick, T_Tuple, T_Width
+from .properties import Dynamic
+from .typedefs import T_Delay, T_LevelIndex, T_Tick, T_Tuple, T_Width
 from .utils import transpose
 
 
-def compile(parsed_data: MultiSection) -> Music:  # noqa: A001
-    return Music(parsed_data)  # TODO: error handling
+def compile(parsed_data: MultiSection):  # noqa: A001
+    # TODO: not working
+    return Compiler().generate(Music(parsed_data))
 
 
 class Unit(T_Tuple[NoteBlock]):
@@ -41,42 +48,48 @@ class Unit(T_Tuple[NoteBlock]):
 
 
 class SingleDivision(list[list[Unit]]):
-    width: T_Width
-    tick: T_Tick
-
-    def __init__(self, sequential_notes: SingleDivisionSection, *, min_level: int, max_level: int):
+    @classmethod
+    def from_src(cls, sequential_notes: SingleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         def assign_levels(parallel_notes: list[SingleDivisionNote]) -> Iterable[Unit]:
             # parser guarantees that:
             #    - all parallel notes have at least one element
             #    - all parallel notes' delays are equal
             delay = parallel_notes[0].delay
+
             return (
                 Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
                 for level in range(min_level, max_level + 1)
             )
 
-        self.width = sequential_notes.width.resolve()
-        self.tick = sequential_notes.tick.resolve()
-        self += [list(e) for e in transpose(map(assign_levels, sequential_notes))]
+        return cls(
+            transpose(map(assign_levels, sequential_notes)),
+            width=sequential_notes.width.resolve(),
+            tick=sequential_notes.tick.resolve(),
+        )
+
+    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
+        self.width = width
+        self.tick = tick
+        self += map(list, sequence)
+
+    @property
+    def length(self):
+        return len(self[0])
+
+    @property
+    def height(self):
+        return len(self)
 
 
-class DoubleDivision(
-    tuple[
-        list[list[Unit]],
-        list[list[Unit]],
-    ]
-):
-    width: T_Width
-    tick: T_Tick
-
-    def __new__(cls, sequential_notes: DoubleDivisionSection, *, min_level: int, max_level: int):
+class DoubleDivision(tuple[SingleDivision, SingleDivision]):
+    @classmethod
+    def from_src(cls, sequential_notes: DoubleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
             # see comment in SingleDivision counterpart
             delay = parallel_notes[0].delay
             return (
                 Unit(
-                    # pyright bug
-                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore  # noqa: PGH003
+                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
                     delay=delay,
                 )
                 for level in range(min_level, max_level + 1)
@@ -86,32 +99,371 @@ class DoubleDivision(
             delay = parallel_notes[0].delay
             return (
                 Unit(
-                    # pyright bug
-                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore  # noqa: PGH003
+                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
                     delay=delay,
                 )
                 for level in range(min_level, max_level + 1)
             )
 
-        left_division = [list(e) for e in transpose(map(assign_levels_left, sequential_notes))]
-        right_division = [list(e) for e in transpose(map(assign_levels_right, sequential_notes))]
-        self = super().__new__(cls, (left_division, right_division))
-        self.width = sequential_notes.width.resolve()
-        self.tick = sequential_notes.tick.resolve()
-        return self
+        width = sequential_notes.width.resolve()
+        tick = sequential_notes.tick.resolve()
+        left_division = SingleDivision(transpose(map(assign_levels_left, sequential_notes)), width=width, tick=tick)
+        right_division = SingleDivision(transpose(map(assign_levels_right, sequential_notes)), width=width, tick=tick)
+
+        return cls((left_division, right_division))
+
+    @property
+    def width(self):
+        return self[0].width
+
+    @property
+    def tick(self):
+        return self[0].tick
+
+    @property
+    def length(self):
+        return self[0].length
+
+    @property
+    def height(self):
+        return self[0].height
 
 
-class Section(list[SingleDivision | DoubleDivision]):
-    def __init__(self, src: CompoundSection, *, min_level: int, max_level: int):
+T_Subsection = SingleDivision | DoubleDivision
+
+
+class Section(list[T_Subsection]):
+    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         # TODO: initial padding
         for subsection in src:
             if isinstance(subsection, SingleDivisionSection):
-                self.append(SingleDivision(subsection, min_level=min_level, max_level=max_level))
+                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
             else:
-                self.append(DoubleDivision(subsection, min_level=min_level, max_level=max_level))
+                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+
+        self.length = sum(subsection.length for subsection in self)
+        self.height = self[0].height
 
 
 class Music(list[Section]):
     def __init__(self, src: MultiSection):
         for section in src:
             self.append(Section(section, min_level=src.min_level, max_level=src.max_level))
+
+        self.length = sum(section.length for section in self)
+        self.height = self[0].height
+
+
+class Direction(tuple[int, int], Enum):
+    # coordinates in (x, z)
+    north = (0, -1)
+    south = (0, 1)
+    east = (1, 0)
+    west = (-1, 0)
+
+    def __str__(self):
+        return self.name
+
+    def __mul__(self, other: tuple[int, int]) -> tuple[int, int]:
+        """Complex multiplication, with (x, z) representing x + zi"""
+        return (
+            self[0] * other[0] - self[1] * other[1],
+            self[0] * other[1] + self[1] * other[0],
+        )
+
+    def __neg__(self):
+        return Direction(self * Direction((-1, 0)))
+
+
+class Block:
+    def __init__(self, name: str, **properties):
+        self.name = name
+        self.properties = properties
+
+    @classmethod
+    def NoteBlock(cls, noteblock: NoteBlock | None):
+        if noteblock is None:
+            return None
+        return cls("note_block", note=noteblock.note, instrument=noteblock.instrument)
+
+    @classmethod
+    def Repeater(cls, *, delay: T_Delay, direction: Direction):
+        direction = -direction  # MINECRAFT's BUG: repeater's direction is reversed
+        return cls("repeater", delay=delay, facing=direction)
+
+    @classmethod
+    def Redstone(cls, *connections: Direction):
+        # Connected to all sides by default
+        if not connections:
+            connections = tuple(Direction)
+        # Only allow connecting sideways, because that's all we need for this build
+        return cls("redstone_wire", **{Direction(i).name: "side" for i in connections})
+
+    @classmethod
+    def Glass(cls):
+        return cls("glass")
+
+    @classmethod
+    def Generic(cls):
+        return GenericBlock
+
+    def __eq__(self, other: object):
+        return isinstance(other, Block) and self.name == other.name and self.properties == other.properties
+
+
+@final
+class GenericBlock:
+    pass
+
+
+T_Coordinates = tuple[int, int, int]
+T_BlockData = Block | type[GenericBlock] | None
+
+
+class Compiler:
+    # TODO: handle multiple widths
+    # TODO: implement tick
+
+    def __init__(self, *, cache: dict[T_Coordinates, T_BlockData] = None):
+        self._X, self._Y, self._Z = (0, 0, 0)
+        self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
+        self.x_i, self.y_i = 1, 1
+
+        self._data: dict[T_Coordinates, T_BlockData] = {}
+        self._cache = cache
+
+    @property
+    def X(self) -> int:
+        return self._X
+
+    @X.setter
+    def X(self, value: int):
+        self._X += value * self.x_i
+
+    @property
+    def Y(self) -> int:
+        return self._Y
+
+    @Y.setter
+    def Y(self, value: int):
+        self._Y += value * self.y_i
+
+    @property
+    def Z(self) -> int:
+        return self._Z
+
+    @Z.setter
+    def Z(self, value: int):
+        self._Z += value * self.z_i
+
+    @property
+    def z_i(self) -> Literal[1, -1]:
+        return self.z_dir[1]  # pyright: ignore[reportGeneralTypeIssues]
+
+    @z_i.setter
+    def z_i(self, value: Literal[1, -1]):
+        self.z_dir = Direction((0, value))
+
+    @contextmanager
+    def localize(self, x=0, y=0, z=0, z_i: Literal[1, -1] = 1):
+        original_x, original_y, original_z = self._X, self._Y, self._Z
+        original_z_i = self.z_i
+        self.X, self.Y, self.Z = x, y, z
+        self.z_i = z_i
+        try:
+            yield self
+        finally:
+            self._X, self._Y, self._Z = original_x, original_y, original_z
+            self.z_i = original_z_i
+
+    def __setitem__(self, coordinates: T_Coordinates, value: T_BlockData):
+        x = self.X + self.x_i * coordinates[0]
+        y = self.Y + self.y_i * coordinates[1]
+        z = self.Z + self.z_i * coordinates[2]
+
+        if (x, y, z) in self._data and value is None:
+            return
+        if self._cache is None:
+            self._data[x, y, z] = value
+            return
+        if (x, y, z) in self._cache and self._cache[x, y, z] == value:
+            return
+        self._data[x, y, z] = self._cache[x, y, z] = value
+
+    def generate(self, music: Music):
+        # TODO: not working
+        for section in music:
+            self.generate_section(section)
+        return self._data
+
+    def generate_section(self, section: Section):
+        # TODO: not working
+        self.generate_subsection(section[0])
+        for this_, next_ in pairwise(section):
+            self.generate_subsections_bridge(this_, next_)
+            self.generate_subsection(next_)
+
+    @singledispatchmethod
+    def generate_subsection(self, subsection: T_Subsection): ...
+
+    @generate_subsection.register
+    def _(self, subsection: SingleDivision):
+        for level in subsection:
+            with self.localize() as self:
+                self.generate_level(level, width=subsection.width)
+            self.Y = 2
+
+    @generate_subsection.register
+    def _(self, subsection: DoubleDivision):
+        left_division, right_division = subsection
+        with self.localize() as self:
+            self.generate_subsection(left_division)
+        with self.localize(z=2 * subsection.width + 4) as self:
+            self.generate_subsection(right_division)
+
+    @multidispatch
+    def generate_subsections_bridge(self, from_: T_Subsection, to_: T_Subsection): ...
+
+    @generate_subsections_bridge.register
+    def _(self, from_: SingleDivision, to_: SingleDivision):
+        for _ in from_:
+            with self.localize() as self:
+                self.generate_rows_bridge()
+            self.Y = 2
+
+    @generate_subsections_bridge.register
+    def _(self, from_: DoubleDivision, to_: DoubleDivision):
+        left_from, right_from = from_
+        left_to, right_to = to_
+        with self.localize() as self:
+            self.generate_subsections_bridge(left_from, left_to)
+        with self.localize(z=2 * from_.width + 4) as self:
+            self.generate_subsection(right_from, right_to)
+
+    @generate_subsections_bridge.register
+    def _(self, from_: SingleDivision, to_: DoubleDivision): ...  # TODO
+
+    @generate_subsections_bridge.register
+    def _(self, from_: DoubleDivision, to_: SingleDivision): ...  # TODO
+
+    def generate_level(self, level: list[Unit], *, width: T_Width):
+        for i, (unit, _) in enumerate(pairwise(level)):
+            self.generate_unit(unit, mode="normal" if (i + 1) % width else "end_of_row")
+        self.generate_unit(level[-1], mode="end_of_section")
+
+    NOTEBLOCK_PLACEMENTS = (-1, 0), (-1, 1), (1, 0), (1, 1), (-2, 0), (2, 0)
+    ROW_BRIDGE = (0, 1), (0, 2), (1, 2), (2, 2), (2, 1), (3, 1), (4, 1), (4, 0)
+
+    def generate_unit(self, unit: Unit, *, mode: Literal["normal", "end_of_row", "end_of_section"]):
+        self[0, -1, 0] = Block.Generic()
+        self[0, 1, 0] = Block.Generic()
+        self[0, 1, 1] = Block.Generic()
+        self[0, 0, 0] = Block.Redstone()
+
+        unit_iter = iter(unit)
+        for x, z in self.NOTEBLOCK_PLACEMENTS:
+            self[x, 0, z] = Block.NoteBlock(next(unit_iter, None))
+
+        if mode == "normal":
+            self[0, 1, 1] = Block.Repeater(delay=unit.delay, direction=self.z_dir)
+            self.Z = 2
+        elif mode == "end_of_row":
+            self.generate_rows_bridge()
+
+    def generate_rows_bridge(self):
+        with Circuit(self) as circuit:
+            for x, z in self.ROW_BRIDGE[:-1]:
+                circuit[x, 1, z] = "wire"
+            X, Z = self.ROW_BRIDGE[-1]
+            circuit[X, 1, Z] = "repeater"
+
+        self.z_i *= -1
+        self.X = X
+        self.Z = Z + self.z_i
+
+
+class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
+    # It's assumed that the series of redstones form a valid circuit,
+    # there are not runtime checks.
+
+    def __init__(self, compiler: Compiler):
+        self._compiler = compiler
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        if self:
+            self._clear_space()
+            self._generate_base()
+            self._generate_redstones()
+
+    def _clear_space(self):
+        for x, y, z in self:
+            self._compiler[x + 1, y, z] = None
+            self._compiler[x - 1, y, z] = None
+            self._compiler[x, y + 1, z] = None
+            self._compiler[x, y, z + 1] = None
+            self._compiler[x, y, z - 1] = None
+
+    def _generate_base(self):
+        coordinates = tuple(self)
+        self._compiler[coordinates[0]] = Block.Generic()
+        for (this_x, this_y, this_z), (next_x, next_y, next_z) in pairwise(coordinates):
+            if this_y > next_y:
+                self._compiler[next_x, next_y - 1, next_z] = Block.Glass()
+            elif this_y < next_y:
+                self._compiler[this_x, this_y - 1, this_z] = Block.Glass()
+                self._compiler[next_x, next_y - 1, next_z] = Block.Generic()
+            else:
+                self._compiler[next_x, next_y - 1, next_z] = Block.Generic()
+
+    def _generate_redstones(self):
+        if len(self) == 1:
+            self.__generate_redstones_case_1()
+        elif len(self) == 2:
+            self.__generate_redstones_case_2()
+        else:
+            self.__generate_redstones_case_3()
+
+    def __generate_redstones_case_1(self):
+        coordinates, redstone = next(iter(self.items()))
+        if redstone == "wire":
+            self._compiler[coordinates] = Block.Redstone()
+        else:
+            self._compiler[coordinates] = Block.Repeater(delay=1, direction=self._compiler.z_dir)
+
+    def __generate_redstones_case_2(self):
+        coordinates_1, coordinates_2 = self.keys()
+        direction = Direction((coordinates_2[0] - coordinates_1[0], coordinates_2[2] - coordinates_1[2]))
+        for coordinates, redstone in self.items():
+            if redstone == "wire":
+                self._compiler[coordinates] = Block.Redstone(direction)
+            else:
+                self._compiler[coordinates] = Block.Repeater(delay=1, direction=direction)
+
+    def __generate_redstones_case_3(self):
+        circuit = tuple(self.items())
+
+        for i in range(len(circuit) - 2):
+            (coordinates_1, redstone_1), (coordinates_2, redstone_2), (coordinates_3, redstone_3) = circuit[i : i + 3]
+            direction_12 = Direction((coordinates_2[0] - coordinates_1[0], coordinates_2[2] - coordinates_1[2]))
+            direction_23 = Direction((coordinates_3[0] - coordinates_2[0], coordinates_3[2] - coordinates_2[2]))
+
+            if i == 0:
+                if redstone_1 == "wire":
+                    self._compiler[coordinates_1] = Block.Redstone(direction_12)
+                else:
+                    self._compiler[coordinates_1] = Block.Repeater(delay=1, direction=direction_12)
+                continue
+
+            if redstone_2 == "wire":
+                self._compiler[coordinates_2] = Block.Redstone(-direction_12, direction_23)
+            else:
+                self._compiler[coordinates_2] = Block.Repeater(delay=1, direction=direction_23)
+
+            if i + 3 == len(circuit):
+                if redstone_3 == "wire":
+                    self._compiler[coordinates_3] = Block.Redstone(direction_23)
+                else:
+                    self._compiler[coordinates_3] = Block.Repeater(delay=1, direction=direction_23)
