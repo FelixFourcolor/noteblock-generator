@@ -224,37 +224,14 @@ class Compiler:
     # TODO: handle multiple widths
     # TODO: implement tick
 
+    __slots__ = ("X", "Y", "Z", "x_dir", "z_dir", "_data", "_cache")
+
     def __init__(self, *, cache: dict[T_Coordinates, T_BlockData] = None):
-        self._X, self._Y, self._Z = (0, 0, 0)
+        self.X, self.Y, self.Z = (0, 0, 0)
         self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
-        self.x_i, self.y_i = 1, 1
 
         self._data: dict[T_Coordinates, T_BlockData] = {}
         self._cache = cache
-
-    @property
-    def X(self) -> int:
-        return self._X
-
-    @X.setter
-    def X(self, value: int):
-        self._X += value * self.x_i
-
-    @property
-    def Y(self) -> int:
-        return self._Y
-
-    @Y.setter
-    def Y(self, value: int):
-        self._Y += value * self.y_i
-
-    @property
-    def Z(self) -> int:
-        return self._Z
-
-    @Z.setter
-    def Z(self, value: int):
-        self._Z += value * self.z_i
 
     @property
     def z_i(self) -> Literal[1, -1]:
@@ -265,39 +242,35 @@ class Compiler:
         self.z_dir = Direction((0, value))
 
     @contextmanager
-    def localize(self, x=0, y=0, z=0, z_i: Literal[1, -1] = 1):
-        original_x, original_y, original_z = self._X, self._Y, self._Z
-        original_z_i = self.z_i
-        self.X, self.Y, self.Z = x, y, z
-        self.z_i = z_i
+    def localize(self, x=0, y=0, z=0):
+        original_x, original_y, original_z = self.X, self.Y, self.Z
+        self.X += x
+        self.Y += y
+        self.Z += self.z_i * z
+
         try:
             yield self
         finally:
-            self._X, self._Y, self._Z = original_x, original_y, original_z
-            self.z_i = original_z_i
+            self.X, self.Y, self.Z = original_x, original_y, original_z
 
     def __setitem__(self, coordinates: T_Coordinates, value: T_BlockData):
-        x = self.X + self.x_i * coordinates[0]
-        y = self.Y + self.y_i * coordinates[1]
-        z = self.Z + self.z_i * coordinates[2]
-
-        if (x, y, z) in self._data and value is None:
-            return
-        if self._cache is None:
-            self._data[x, y, z] = value
-            return
-        if (x, y, z) in self._cache and self._cache[x, y, z] == value:
-            return
-        self._data[x, y, z] = self._cache[x, y, z] = value
+        with self.localize(*coordinates) as self:
+            x, y, z = self.X, self.Y, self.Z
+            if (x, y, z) in self._data and value is None:
+                return
+            if self._cache is None:
+                self._data[x, y, z] = value
+                return
+            if (x, y, z) in self._cache and self._cache[x, y, z] == value:
+                return
+            self._data[x, y, z] = self._cache[x, y, z] = value
 
     def generate(self, music: Music):
-        # TODO: not working
         for section in music:
             self.generate_section(section)
         return self._data
 
     def generate_section(self, section: Section):
-        # TODO: not working
         self.generate_subsection(section[0])
         for this_, next_ in pairwise(section):
             self.generate_subsections_bridge(this_, next_)
@@ -308,37 +281,48 @@ class Compiler:
 
     @generate_subsection.register
     def _(self, subsection: SingleDivision):
-        for level in subsection:
-            with self.localize() as self:
+        X, Z = self.X, self.Z
+        for i, level in enumerate(subsection):
+            with self.localize(y=2 * i) as self:
                 self.generate_level(level, width=subsection.width)
-            self.Y = 2
+                X, Z = self.X, self.Z
+        self.X, self.Z = X, Z
 
     @generate_subsection.register
     def _(self, subsection: DoubleDivision):
+        x, z = self.X, self.Z
         left_division, right_division = subsection
         with self.localize() as self:
             self.generate_subsection(left_division)
+            x, z = self.X, self.Z
         with self.localize(z=2 * subsection.width + 4) as self:
             self.generate_subsection(right_division)
+        self.X, self.Z = x, z
 
     @multidispatch
     def generate_subsections_bridge(self, from_: T_Subsection, to_: T_Subsection): ...
 
     @generate_subsections_bridge.register
     def _(self, from_: SingleDivision, to_: SingleDivision):
-        for _ in from_:
-            with self.localize() as self:
+        x, z = self.X, self.Z
+        for i, _ in enumerate(from_):
+            with self.localize(y=2 * i) as self:
                 self.generate_rows_bridge()
-            self.Y = 2
+                x, z = self.X, self.Z
+        self.X, self.Z = x, z
 
     @generate_subsections_bridge.register
     def _(self, from_: DoubleDivision, to_: DoubleDivision):
         left_from, right_from = from_
         left_to, right_to = to_
+
+        x, z = self.X, self.Z
         with self.localize() as self:
             self.generate_subsections_bridge(left_from, left_to)
+            x, z = self.X, self.Z
         with self.localize(z=2 * from_.width + 4) as self:
             self.generate_subsection(right_from, right_to)
+        self.X, self.Z = x, z
 
     @generate_subsections_bridge.register
     def _(self, from_: SingleDivision, to_: DoubleDivision): ...  # TODO
@@ -366,7 +350,7 @@ class Compiler:
 
         if mode == "normal":
             self[0, 1, 1] = Block.Repeater(delay=unit.delay, direction=self.z_dir)
-            self.Z = 2
+            self.Z += self.z_i * 2
         elif mode == "end_of_row":
             self.generate_rows_bridge()
 
@@ -374,17 +358,16 @@ class Compiler:
         with Circuit(self) as circuit:
             for x, z in self.ROW_BRIDGE[:-1]:
                 circuit[x, 1, z] = "wire"
-            X, Z = self.ROW_BRIDGE[-1]
-            circuit[X, 1, Z] = "repeater"
+            x, z = self.ROW_BRIDGE[-1]
+            circuit[x, 1, z] = "repeater"
 
         self.z_i *= -1
-        self.X = X
-        self.Z = Z + self.z_i
+        self.X += x
+        self.Z += self.z_i * (z + 1)
 
 
 class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
-    # It's assumed that the series of redstones form a valid circuit,
-    # there are not runtime checks.
+    # The series of redstones is assumed to form a valid circuit, there are no runtime checks.
 
     def __init__(self, compiler: Compiler):
         self._compiler = compiler
@@ -419,12 +402,12 @@ class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
                 self._compiler[next_x, next_y - 1, next_z] = Block.Generic()
 
     def _generate_redstones(self):
-        if len(self) == 1:
-            self.__generate_redstones_case_1()
+        if len(self) >= 3:
+            self.__generate_redstones_case_3()
         elif len(self) == 2:
             self.__generate_redstones_case_2()
         else:
-            self.__generate_redstones_case_3()
+            self.__generate_redstones_case_1()
 
     def __generate_redstones_case_1(self):
         coordinates, redstone = next(iter(self.items()))
