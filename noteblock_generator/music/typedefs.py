@@ -23,8 +23,8 @@ T_Reset = Literal["$reset"]
 T_StaticProperty = T | T_Reset | None
 if TYPE_CHECKING:
     T_Positional = T | T_MultiValue[T]
-else:
-    T_Positional = T | Annotated[list[T], Field(min_length=1), AfterValidator(lambda x: T_MultiValue(x))]
+else:  # for pydantic
+    T_Positional = T | Annotated[list[T], Field(min_length=1), AfterValidator(T_MultiValue)]
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 T_Tuple = tuple[T, ...]
@@ -111,6 +111,7 @@ T_StaticDynamic = T_StaticAbsoluteDynamic | T_StaticRelativeDynamic
 T_VariableDynamic = T_VariableAbsoluteDynamic | T_VariableRelativeDynamic
 T_Dynamic = T_StaticDynamic | T_VariableDynamic
 T_AbsoluteTranspose = int
+T_AutoTranspose = bool
 T_RelativeTranspose = Annotated[
     str,
     Field(
@@ -118,11 +119,15 @@ T_RelativeTranspose = Annotated[
             "^"
             "[+-]"  # + to raise, - to lower
             "\\d+"  # a value
+            "[\\?|!]?"  # ? to turn on auto transpose, ! to turn off, omit to keep the same
+            "|"  # OR
+            "(\\(-?\\d+\\)|\\d*)"  # optionally a value, optionaly in brackets
+            "\\?|!"  # ? to turn on auto transpose, ! to turn off
             "$"
         )
     ),
 ]
-T_Transpose = T_AbsoluteTranspose | T_RelativeTranspose
+T_Transpose = T_AutoTranspose | T_AbsoluteTranspose | T_RelativeTranspose
 T_AbsoluteSustain = (
     bool
     | int

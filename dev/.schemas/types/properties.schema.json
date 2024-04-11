@@ -298,6 +298,26 @@
                         "type": "string",
                         "pattern": "^[+-]\\d+$"
                     },
+                    {
+                        "description": "Transpose relative to environment, enable auto transpose.",
+                        "type": "string",
+                        "pattern": "^[+-]\\d+\\?$"
+                    },
+                    {
+                        "description": "Transpose relative to environment, disable auto-transpose.",
+                        "type": "string",
+                        "pattern": "^[+-]\\d+!$"
+                    },
+                    {
+                        "description": "Enable auto tranpose.",
+                        "type": "string",
+                        "pattern": "^(\\(-?\\d+\\)|\\d*)\\?$"
+                    },
+                    {
+                        "description": "Disable auto tranpose.",
+                        "type": "string",
+                        "pattern": "^(\\(-?\\d+\\)|\\d*)!$"
+                    },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },
                     { "$ref": "meta.schema.json#/default" }
