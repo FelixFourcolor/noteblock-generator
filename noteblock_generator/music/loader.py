@@ -10,25 +10,20 @@ def load(src_path: str):
     return _resolve_references(f"file://{src_path}", prefix=Path.cwd())  # TODO: error handling
 
 
-def dereference(data: dict):
-    return data.pop(_REF_KEYWORD)
+REF_KEY = "$ref"
+PATH_KEY = "$path"
 
 
-_URI_PATTERN = re.compile('["]?file://([^",\\n]+)["]?')
-_REF_KEYWORD = "$ref"
+_REF_PATTERN = re.compile('["]?file://([^",\\n]+)["]?')
 
 
 def _resolve_references(source: str, *, prefix: Path) -> str:
-    offset = 0
-    for m in _URI_PATTERN.finditer(source):
-        match, match_path = m.group(0, 1)
-        path = _find_path(prefix / match_path)
-        replacement = _load_reference(path)
-        start = m.start() + offset
-        end = m.end() + offset
-        source = source[:start] + replacement + source[end:]
-        offset += len(replacement) - len(match)
-    return source
+    def repl(reference: re.Match[str]) -> str:
+        reference_path = reference.group(1)
+        real_path = _find_path(prefix / reference_path)
+        return _load_reference(real_path)
+
+    return re.sub(_REF_PATTERN, repl, source)
 
 
 def _find_path(path: Path):
@@ -58,7 +53,7 @@ def _find_path(path: Path):
 def _load_reference(path: Path):
     text = _resolve_references(path.read_text(), prefix=path.parent)
     if isinstance(obj := yaml.safe_load(text), dict):
-        obj["path"] = str(path)
+        obj[PATH_KEY] = str(path)
     else:
-        obj = {"path": str(path), _REF_KEYWORD: obj}
-    return json.dumps(obj)  # we load yaml but dump json otherwise it doesn't work
+        obj = {PATH_KEY: str(path), REF_KEY: obj}
+    return json.dumps(obj)  # must load yaml but dump json otherwise it doesn't work

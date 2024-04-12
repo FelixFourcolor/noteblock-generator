@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import contextlib
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal, TypeVar, final
 
 from pydantic import AfterValidator, BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
 from pydantic.alias_generators import to_camel
 
-from .loader import dereference
+from .loader import PATH_KEY, REF_KEY
 
 
 @final
@@ -351,8 +351,8 @@ def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
     if isinstance(data, dict):
         if key in data:
             return data
-        with contextlib.suppress(KeyError):
-            return {key: dereference(data)}
+        with suppress(KeyError):
+            return {key: data.pop(REF_KEY)}
     return {key: data}
 
 
@@ -455,7 +455,7 @@ class T_DoubleDivisionSequentialNotes(_BaseNote):
 
 
 class _BaseVoice(_BaseModel):
-    path: Path | None = Field(default=None, exclude=True)
+    path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
     time: T_StaticProperty[T_Time] = None
     beat: T_StaticProperty[T_Beat] = None
@@ -469,11 +469,11 @@ class _BaseVoice(_BaseModel):
     @classmethod
     def _(cls, data):
         data = _to_dict(data, key="notes")
-        if "path" not in data:
+        if PATH_KEY not in data:
             notes = data["notes"]  # guarantee valid key by _to_dict
-            with contextlib.suppress(TypeError, KeyError):
+            with suppress(TypeError, KeyError):
                 # try setting voice's path to notes' path, if it exists
-                data["path"] = notes.pop("path")
+                data[PATH_KEY] = notes.pop(PATH_KEY)
         return data
 
 
@@ -488,7 +488,7 @@ class T_DoubleDivisionVoice(_BaseVoice):
 
 
 class _BaseSection(_BaseModel):
-    path: Path | None = Field(default=None, exclude=True)
+    path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
     width: T_Width | None = None
     time: T_StaticProperty[T_Time] = None
