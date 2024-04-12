@@ -183,7 +183,7 @@ class Block:
     @classmethod
     def NoteBlock(cls, noteblock: NoteBlock | None):
         if noteblock is None:
-            return None
+            return cls.Clear()
         return cls("note_block", note=noteblock.note, instrument=noteblock.instrument)
 
     @classmethod
@@ -207,6 +207,10 @@ class Block:
     def Generic(cls):
         return GenericBlock
 
+    @classmethod
+    def Clear(cls):
+        return ClearBlock
+
     def __eq__(self, other: object):
         return isinstance(other, Block) and self.name == other.name and self.properties == other.properties
 
@@ -216,8 +220,13 @@ class GenericBlock:
     pass
 
 
+@final
+class ClearBlock:
+    pass
+
+
 T_Coordinates = tuple[int, int, int]
-T_BlockData = Block | type[GenericBlock] | None
+T_BlockData = Block | type[GenericBlock] | type[ClearBlock]
 
 
 class Compiler:
@@ -256,7 +265,7 @@ class Compiler:
     def __setitem__(self, coordinates: T_Coordinates, value: T_BlockData):
         with self.localize(*coordinates) as self:
             x, y, z = self.X, self.Y, self.Z
-            if (x, y, z) in self._data and value is None:
+            if (x, y, z) in self._data and value is ClearBlock:
                 return
             if self._cache is None:
                 self._data[x, y, z] = value
@@ -383,11 +392,11 @@ class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
 
     def _clear_space(self):
         for x, y, z in self:
-            self._compiler[x + 1, y, z] = None
-            self._compiler[x - 1, y, z] = None
-            self._compiler[x, y + 1, z] = None
-            self._compiler[x, y, z + 1] = None
-            self._compiler[x, y, z - 1] = None
+            self._compiler[x + 1, y, z] = ClearBlock
+            self._compiler[x - 1, y, z] = ClearBlock
+            self._compiler[x, y + 1, z] = ClearBlock
+            self._compiler[x, y, z + 1] = ClearBlock
+            self._compiler[x, y, z - 1] = ClearBlock
 
     def _generate_base(self):
         coordinates = tuple(self)
