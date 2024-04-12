@@ -111,7 +111,7 @@
         "parallelNotes": {
             "title": "Double-division parallel notes",
             "oneOf": [
-                { "$ref": "#/$def/sequentialNotes/$def/note" },
+                { "$ref": "#/$def/parallelNotes/$def/note" },
                 {
                     "type": "object",
                     "additionalProperties": false,
@@ -120,8 +120,8 @@
                         { "required": [ "notes" ] }
                     ],
                     "properties": {
-                        "note": { "$ref": "#/$def/sequentialNotes/$def/note" },
-                        "notes": { "$ref": "#/$def/sequentialNotes/$def/note" },
+                        "note": { "$ref": "#/$def/parallelNotes/$def/note" },
+                        "notes": { "$ref": "#/$def/parallelNotes/$def/note" },
                         "trillStyle": { "$ref": "../../types/properties.schema.json#/trillStyle" },
                         "time": { "$ref": "../../types/properties.schema.json#/time" },
                         "delay": { "$ref": "../../types/properties.schema.json#/delay" },
