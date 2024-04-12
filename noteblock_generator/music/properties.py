@@ -15,8 +15,6 @@ from .typedefs import (
     T_AbsoluteDynamic,
     T_AbsoluteLevel,
     T_AbsoluteSustain,
-    T_AbsoluteTranspose,
-    T_AutoTranspose,
     T_Beat,
     T_CompoundPosition,
     T_Continuous,
@@ -516,7 +514,7 @@ class Instrument(
         origin: T_Instrument,
         current: T_Instrument,
         note_name: str,
-        transpose: tuple[T_AbsoluteTranspose, T_AutoTranspose],
+        transpose: _TransposeType,
     ) -> NoteBlock:
         def parse_relative_octave(note_name: str, default_octave: int) -> tuple[str, int]:
             if note_name.endswith("^"):
@@ -527,24 +525,23 @@ class Instrument(
                 return note_name, octave - 1
             return note_name, default_octave
 
-        def deviation(instrument: str):
-            range_ = INSTRUMENT_RANGE[instrument]
-            if range_.start <= note_value < range_.stop:
-                return 0
-            if note_value < range_.start:
-                return 12 * math.ceil((range_.start - note_value) / 12)
-            return 12 * math.floor((range_.stop - 1 - note_value) / 12)
-
-        transpose_value, auto_transpose = transpose
-
         if is_typeform(note_name[-1], int, strict=False):
-            note_value = NOTE_VALUE[note_name] + transpose_value
+            note_value = NOTE_VALUE[note_name] + transpose.value
         else:
             default_octave = (INSTRUMENT_RANGE[next(strip_split(origin, "/"))].start - 6) // 12 + 2
             note, octave = parse_relative_octave(note_name, default_octave)
-            note_value = NOTE_VALUE[note + str(octave)] + transpose_value
+            note_value = NOTE_VALUE[note + str(octave)] + transpose.value
 
-        if auto_transpose:
+        if transpose.auto:
+
+            def deviation(instrument: str):
+                range_ = INSTRUMENT_RANGE[instrument]
+                if range_.start <= note_value < range_.stop:
+                    return 0
+                if note_value < range_.start:
+                    return 12 * math.ceil((range_.start - note_value) / 12)
+                return 12 * math.floor((range_.stop - 1 - note_value) / 12)
+
             instrument = min(strip_split(current, "/"), key=deviation)
             instrument_range = INSTRUMENT_RANGE[instrument]
             note_value += deviation(instrument)
@@ -554,12 +551,12 @@ class Instrument(
             if note_value in (instrument_range := INSTRUMENT_RANGE[instrument]):
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
 
-        if transpose_value < 0:
-            transpose_str = str(transpose_value)
-        elif transpose_value == 0:
+        if transpose.value < 0:
+            transpose_str = str(transpose.value)
+        elif transpose.value == 0:
             transpose_str = ""
         else:
-            transpose_str = f"+{transpose_value}"
+            transpose_str = f"+{transpose.value}"
         raise ValueError(f"{note_name}{transpose_str} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
@@ -567,7 +564,7 @@ class Instrument(
         self,
         note_name: str,
         *,
-        transpose: T_Positional[tuple[T_AbsoluteTranspose, T_AutoTranspose]],
+        transpose: T_Positional[_TransposeType],
     ) -> T_Positional[NoteBlock | None]:
         if note_name == "r" or _is_empty(self._value) or _is_empty(transpose):
             return self._NULL_VALUE
@@ -697,36 +694,42 @@ class Sustain(
         ) -> T_Positional[int]: ...
 
 
+@dataclass(kw_only=True, frozen=True)
+class _TransposeType:
+    value: int
+    auto: bool
+
+
 class Transpose(
     _PositionalProperty[
-        tuple[T_AbsoluteTranspose, T_AutoTranspose],
+        _TransposeType,
         T_Transpose,
-        tuple[T_AbsoluteTranspose, T_AutoTranspose],
+        _TransposeType,
     ]
 ):
-    _DEFAULT = (0, False)
+    _DEFAULT = _TransposeType(value=0, auto=False)
 
     def _transform_core(self, current, modifier):
-        if isinstance(modifier, T_AutoTranspose):
-            return current[0], modifier
-        if isinstance(modifier, T_AbsoluteTranspose):
-            return modifier, current[1]
+        if isinstance(modifier, bool):
+            return _TransposeType(value=current.value, auto=modifier)
+        if isinstance(modifier, int):
+            return _TransposeType(value=modifier, auto=current.auto)
 
         if modifier.endswith(("?", "!")):
             auto = modifier.endswith("?")
             modifier = modifier[:-1]
         else:
-            auto = current[1]
+            auto = current.auto
 
         if not modifier:
-            value = current[0]
-        elif modifier.startswith("("):
+            value = current.value
+        elif modifier.startswith("{"):
             value = int(modifier[1:-1])
         else:
-            value = current[0] + int(modifier)
+            value = current.value + int(modifier)
 
-        return value, auto
+        return _TransposeType(value=value, auto=auto)
 
     if TYPE_CHECKING:
 
-        def resolve(self) -> T_Positional[tuple[T_AbsoluteTranspose, T_AutoTranspose]]: ...
+        def resolve(self) -> T_Positional[_TransposeType]: ...

@@ -110,8 +110,27 @@ T_RelativeDynamic = T_StaticRelativeDynamic | T_VariableRelativeDynamic
 T_StaticDynamic = T_StaticAbsoluteDynamic | T_StaticRelativeDynamic
 T_VariableDynamic = T_VariableAbsoluteDynamic | T_VariableRelativeDynamic
 T_Dynamic = T_StaticDynamic | T_VariableDynamic
-T_AbsoluteTranspose = int
-T_AutoTranspose = bool
+T_AbsoluteTranspose = (
+    int
+    | Annotated[
+        str,
+        Field(
+            pattern=(
+                "^"
+                "\\{[+-]?\\d+\\}"  # a value in {}
+                "[\\?|!]?"  # ? to turn on auto transpose, ! to turn off, omit to keep the same
+                "$"
+            )
+        ),
+    ]
+)
+T_AutoTranspose = (
+    bool
+    | Annotated[
+        str,
+        Field(pattern="^[\\?!]$"),  # ? to turn on auto transpose, ! to turn off
+    ]
+)
 T_RelativeTranspose = Annotated[
     str,
     Field(
@@ -120,9 +139,6 @@ T_RelativeTranspose = Annotated[
             "[+-]"  # + to raise, - to lower
             "\\d+"  # a value
             "[\\?|!]?"  # ? to turn on auto transpose, ! to turn off, omit to keep the same
-            "|"  # OR
-            "(\\(-?\\d+\\)|\\d*)"  # optionally a value, optionaly in brackets
-            "\\?|!"  # ? to turn on auto transpose, ! to turn off
             "$"
         )
     ),

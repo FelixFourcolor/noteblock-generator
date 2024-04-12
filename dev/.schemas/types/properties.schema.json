@@ -292,31 +292,61 @@
         "$def": {
             "value": {
                 "oneOf": [
-                    { "type": "integer" },
                     {
+                        "description": "Transpose relative to notes written.",
+                        "oneOf": [
+                            { "type": "integer" },
+                            {
+                                "type": "string",
+                                "pattern": "^\\{[+-]?\\d+\\}$"
+                            }
+                        ]
+                    },
+                    {
+
                         "description": "Transpose relative to environment.",
                         "type": "string",
                         "pattern": "^[+-]\\d+$"
                     },
                     {
-                        "description": "Transpose relative to environment, enable auto transpose.",
+                        "description": "Enable auto tranpose.",
+                        "oneOf": [
+                            { "const": true },
+                            {
+                                "type": "string",
+                                "pattern": "^\\?$"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Disable auto tranpose.",
+                        "oneOf": [
+                            { "const": false },
+                            {
+                                "type": "string",
+                                "pattern": "^!$"
+                            }
+                        ]
+                    },
+                    {
+                        "description": "Transpose relative to notes written; enable auto tranpose.",
+                        "type": "string",
+                        "pattern": "^\\{[+-]?\\d+\\}\\?$"
+                    },
+                    {
+                        "description": "Transpose relative to notes written; disable auto tranpose.",
+                        "type": "string",
+                        "pattern": "^\\{[+-]?\\d+\\}!$"
+                    },
+                    {
+                        "description": "Transpose relative to environment; enable auto transpose.",
                         "type": "string",
                         "pattern": "^[+-]\\d+\\?$"
                     },
                     {
-                        "description": "Transpose relative to environment, disable auto-transpose.",
+                        "description": "Transpose relative to environment; disable auto-transpose.",
                         "type": "string",
                         "pattern": "^[+-]\\d+!$"
-                    },
-                    {
-                        "description": "Enable auto tranpose.",
-                        "type": "string",
-                        "pattern": "^(\\(-?\\d+\\)|\\d*)\\?$"
-                    },
-                    {
-                        "description": "Disable auto tranpose.",
-                        "type": "string",
-                        "pattern": "^(\\(-?\\d+\\)|\\d*)!$"
                     },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },
