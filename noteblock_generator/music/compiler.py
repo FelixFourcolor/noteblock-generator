@@ -23,9 +23,8 @@ from .typedefs import T_Delay, T_LevelIndex, T_Tick, T_Tuple, T_Width
 from .utils import transpose
 
 
-def compile(parsed_data: MultiSection):  # noqa: A001
-    # TODO: not working
-    return Compiler().generate(Music(parsed_data))
+def compile(parsed_data: MultiSection, *, cache: T_Data = None) -> T_Data:  # noqa: A001
+    return Compiler(cache=cache).generate(Music(parsed_data))
 
 
 class Unit(T_Tuple[NoteBlock]):
@@ -226,7 +225,8 @@ class ClearBlock:
 
 
 T_Coordinates = tuple[int, int, int]
-T_BlockData = Block | type[GenericBlock] | type[ClearBlock]
+T_Block = Block | type[GenericBlock] | type[ClearBlock]
+T_Data = dict[T_Coordinates, T_Block]
 
 
 class Compiler:
@@ -235,11 +235,11 @@ class Compiler:
 
     __slots__ = ("X", "Y", "Z", "x_dir", "z_dir", "_data", "_cache")
 
-    def __init__(self, *, cache: dict[T_Coordinates, T_BlockData] = None):
+    def __init__(self, *, cache: T_Data = None):
         self.X, self.Y, self.Z = (0, 0, 0)
         self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
 
-        self._data: dict[T_Coordinates, T_BlockData] = {}
+        self._data: T_Data = {}
         self._cache = cache
 
     @property
@@ -262,7 +262,7 @@ class Compiler:
         finally:
             self.X, self.Y, self.Z = original_x, original_y, original_z
 
-    def __setitem__(self, coordinates: T_Coordinates, value: T_BlockData):
+    def __setitem__(self, coordinates: T_Coordinates, value: T_Block):
         with self.localize(*coordinates) as self:
             x, y, z = self.X, self.Y, self.Z
             if (x, y, z) in self._data and value is ClearBlock:
@@ -275,6 +275,7 @@ class Compiler:
             self._data[x, y, z] = self._cache[x, y, z] = value
 
     def generate(self, music: Music):
+        # TODO: not working
         for section in music:
             self.generate_section(section)
         return self._data
