@@ -6,7 +6,7 @@ import re
 from collections import deque
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from itertools import chain, repeat
+from itertools import chain, islice, repeat
 from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Protocol, TypeVar, cast
 
@@ -299,6 +299,10 @@ class _LocalPosition:
         return self
 
 
+def _fix_length(iterable: Iterable[T], *, length: int, fillvalue: T) -> Iterable[T]:
+    return islice(chain(iterable, repeat(fillvalue)), length)
+
+
 class SingleDivisionPosition(
     _LocalPosition,
     _PositionalProperty[
@@ -338,12 +342,8 @@ class SingleDivisionPosition(
             tokens = strip_split(value, ",")
             timed_values = map(split_timedvalue, tokens)
             transformations = map(parse_timed_level, timed_values)
-            main = tuple(chain.from_iterable(transformations))
-            if sustain_duration < len(main):
-                raise ValueError("Incompatible sustain and position")  # TODO: error handling
-
-            padding = repeat("+0", sustain_duration - len(main))
-            return chain(main, padding)
+            result = chain.from_iterable(transformations)
+            return _fix_length(result, length=sustain_duration, fillvalue="+0")
 
         def binary_transform(current: T_StaticAbsoluteLevel, modifier: T_StaticLevel) -> T_StaticAbsoluteLevel:
             if is_typeform(modifier, T_StaticAbsoluteLevel):
@@ -354,10 +354,10 @@ class SingleDivisionPosition(
             return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
-        main = map(transform, transformations)
+        result = map(transform, transformations)
         # 0 is arbitrary, position doesn't matter for notes outside of sustain duration
-        padding = repeat(0, note_duration - sustain_duration)
-        return deque(chain(main, padding))  # must exhaust the iterator to cache the result
+        out = _fix_length(result, length=note_duration, fillvalue=0)
+        return deque(out)  # must exhaust the iterator to cache the result
 
     if TYPE_CHECKING:
 
@@ -438,12 +438,8 @@ class DoubleDivisionPosition(
             tokens = strip_split(value, ",")
             timed_values = map(split_timedvalue, tokens)
             transformations = map(parse_timed_level, timed_values)
-            main = tuple(chain.from_iterable(transformations))
-            if sustain_duration < len(main):
-                raise ValueError("Incompatible sustain and position")  # TODO: error handling
-
-            padding = repeat("+0", sustain_duration - len(main))
-            return chain(main, padding)
+            result = chain.from_iterable(transformations)
+            return _fix_length(result, length=sustain_duration, fillvalue="+0")
 
         def binary_transform(current: T_Index, modifier: T_StaticPosition) -> T_Index:
             if isinstance(current, T_LevelIndex):
@@ -469,10 +465,9 @@ class DoubleDivisionPosition(
             return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
-        main = deque(map(transform, transformations))
+        result = map(transform, transformations)
         # (0, 0) is arbitrary, position doesn't matter for notes outside of sustain duration
-        padding = repeat((0, 0), note_duration - sustain_duration)
-        return chain(main, padding)
+        return _fix_length(result, length=note_duration, fillvalue=(0, 0))
 
     @typed_cache
     def resolve(
@@ -620,12 +615,8 @@ class Dynamic(
             tokens = strip_split(value, ",")
             timed_values = map(split_timedvalue, tokens)
             transformations = map(parse_timed_dynamic, timed_values)
-            main = tuple(chain.from_iterable(transformations))
-            if sustain_duration < len(main):
-                raise ValueError("Incompatible sustain and dynamic")  # TODO: error handling
-
-            padding = repeat("+0", sustain_duration - len(main))
-            return chain(main, padding)
+            result = chain.from_iterable(transformations)
+            return _fix_length(result, length=sustain_duration, fillvalue="+0")
 
         def binary_transform(current: T_StaticAbsoluteDynamic, modifier: T_StaticDynamic) -> T_StaticAbsoluteDynamic:
             if is_typeform(modifier, T_StaticAbsoluteDynamic):
@@ -638,10 +629,10 @@ class Dynamic(
             return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
-        main = map(transform, transformations)
+        result = map(transform, transformations)
         # 0 is arbitrary, dynamic doesn't matter for notes outside of sustain duration
-        padding = repeat(0, note_duration - sustain_duration)
-        return deque(chain(main, padding))  # must exhaust the iterator to cache the result
+        out = _fix_length(result, length=note_duration, fillvalue=0)
+        return deque(out)  # must exhaust the iterator to cache the result
 
     if TYPE_CHECKING:
 
