@@ -77,7 +77,7 @@
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "oneOf": [
+                        "anyOf": [
                             { "$ref": "#" },
                             { "$ref": "../../types/meta.schema.json#/reference" }
                         ]
