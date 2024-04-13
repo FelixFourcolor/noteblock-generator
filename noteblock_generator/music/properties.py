@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Protocol, TypeVar
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .typedefs import (
+    T_AbsoluteCompoundPosition,
     T_AbsoluteDynamic,
     T_AbsoluteLevel,
     T_AbsoluteSustain,
@@ -281,13 +282,10 @@ class GlobalPosition(
 
 
 class _LocalPosition:
+    _DEFAULT: T_Tuple[T_StaticAbsoluteLevel]
+
     def __init__(self, index: T_LevelIndex):
         self._value = self._original_value = self._DEFAULT = (index,)
-
-    def _transform_core(self, current, modifier):
-        if is_typeform(modifier, T_AbsoluteLevel):
-            return (modifier,)
-        return (*current, modifier)
 
     def apply_globals(self, modifier: GlobalPosition):
         self = shallowcopy(self)
@@ -311,6 +309,11 @@ class SingleDivisionPosition(
 ):
     _NULL_VALUE: Iterable[None] = repeat(None)
 
+    def _transform_core(self, current, modifier):
+        if is_typeform(modifier, T_StaticAbsoluteLevel):
+            return (modifier,)
+        return (*current, modifier)
+
     def _resolve_core(
         self,
         current: T_Tuple[T_StaticLevel],
@@ -329,7 +332,7 @@ class SingleDivisionPosition(
                 return repeat(level, duration)
 
             if is_typeform(value, T_StaticLevel):
-                return repeat(value, note_duration)
+                return repeat(value, sustain_duration)
             assert is_typeform(value, T_VariableLevel), value
 
             tokens = strip_split(value, ",")
@@ -348,8 +351,7 @@ class SingleDivisionPosition(
             return current + int(modifier)
 
         def transform(transformation: Iterable[T_StaticLevel]) -> T_StaticAbsoluteLevel:
-            # first element of transformation is guaranteed to be absolute
-            return functools.reduce(binary_transform, transformation)  # pyright: ignore[reportGeneralTypeIssues]
+            return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
         main = map(transform, transformations)
@@ -365,7 +367,7 @@ class SingleDivisionPosition(
             beat: T_Positional[T_Beat],
             sustain_duration: T_Positional[T_Duration],
             note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[Iterable[T_LevelIndex]]: ...
+        ) -> T_Positional[Iterable[T_LevelIndex] | Iterable[None]]: ...
 
 
 class DoubleDivisionPosition(
@@ -383,6 +385,8 @@ class DoubleDivisionPosition(
         assert match is not None, match  # match is guaranteed by T_CompoundPosition type
         division = cast(T_Division, match.group())
         level = value[match.end() :]
+        if not level.startswith(("+", "-")):
+            level = int(level)
         return division, level
 
     def _transform_division(self, current: T_DivisionIndex | None, modifier: T_Division | None):
@@ -401,8 +405,13 @@ class DoubleDivisionPosition(
             return current
         if is_typeform(modifier, T_StaticAbsoluteLevel):
             return modifier
-        assert is_typeform(modifier, T_StaticRelativeLevel)
+        assert is_typeform(modifier, T_StaticRelativeLevel), modifier
         return current + int(modifier)
+
+    def _transform_core(self, current, modifier):
+        if is_typeform(modifier, T_AbsoluteCompoundPosition):
+            return (modifier,)
+        return (*current, modifier)
 
     def _resolve_core(
         self,
@@ -457,8 +466,7 @@ class DoubleDivisionPosition(
             return division, level
 
         def transform(transformation: Iterable[T_StaticPosition]) -> T_Index:
-            # first element of transformation is guaranteed to be absolute
-            return functools.reduce(binary_transform, transformation)  # pyright: ignore[reportGeneralTypeIssues]
+            return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
 
         transformations = transpose(map(parse, current))
         main = deque(map(transform, transformations))
