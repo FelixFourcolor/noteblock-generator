@@ -53,9 +53,12 @@ from .typedefs import (
     T_SingleDivisionVoice,
     T_SingleNote,
     T_StaticAbsoluteDynamic,
+    T_Tick,
     T_TrilledNote,
     T_TrillStyle,
+    T_Tuple,
     T_Voice,
+    T_Width,
 )
 from .utils import (
     is_typeform,
@@ -68,8 +71,139 @@ from .utils import (
 )
 
 
-def parse(rawdata: str) -> MultiSection:
-    return MultiSection.parse(rawdata)  # TODO: error handling
+def parse(src_code: str):
+    return Music(src_code)  # TODO: error handling
+
+
+class Unit(T_Tuple[NoteBlock]):
+    delay: T_Delay
+
+    def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
+        def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
+            for note in notes:
+                if (noteblock := note.noteblock) is not None:
+                    yield noteblock
+
+        self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
+        if len(self) > Dynamic.MAX:
+            raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
+        self.delay = delay
+        return self  # TODO: optimization: not every unit needs to be rendered
+
+    def __bool__(self):
+        return bool(filter(None, self))
+
+
+class SingleDivision(list[list[Unit]]):
+    @classmethod
+    def from_src(cls, sequential_notes: SingleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        def assign_levels(parallel_notes: list[SingleDivisionNote]) -> Iterable[Unit]:
+            delay = parallel_notes[0].delay
+            return (
+                Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
+                for level in range(min_level, max_level + 1)
+            )
+
+        return cls(
+            transpose(map(assign_levels, sequential_notes)),
+            width=sequential_notes.width.resolve(),
+            tick=sequential_notes.tick.resolve(),
+        )
+
+    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
+        self.width = width
+        self.tick = tick
+        self += map(list, sequence)
+
+    @property
+    def length(self):
+        return len(self[0])
+
+    @property
+    def height(self):
+        return len(self)
+
+
+class DoubleDivision(tuple[SingleDivision, SingleDivision]):
+    @classmethod
+    def from_src(cls, sequential_notes: DoubleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
+            delay = parallel_notes[0].delay
+            return (
+                Unit(
+                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
+                    delay=delay,
+                )
+                for level in range(min_level, max_level + 1)
+            )
+
+        def assign_levels_right(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
+            delay = parallel_notes[0].delay
+            return (
+                Unit(
+                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
+                    delay=delay,
+                )
+                for level in range(min_level, max_level + 1)
+            )
+
+        width = sequential_notes.width.resolve()
+        tick = sequential_notes.tick.resolve()
+        left_division = SingleDivision(transpose(map(assign_levels_left, sequential_notes)), width=width, tick=tick)
+        right_division = SingleDivision(transpose(map(assign_levels_right, sequential_notes)), width=width, tick=tick)
+
+        return cls((left_division, right_division))
+
+    @property
+    def width(self):
+        return self[0].width
+
+    @property
+    def tick(self):
+        return self[0].tick
+
+    @property
+    def length(self):
+        return self[0].length
+
+    @property
+    def height(self):
+        return self[0].height
+
+
+T_Subsection = SingleDivision | DoubleDivision
+
+
+class Section(list[T_Subsection]):
+    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        # TODO: initial padding
+        for subsection in src:
+            if isinstance(subsection, SingleDivisionSection):
+                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+            else:
+                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+
+        self.length = sum(subsection.length for subsection in self)
+        self.height = self[0].height
+
+
+class Music(list[Section]):
+    def __init__(self, src_code: str):
+        validated_data = TypeAdapter(T_Section).validate_json(src_code)
+        parsed_data = MultiSection.subsection(_DefaultEnvironment(), 0, validated_data)
+
+        sections = [[parsed_data]] if isinstance(parsed_data, SingleSection) else parsed_data
+        levels = tuple(chain.from_iterable(subsection.levels_iter() for section in sections for subsection in section))
+        if levels:
+            min_level, max_level = min(levels), max(levels)
+        else:
+            min_level = max_level = 0
+
+        for section in sections:
+            self.append(Section(section, min_level=min_level, max_level=max_level))
+
+        self.length = sum(section.length for section in self)
+        self.height = self[0].height
 
 
 class _GlobalEnvironment(Protocol):
@@ -120,7 +254,7 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class _BaseMultiSection(_BaseSection, Iterable["CompoundSection"]):
+class MultiSection(_BaseSection, Iterable["CompoundSection"]):
     def __init__(self, index: int, src: T_MultiSection, env: _GlobalEnvironment):
         super().__init__(index, src, env)
         self.continuous = env.continuous.transform(src.continuous)
@@ -137,12 +271,12 @@ class _BaseMultiSection(_BaseSection, Iterable["CompoundSection"]):
             else:
                 yield from subsection
 
-    def subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | _BaseMultiSection:
+    def subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | MultiSection:
         if isinstance(src, T_SingleDivisionSection):
             return SingleDivisionSection(index, src, self)
         if isinstance(src, T_DoubleDivisionSection):
             return DoubleDivisionSection(index, src, self)
-        return _BaseMultiSection(index, src, self)
+        return MultiSection(index, src, self)
 
 
 def _process_voices(voices: Iterable[Voice]):
@@ -197,23 +331,6 @@ class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
 
 SingleSection = SingleDivisionSection | DoubleDivisionSection
 CompoundSection = list[SingleSection]
-
-
-class MultiSection(list[CompoundSection]):
-    min_level: int
-    max_level: int
-
-    @classmethod
-    def parse(cls, rawdata: str) -> MultiSection:
-        validated_data = TypeAdapter(T_Section).validate_json(rawdata)
-        parsed_data = _BaseMultiSection.subsection(_DefaultEnvironment(), 0, validated_data)
-        self = cls([[parsed_data]] if isinstance(parsed_data, SingleSection) else parsed_data)
-
-        if levels := tuple(chain.from_iterable(subsection.levels_iter() for section in self for subsection in section)):
-            self.min_level, self.max_level = min(levels), max(levels)
-        else:
-            self.min_level = self.max_level = 0
-        return self
 
 
 class _BaseVoice:

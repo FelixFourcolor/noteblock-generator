@@ -14,7 +14,7 @@ def compile(src: str):  # noqa: A001
     if (out := cache.get()) is not None:
         return out
 
-    out = compiler.compile(parser.parse(src_code))  # TODO: error handling
+    out = compiler.compile(parser.parse(src_code))
     cache.save(out)
     return out
 

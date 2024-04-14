@@ -4,153 +4,16 @@ from contextlib import contextmanager
 from enum import Enum
 from functools import singledispatchmethod
 from itertools import pairwise
-from typing import Iterable, Literal, final
+from typing import Literal
 
 from multimethod import multidispatch
 
-from .parser import (
-    CompoundSection,
-    DoubleDivisionNote,
-    DoubleDivisionSection,
-    MultiSection,
-    Note,
-    NoteBlock,
-    SingleDivisionNote,
-    SingleDivisionSection,
-)
-from .properties import Dynamic
-from .typedefs import T_Delay, T_LevelIndex, T_Tick, T_Tuple, T_Width
-from .utils import transpose
+from .parser import DoubleDivision, Music, NoteBlock, Section, SingleDivision, T_Subsection, Unit
+from .typedefs import T_Delay, T_Width
 
 
-def compile(parsed_data: MultiSection, *, cache: T_Data = None) -> T_Data:  # noqa: A001
-    return Compiler(cache=cache).generate(Music(parsed_data))
-
-
-class Unit(T_Tuple[NoteBlock]):
-    delay: T_Delay
-
-    def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
-        def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
-            for note in notes:
-                if (noteblock := note.noteblock) is not None:
-                    yield noteblock
-
-        self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
-        if len(self) > Dynamic.MAX:
-            raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
-        self.delay = delay
-        return self  # TODO: optimization: not every unit needs to be rendered
-
-    def __bool__(self):
-        return bool(filter(None, self))
-
-
-class SingleDivision(list[list[Unit]]):
-    @classmethod
-    def from_src(cls, sequential_notes: SingleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        def assign_levels(parallel_notes: list[SingleDivisionNote]) -> Iterable[Unit]:
-            # parser guarantees that:
-            #    - all parallel notes have at least one element
-            #    - all parallel notes' delays are equal
-            delay = parallel_notes[0].delay
-
-            return (
-                Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
-                for level in range(min_level, max_level + 1)
-            )
-
-        return cls(
-            transpose(map(assign_levels, sequential_notes)),
-            width=sequential_notes.width.resolve(),
-            tick=sequential_notes.tick.resolve(),
-        )
-
-    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
-        self.width = width
-        self.tick = tick
-        self += map(list, sequence)
-
-    @property
-    def length(self):
-        return len(self[0])
-
-    @property
-    def height(self):
-        return len(self)
-
-
-class DoubleDivision(tuple[SingleDivision, SingleDivision]):
-    @classmethod
-    def from_src(cls, sequential_notes: DoubleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
-            # see comment in SingleDivision counterpart
-            delay = parallel_notes[0].delay
-            return (
-                Unit(
-                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
-                    delay=delay,
-                )
-                for level in range(min_level, max_level + 1)
-            )
-
-        def assign_levels_right(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
-            delay = parallel_notes[0].delay
-            return (
-                Unit(
-                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
-                    delay=delay,
-                )
-                for level in range(min_level, max_level + 1)
-            )
-
-        width = sequential_notes.width.resolve()
-        tick = sequential_notes.tick.resolve()
-        left_division = SingleDivision(transpose(map(assign_levels_left, sequential_notes)), width=width, tick=tick)
-        right_division = SingleDivision(transpose(map(assign_levels_right, sequential_notes)), width=width, tick=tick)
-
-        return cls((left_division, right_division))
-
-    @property
-    def width(self):
-        return self[0].width
-
-    @property
-    def tick(self):
-        return self[0].tick
-
-    @property
-    def length(self):
-        return self[0].length
-
-    @property
-    def height(self):
-        return self[0].height
-
-
-T_Subsection = SingleDivision | DoubleDivision
-
-
-class Section(list[T_Subsection]):
-    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        # TODO: initial padding
-        for subsection in src:
-            if isinstance(subsection, SingleDivisionSection):
-                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
-            else:
-                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
-
-        self.length = sum(subsection.length for subsection in self)
-        self.height = self[0].height
-
-
-class Music(list[Section]):
-    def __init__(self, src: MultiSection):
-        for section in src:
-            self.append(Section(section, min_level=src.min_level, max_level=src.max_level))
-
-        self.length = sum(section.length for section in self)
-        self.height = self[0].height
+def compile(music: Music) -> T_Data:  # noqa: A001
+    return Compiler().generate(music)
 
 
 class Direction(tuple[int, int], Enum):
@@ -175,6 +38,9 @@ class Direction(tuple[int, int], Enum):
 
 
 class Block:
+    Clear: Literal[0] = 0
+    Generic: Literal[1] = 1
+
     def __init__(self, name: str, **properties):
         self.name = name
         self.properties = properties
@@ -182,7 +48,7 @@ class Block:
     @classmethod
     def NoteBlock(cls, noteblock: NoteBlock | None):
         if noteblock is None:
-            return cls.Clear()
+            return cls.Clear
         return cls("note_block", note=noteblock.note, instrument=noteblock.instrument)
 
     @classmethod
@@ -198,34 +64,12 @@ class Block:
         # Only allow connecting sideways, because that's all we need for this build
         return cls("redstone_wire", **{Direction(i).name: "side" for i in connections})
 
-    @classmethod
-    def Glass(cls):
-        return cls("glass")
-
-    @classmethod
-    def Generic(cls):
-        return GenericBlock
-
-    @classmethod
-    def Clear(cls):
-        return ClearBlock
-
     def __eq__(self, other: object):
         return isinstance(other, Block) and self.name == other.name and self.properties == other.properties
 
 
-@final
-class GenericBlock:
-    pass
-
-
-@final
-class ClearBlock:
-    pass
-
-
 T_Coordinates = tuple[int, int, int]
-T_Block = Block | type[GenericBlock] | type[ClearBlock]
+T_Block = Block | Literal[0, 1]
 T_Data = dict[T_Coordinates, T_Block]
 
 
@@ -233,14 +77,12 @@ class Compiler:
     # TODO: handle multiple widths
     # TODO: implement tick
 
-    __slots__ = ("X", "Y", "Z", "x_dir", "z_dir", "_data", "_cache")
+    __slots__ = ("X", "Y", "Z", "x_dir", "z_dir", "_data")
 
-    def __init__(self, *, cache: T_Data = None):
+    def __init__(self):
         self.X, self.Y, self.Z = (0, 0, 0)
         self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
-
         self._data: T_Data = {}
-        self._cache = cache
 
     @property
     def z_i(self) -> Literal[1, -1]:
@@ -264,15 +106,9 @@ class Compiler:
 
     def __setitem__(self, coordinates: T_Coordinates, value: T_Block):
         with self.localize(*coordinates) as self:
-            x, y, z = self.X, self.Y, self.Z
-            if (x, y, z) in self._data and value is ClearBlock:
+            if (self.X, self.Y, self.Z) in self._data and value == Block.Clear:
                 return
-            if self._cache is None:
-                self._data[x, y, z] = value
-                return
-            if (x, y, z) in self._cache and self._cache[x, y, z] == value:
-                return
-            self._data[x, y, z] = self._cache[x, y, z] = value
+            self._data[self.X, self.Y, self.Z] = value
 
     def generate(self, music: Music):
         # TODO: not working
@@ -349,9 +185,9 @@ class Compiler:
     ROW_BRIDGE = (0, 1), (0, 2), (1, 2), (2, 2), (2, 1), (3, 1), (4, 1), (4, 0)
 
     def generate_unit(self, unit: Unit, *, mode: Literal["normal", "end_of_row", "end_of_section"]):
-        self[0, -1, 0] = Block.Generic()
-        self[0, 1, 0] = Block.Generic()
-        self[0, 1, 1] = Block.Generic()
+        self[0, -1, 0] = Block.Generic
+        self[0, 1, 0] = Block.Generic
+        self[0, 1, 1] = Block.Generic
         self[0, 0, 0] = Block.Redstone()
 
         unit_iter = iter(unit)
@@ -393,23 +229,23 @@ class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
 
     def _clear_space(self):
         for x, y, z in self:
-            self._compiler[x + 1, y, z] = ClearBlock
-            self._compiler[x - 1, y, z] = ClearBlock
-            self._compiler[x, y + 1, z] = ClearBlock
-            self._compiler[x, y, z + 1] = ClearBlock
-            self._compiler[x, y, z - 1] = ClearBlock
+            self._compiler[x + 1, y, z] = Block.Clear
+            self._compiler[x - 1, y, z] = Block.Clear
+            self._compiler[x, y + 1, z] = Block.Clear
+            self._compiler[x, y, z + 1] = Block.Clear
+            self._compiler[x, y, z - 1] = Block.Clear
 
     def _generate_base(self):
         coordinates = tuple(self)
-        self._compiler[coordinates[0]] = Block.Generic()
+        self._compiler[coordinates[0]] = Block.Generic
         for (this_x, this_y, this_z), (next_x, next_y, next_z) in pairwise(coordinates):
             if this_y > next_y:
-                self._compiler[next_x, next_y - 1, next_z] = Block.Glass()
+                self._compiler[next_x, next_y - 1, next_z] = Block("glass")
             elif this_y < next_y:
-                self._compiler[this_x, this_y - 1, this_z] = Block.Glass()
-                self._compiler[next_x, next_y - 1, next_z] = Block.Generic()
+                self._compiler[this_x, this_y - 1, this_z] = Block("glass")
+                self._compiler[next_x, next_y - 1, next_z] = Block.Generic
             else:
-                self._compiler[next_x, next_y - 1, next_z] = Block.Generic()
+                self._compiler[next_x, next_y - 1, next_z] = Block.Generic
 
     def _generate_redstones(self):
         if len(self) >= 3:
