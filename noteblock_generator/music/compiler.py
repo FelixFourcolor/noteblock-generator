@@ -111,9 +111,12 @@ class Compiler:
             self._data[self.X, self.Y, self.Z] = value
 
     def generate(self, music: Music):
-        # TODO: not working
+        x = self.X
         for section in music:
-            self.generate_section(section)
+            with self.localize() as self:
+                self.generate_section(section)
+                x = self.X
+            self.X = x + 4
         return self._data
 
     def generate_section(self, section: Section):
@@ -127,12 +130,12 @@ class Compiler:
 
     @generate_subsection.register
     def _(self, subsection: SingleDivision):
-        X, Z = self.X, self.Z
+        x, z = self.X, self.Z
         for i, level in enumerate(subsection):
             with self.localize(y=2 * i) as self:
                 self.generate_level(level, width=subsection.width)
-                X, Z = self.X, self.Z
-        self.X, self.Z = X, Z
+                x, z = self.X, self.Z
+        self.X, self.Z = x, z
 
     @generate_subsection.register
     def _(self, subsection: DoubleDivision):
