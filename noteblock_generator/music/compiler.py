@@ -154,9 +154,9 @@ class Compiler:
     @generate_subsections_bridge.register
     def _(self, from_: SingleDivision, to_: SingleDivision):
         x, z = self.X, self.Z
-        for i, _ in enumerate(from_):
+        for i, row in enumerate(from_):
             with self.localize(y=2 * i) as self:
-                self.generate_rows_bridge()
+                self.generate_rows_bridge(delay=row[-1].delay)
                 x, z = self.X, self.Z
         self.X, self.Z = x, z
 
@@ -201,21 +201,21 @@ class Compiler:
             self[0, 1, 1] = Block.Repeater(delay=unit.delay, direction=self.z_dir)
             self.Z += self.z_i * 2
         elif mode == "end_of_row":
-            self.generate_rows_bridge()
+            self.generate_rows_bridge(delay=unit.delay)
 
-    def generate_rows_bridge(self):
+    def generate_rows_bridge(self, *, delay: T_Delay):
         with Circuit(self) as circuit:
             for x, z in self.ROW_BRIDGE[:-1]:
                 circuit[x, 1, z] = "wire"
             x, z = self.ROW_BRIDGE[-1]
-            circuit[x, 1, z] = "repeater"
+            circuit[x, 1, z] = delay
 
         self.z_i *= -1
         self.X += x
         self.Z += self.z_i * (z + 1)
 
 
-class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
+class Circuit(dict[T_Coordinates, Literal["wire"] | T_Delay]):
     # The series of redstones is assumed to form a valid circuit, there are no runtime checks.
 
     def __init__(self, compiler: Compiler):
@@ -259,43 +259,43 @@ class Circuit(dict[T_Coordinates, Literal["wire", "repeater"]]):
             self.__generate_redstones_case_1()
 
     def __generate_redstones_case_1(self):
-        coordinates, redstone = next(iter(self.items()))
-        if redstone == "wire":
+        coordinates, value = next(iter(self.items()))
+        if value == "wire":
             self._compiler[coordinates] = Block.Redstone()
         else:
-            self._compiler[coordinates] = Block.Repeater(delay=1, direction=self._compiler.z_dir)
+            self._compiler[coordinates] = Block.Repeater(delay=value, direction=self._compiler.z_dir)
 
     def __generate_redstones_case_2(self):
         coordinates_1, coordinates_2 = self.keys()
         direction = Direction((coordinates_2[0] - coordinates_1[0], coordinates_2[2] - coordinates_1[2]))
-        for coordinates, redstone in self.items():
-            if redstone == "wire":
+        for coordinates, value in self.items():
+            if value == "wire":
                 self._compiler[coordinates] = Block.Redstone(direction)
             else:
-                self._compiler[coordinates] = Block.Repeater(delay=1, direction=direction)
+                self._compiler[coordinates] = Block.Repeater(delay=value, direction=direction)
 
     def __generate_redstones_case_3(self):
         circuit = tuple(self.items())
 
         for i in range(len(circuit) - 2):
-            (coordinates_1, redstone_1), (coordinates_2, redstone_2), (coordinates_3, redstone_3) = circuit[i : i + 3]
+            (coordinates_1, value_1), (coordinates_2, value_2), (coordinates_3, value_3) = circuit[i : i + 3]
             direction_12 = Direction((coordinates_2[0] - coordinates_1[0], coordinates_2[2] - coordinates_1[2]))
             direction_23 = Direction((coordinates_3[0] - coordinates_2[0], coordinates_3[2] - coordinates_2[2]))
 
             if i == 0:
-                if redstone_1 == "wire":
+                if value_1 == "wire":
                     self._compiler[coordinates_1] = Block.Redstone(direction_12)
                 else:
-                    self._compiler[coordinates_1] = Block.Repeater(delay=1, direction=direction_12)
+                    self._compiler[coordinates_1] = Block.Repeater(delay=value_1, direction=direction_12)
                 continue
 
-            if redstone_2 == "wire":
+            if value_2 == "wire":
                 self._compiler[coordinates_2] = Block.Redstone(-direction_12, direction_23)
             else:
-                self._compiler[coordinates_2] = Block.Repeater(delay=1, direction=direction_23)
+                self._compiler[coordinates_2] = Block.Repeater(delay=value_2, direction=direction_23)
 
             if i + 3 == len(circuit):
-                if redstone_3 == "wire":
+                if value_3 == "wire":
                     self._compiler[coordinates_3] = Block.Redstone(direction_23)
                 else:
-                    self._compiler[coordinates_3] = Block.Repeater(delay=1, direction=direction_23)
+                    self._compiler[coordinates_3] = Block.Repeater(delay=value_3, direction=direction_23)
