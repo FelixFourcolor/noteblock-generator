@@ -518,7 +518,7 @@ class Instrument(
         current: T_Instrument,
         note_name: str,
         transpose: _TransposeType,
-    ) -> NoteBlock:
+    ) -> NoteBlock | None:
         def parse_relative_octave(note_name: str, default_octave: int) -> tuple[str, int]:
             if note_name.endswith("^"):
                 note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
@@ -553,14 +553,6 @@ class Instrument(
         for instrument in strip_split(current, "/"):
             if note_value in (instrument_range := INSTRUMENT_RANGE[instrument]):
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
-
-        if transpose.value < 0:
-            transpose_str = str(transpose.value)
-        elif transpose.value == 0:
-            transpose_str = ""
-        else:
-            transpose_str = f"+{transpose.value}"
-        raise ValueError(f"{note_name}{transpose_str} is out of range for {current}")  # TODO: error handling
 
     @typed_cache
     def resolve(

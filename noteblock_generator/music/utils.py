@@ -69,10 +69,7 @@ def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
     if duration.startswith("-"):
         return -parse_duration(duration[1:], beat=beat)
     if duration.endswith("."):
-        tmp = parse_duration(duration[:-1], beat=beat)
-        if (out := int(tmp * 1.5)) == tmp * 1.5:
-            return out
-        raise ValueError("Cannot apply dotted rhythm to this note")  # TODO: error handling
+        return int(1.5 * parse_duration(duration[:-1], beat=beat))
     if duration.endswith("b"):
         return beat * int(duration[:-1])
     return int(duration)
