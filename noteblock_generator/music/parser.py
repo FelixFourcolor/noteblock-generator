@@ -461,8 +461,6 @@ class _BaseVoice:
 
     def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock | None]]:
         note, duration = self._parse_note(src)
-        if duration <= 0:
-            raise ValueError("Note duration must be positive")  # TODO error handling
         return repeat(note, duration)
 
     def _resolve_multiple_notes(self, _note: T_MultipleNotes):
