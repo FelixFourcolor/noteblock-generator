@@ -58,7 +58,7 @@ T_Instrument = Annotated[
         )
     ),
 ]
-T_StaticAbsoluteDynamic = Annotated[int, Field(ge=0, le=4)]
+T_StaticAbsoluteDynamic = Annotated[int, Field(ge=0, le=6)]
 T_VariableAbsoluteDynamic = Annotated[
     str,
     Field(
@@ -93,8 +93,8 @@ T_VariableRelativeDynamic = Annotated[
         pattern=(
             "^"
             "("  # begin repeat
-            "[+-]?"  # optionally relative: + to raise, - to lower
-            "[0-4]"  # a value from 0 to 6
+            "[+-]?"  # optional: + to raise, - to lower
+            "[0-6]"  # a value from 0 to 6
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
