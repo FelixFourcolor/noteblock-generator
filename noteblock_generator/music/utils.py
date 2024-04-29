@@ -1,22 +1,14 @@
 from __future__ import annotations
 
 import re
-from functools import cache, partial
+from functools import partial
 from itertools import repeat
-from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
+from typing import Any, Callable, Iterable, Iterator, TypeVar
 
-from pydantic import TypeAdapter, ValidationError
-
-from .typedefs import T_Beat, T_Duration, T_MultiValue, T_Positional
+from .typedefs import T_Beat, T_Duration, T_MultiValue, T_Positional, typed_cache
 
 T = TypeVar("T")
 CT = TypeVar("CT", bound=Callable)
-
-
-def typed_cache(func: CT) -> CT:
-    if TYPE_CHECKING:
-        return func
-    return cache(func)
 
 
 def multivalue_flatten(nested_iterable: Iterable[T_Positional[T]]) -> T_MultiValue[T]:
@@ -28,16 +20,6 @@ def multivalue_flatten(nested_iterable: Iterable[T_Positional[T]]) -> T_MultiVal
                 yield i
 
     return T_MultiValue(flatten_core())
-
-
-@typed_cache
-def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
-    try:
-        TypeAdapter(typeform).validate_python(obj, strict=strict)
-    except ValidationError:
-        return False
-    else:
-        return True
 
 
 @typed_cache
@@ -79,7 +61,7 @@ def strip_split(string: str, delimiter: str):
     return filter(None, map(str.strip, string.split(delimiter)))
 
 
-def positional_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
+def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
     single_kwargs = {k: v for k, v in kwargs.items() if type(v) is not T_MultiValue}
     multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
     zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))

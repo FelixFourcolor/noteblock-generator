@@ -6,22 +6,21 @@ from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
-from typing import Iterable, Iterator, Protocol, cast
+from typing import Iterable, Iterator, Literal, Protocol, overload
 
 from pydantic import TypeAdapter
 
 from .properties import (
     Beat,
-    Continuous,
     Delay,
-    DoubleDivisionPosition,
     Dynamic,
-    GlobalPosition,
     Instrument,
     Name,
     NoteBlock,
-    SingleDivisionPosition,
+    Position,
     Sustain,
+    T_LevelIndex,
+    T_PositionIndex,
     Tick,
     Time,
     Transpose,
@@ -31,13 +30,9 @@ from .properties import (
 from .typedefs import (
     T_BarDelimiter,
     T_CompoundNote,
+    T_CompoundSection,
     T_Delay,
-    T_DoubleDivisionSection,
-    T_DoubleDivisionVoice,
-    T_DoubleIndex,
     T_Duration,
-    T_Index,
-    T_LevelIndex,
     T_MultipleNotes,
     T_MultiSection,
     T_MultiValue,
@@ -47,199 +42,113 @@ from .typedefs import (
     T_ParallelNotes,
     T_Positional,
     T_Rest,
-    T_Section,
     T_SequentialNotes,
-    T_SingleDivisionSection,
-    T_SingleDivisionVoice,
     T_SingleNote,
+    T_SingleSection,
     T_StaticAbsoluteDynamic,
-    T_Tick,
     T_TrilledNote,
     T_TrillStyle,
-    T_Tuple,
     T_Voice,
-    T_Width,
-)
-from .utils import (
     is_typeform,
-    multivalue_flatten,
-    parse_duration,
-    positional_map,
-    split_timedvalue,
-    strip_split,
-    transpose,
 )
+from .utils import multivalue_flatten, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
 
 
 def parse(src_code: str):
-    return Music(src_code)  # TODO: error handling
+    validated_src_code = TypeAdapter(T_MultiSection).validate_json(src_code)
+
+    class _DefaultEnvironment:
+        name = Name()
+        width = Width()
+        time = Time()
+        delay = Delay()
+        beat = Beat()
+        tick = Tick()
+        trill_style = TrillStyle()
+        position = Position()
+        instrument = Instrument()
+        dynamic = Dynamic()
+        sustain = Sustain()
+        transpose = Transpose()
+
+    return MultiSection(0, validated_src_code, _DefaultEnvironment)
 
 
-class Unit(T_Tuple[NoteBlock]):
+@dataclass(kw_only=True, slots=True)
+class Note:
+    # run-time-significant attributes
+    noteblock: NoteBlock | None
     delay: T_Delay
-
-    def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
-        def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
-            for note in notes:
-                if (noteblock := note.noteblock) is not None:
-                    yield noteblock
-
-        self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
-        if len(self) > Dynamic.MAX:
-            raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
-        self.delay = delay
-        return self  # TODO: optimization: not every unit needs to be rendered
-
-    def __bool__(self):
-        return bool(filter(None, self))
-
-
-class SingleDivision(list[list[Unit]]):
-    @classmethod
-    def from_src(cls, sequential_notes: SingleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        def assign_levels(parallel_notes: list[SingleDivisionNote]) -> Iterable[Unit]:
-            delay = parallel_notes[0].delay
-            return (
-                Unit(filter(lambda note: note.position == level, parallel_notes), delay=delay)
-                for level in range(min_level, max_level + 1)
-            )
-
-        return cls(
-            transpose(map(assign_levels, sequential_notes)),
-            width=sequential_notes.width.resolve(),
-            tick=sequential_notes.tick.resolve(),
-        )
-
-    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
-        self.width = width
-        self.tick = tick
-        self += map(list, sequence)
+    position: T_PositionIndex
+    # for error message only
+    voice: str
+    where: tuple[int, int]
 
     @property
-    def length(self):
-        return len(self[0])
+    def division(self):
+        if self.position is not None:
+            return self.position[0]
 
     @property
-    def height(self):
-        return len(self)
+    def level(self):
+        if self.position is not None:
+            return self.position[1]
+
+    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
+        if self.noteblock is None or dynamic == 0:
+            dynamic = 1
+            # no need to copy, we only __mul__ a freshly-created note
+            self.noteblock = self.position = None
+        return repeat(self, dynamic)
+
+    def __repr__(self):
+        return f"{self.voice}@{self.where}"
 
 
-class DoubleDivision(tuple[SingleDivision, SingleDivision]):
-    @classmethod
-    def from_src(cls, sequential_notes: DoubleDivisionSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        def assign_levels_left(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
-            delay = parallel_notes[0].delay
-            return (
-                Unit(
-                    filter(lambda note: note.position[0] == 0 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
-                    delay=delay,
-                )
-                for level in range(min_level, max_level + 1)
-            )
+class Chord(list[Note]):
+    def __init__(self, src: Iterator[Note]):
+        first = next(src)  # every chord is guaranteed to have at least one note (see _Note.__mul__)
+        self.append(first)
+        self.delay = first.delay
+        for note in src:
+            if first.where != note.where:
+                raise ValueError(f"inconsistent placements: {first} & {note}")
+            if self.delay < note.delay:
+                self.delay = note.delay
+            self.append(note)
 
-        def assign_levels_right(parallel_notes: list[DoubleDivisionNote]) -> Iterable[Unit]:
-            delay = parallel_notes[0].delay
-            return (
-                Unit(
-                    filter(lambda note: note.position[0] == 1 and note.position[1] == level, parallel_notes),  # type: ignore # pyright bug # noqa: PGH003
-                    delay=delay,
-                )
-                for level in range(min_level, max_level + 1)
-            )
-
-        width = sequential_notes.width.resolve()
-        tick = sequential_notes.tick.resolve()
-        left_division = SingleDivision(transpose(map(assign_levels_left, sequential_notes)), width=width, tick=tick)
-        right_division = SingleDivision(transpose(map(assign_levels_right, sequential_notes)), width=width, tick=tick)
-
-        return cls((left_division, right_division))
-
-    @property
-    def width(self):
-        return self[0].width
-
-    @property
-    def tick(self):
-        return self[0].tick
-
-    @property
-    def length(self):
-        return self[0].length
-
-    @property
-    def height(self):
-        return self[0].height
-
-
-T_Subsection = SingleDivision | DoubleDivision
-
-
-class Section(list[T_Subsection]):
-    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
-        # TODO: initial padding
-        for subsection in src:
-            if isinstance(subsection, SingleDivisionSection):
-                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
-            else:
-                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
-
-        self.length = sum(subsection.length for subsection in self)
-        self.height = self[0].height
-
-
-class Music(list[Section]):
-    def __init__(self, src_code: str):
-        validated_data = TypeAdapter(T_Section).validate_json(src_code)
-        parsed_data = MultiSection.subsection(_DefaultEnvironment(), 0, validated_data)
-
-        sections = [[parsed_data]] if isinstance(parsed_data, SingleSection) else parsed_data
-        levels = tuple(chain.from_iterable(subsection.levels_iter() for section in sections for subsection in section))
-        if levels:
-            min_level, max_level = min(levels), max(levels)
+        if all(note.position is None for note in self):
+            self.type: Literal["single", "double", None] = None
+        elif all(is_typeform(note.position, tuple[None, T_LevelIndex]) for note in self):
+            self.type = "single"
         else:
-            min_level = max_level = 0
+            self.type = "double"
+            for note in self[:]:
+                if is_typeform(note.position, tuple[None, T_LevelIndex]):
+                    copy = shallowcopy(note)
+                    level = note.position[1]
+                    note.position = (0, level)
+                    copy.position = (1, level)
+                    self.append(copy)
 
-        for section in sections:
-            self.append(Section(section, min_level=min_level, max_level=max_level))
 
-        self.length = sum(section.length for section in self)
-        self.height = self[0].height
-
-
-class _GlobalEnvironment(Protocol):
+class _Environment(Protocol):
     name: Name
     width: Width
-    continuous: Continuous
     time: Time
     delay: Delay
     beat: Beat
     tick: Tick
     trill_style: TrillStyle
-    position: GlobalPosition
+    position: Position
     instrument: Instrument
     dynamic: Dynamic
     sustain: Sustain
     transpose: Transpose
 
 
-class _DefaultEnvironment:
-    name = Name()
-    width = Width()
-    continuous = Continuous()
-    time = Time()
-    delay = Delay()
-    beat = Beat()
-    tick = Tick()
-    trill_style = TrillStyle()
-    position = GlobalPosition()
-    instrument = Instrument()
-    dynamic = Dynamic()
-    sustain = Sustain()
-    transpose = Transpose()
-
-
 class _BaseSection:
-    def __init__(self, index: int, src: T_Section, env: _GlobalEnvironment):
+    def __init__(self, index: int | tuple[int, int], src: T_SingleSection | T_MultiSection, env: _Environment):
         self.name = env.name.transform(index, src)
         self.time = env.time.transform(src.time)
         self.width = env.width.transform(self.time.resolve(), src.width)
@@ -254,103 +163,138 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class MultiSection(_BaseSection, Iterable["CompoundSection"]):
-    def __init__(self, index: int, src: T_MultiSection, env: _GlobalEnvironment):
+class SingleSection(_BaseSection, list[Chord]):
+    def __init__(self, index: int | tuple[int, int], src: T_SingleSection, env: _Environment):
         super().__init__(index, src, env)
-        self.continuous = env.continuous.transform(src.continuous)
-        self._sections = (self.subsection(index, src_subsection) for index, src_subsection in enumerate(src.sections))
+        voices = multivalue_flatten(
+            multivalue_map(Voice, i, voice, self)  #
+            for i, voice in enumerate(src.voices)
+            if voice is not None
+        )
+        # voices are not necesarily of equal length, pad them with empty notes
+        merged_voice = map(chain.from_iterable, zip_longest(*voices, fillvalue=()))
+        self += map(Chord, merged_voice)
 
-    def __iter__(self) -> Iterator[CompoundSection]:
-        # flatten nested sections,
-        # organize into lists of continuous sections (compound sections)
-        for subsection in self._sections:
-            if isinstance(subsection, SingleSection):
-                yield [subsection]
-            elif subsection.continuous.resolve():
-                yield list(chain(*subsection))
+    @overload
+    def __getitem__(self, key: int) -> Chord: ...
+    @overload
+    def __getitem__(self, key: slice) -> SingleSection: ...
+    def __getitem__(self, key: int | slice) -> Chord | SingleSection:
+        if isinstance(key, int):
+            return super().__getitem__(key)
+
+        assert key.step is None
+        out = shallowcopy(self)
+        if key.start is not None:
+            del out[: key.start]
+        if key.stop is not None:
+            del out[key.stop :]
+        return out
+
+    def split(self, index: int) -> SingleSection:
+        other = shallowcopy(self)
+        del self[:index]
+        del other[index:]
+        return other
+
+    @property
+    def type(self):
+        for chord in self:
+            if typ := chord.type:
+                return typ
+        raise Exception("not happening")
+
+    def level_iter(self) -> Iterator[T_LevelIndex]:
+        for chord in self:
+            for note in chord:
+                if (level := note.level) is not None:
+                    yield level
+
+
+class CompoundSection(list[SingleSection]):
+    def __init__(self, index: int, src: T_CompoundSection, env: _Environment):
+        if isinstance(src, T_SingleSection):
+            self.append(SingleSection(index, src, env))
+        else:
+            for i, subsection in enumerate(src):
+                self._merge(SingleSection((index, i), subsection, env))
+
+    def _merge(self, section: SingleSection):
+        subsections = self._split(section)
+
+        if len(self) == 0:
+            self += subsections
+            return
+
+        before = self[-1]
+        after = subsections.pop(0)
+        if (
+            before.width != after.width
+            or before.tick != after.tick
+            or None is not before.type != after.type is not None
+        ):  # if before and after are imcompatible
+            self.append(after)  # add a new subsection
+        else:
+            before.extend(after)  # otherwise extend the previous one
+        self += subsections
+
+    def _split(self, section: SingleSection):
+        def _split_core(section: SingleSection, *, index__: int) -> list[SingleSection]:
+            out = [section]
+
+            if len(section) < 2:
+                return out
+
+            if len(section) == 2:
+                if None is not section[0].type != section[1].type is not None:
+                    out.append(section.split(1))
+                return out
+
+            before, this, after = section[:3]
+            index__ += 1
+            if None is not before.type != this.type is not None:
+                out.append(section.split(index__))
+            elif this.type is None and (None is not before.type != after.type is not None):
+                if index__ % width:
+                    out.append(section.split(index__))
+                else:
+                    out.append(section.split(index__ + 1))
+            return out + _split_core(section[1:], index__=index__)
+
+        width = section.width.resolve()
+        return _split_core(section, index__=0)
+
+
+class MultiSection(_BaseSection, list[CompoundSection]):
+    def __init__(self, base_index: int, src: T_MultiSection, env: _Environment):
+        super().__init__(base_index, src, env)
+        self.current_index = 0
+        for section in src.sections:
+            if isinstance(section, T_MultiSection):
+                subsection = MultiSection(base_index + self.current_index, section, self)
+                self += subsection
+                self.current_index = subsection.current_index
             else:
-                yield from subsection
-
-    def subsection(self: _GlobalEnvironment, index: int, src: T_Section) -> SingleSection | MultiSection:
-        if isinstance(src, T_SingleDivisionSection):
-            return SingleDivisionSection(index, src, self)
-        if isinstance(src, T_DoubleDivisionSection):
-            return DoubleDivisionSection(index, src, self)
-        return MultiSection(index, src, self)
+                self.append(CompoundSection(base_index + self.current_index, section, self))
+                self.current_index += 1
 
 
-def _process_voices(voices: Iterable[Voice]):
-    sequential_notes: list[list[Note]] = []
-    # voices are not necesarily of equal length, pad them with empty notes
-    for beat in map(chain.from_iterable, zip_longest(*voices, fillvalue=())):
-        # step_iter is guaranteed to have at least one element (see _Note.__mul__)
-        parallel_notes = [first := next(beat)]
-        for note in beat:
-            if first.delay != note.delay:
-                raise ValueError(f"inconsistent delays: {first}(delay={first.delay}) and {note}(delay={note.delay})")
-            if first.where != note.where:
-                raise ValueError(f"inconsistent placements: {first} and {note}")
-            parallel_notes.append(note)
-        sequential_notes.append(parallel_notes)
-    return sequential_notes
-
-
-class SingleDivisionSection(_BaseSection, list[list["SingleDivisionNote"]]):
-    def __init__(self, index: int, src: T_SingleDivisionSection, env: _GlobalEnvironment):
-        super().__init__(index, src, env)
-        voices = multivalue_flatten(
-            positional_map(SingleDivisionVoice, i, voice, self)
-            for i, voice in enumerate(src.voices)
-            if voice is not None
-        )
-        self += _process_voices(voices)
-
-    def levels_iter(self) -> Iterator[T_LevelIndex]:
-        for beat in self:
-            for note in beat:
-                if (level := note.position) is not None:
-                    yield level
-
-
-class DoubleDivisionSection(_BaseSection, list[list["DoubleDivisionNote"]]):
-    def __init__(self, index: int, src: T_DoubleDivisionSection, env: _GlobalEnvironment):
-        super().__init__(index, src, env)
-        voices = multivalue_flatten(
-            positional_map(DoubleDivisionVoice, i, voice, self)
-            for i, voice in enumerate(src.voices)
-            if voice is not None
-        )
-        self += _process_voices(voices)
-
-    def levels_iter(self) -> Iterator[T_LevelIndex]:
-        for beat in self:
-            for note in beat:
-                if (level := note.position[1]) is not None:
-                    yield level
-
-
-SingleSection = SingleDivisionSection | DoubleDivisionSection
-CompoundSection = list[SingleSection]
-
-
-class _BaseVoice:
-    position: SingleDivisionPosition | DoubleDivisionPosition
-
-    def __init__(self, index: T_LevelIndex, src: T_Voice, env: SingleSection):
+class Voice:
+    def __init__(self, index: T_LevelIndex, src: T_Voice, env: _Environment):
         # --- setup env ---
         self.name = env.name.transform(index, src).resolve()
         self.time = env.time.transform(src.time, save=True)
         self.delay = env.delay.transform(None, save=True)
         self.beat = env.beat.transform(src.beat, save=True)
         self.trill_style = env.trill_style.transform(src.trill_style, save=True)
-        self.position = self.position.apply_globals(env.position).transform(src.position, save=True)
+        self.position = env.position.anchor(index).transform(src.position, save=True)
         self.instrument = env.instrument.transform(src.instrument, save=True)
         self.dynamic = env.dynamic.transform(src.dynamic, save=True)
         self.sustain = env.sustain.transform(src.sustain, save=True)
         self.transpose = env.transpose.transform(src.transpose, save=True)
         # --- parse notes ---
         self.current_bar = 1  # bar indexing starts from 1
-        self.current_beat = 0  # but beat starts from 0
+        self.current_pulse = 0  # but pulse starts from 0
         self._notes = self._resolve_sequential_notes(src.notes)
 
     def __iter__(self) -> Iterator[Iterable[Note]]:
@@ -375,7 +319,7 @@ class _BaseVoice:
             yield self_copy
         finally:
             self.current_bar = self_copy.current_bar
-            self.current_beat = self_copy.current_beat
+            self.current_pulse = self_copy.current_pulse
 
     def _resolve_sequential_notes(self, src: T_SequentialNotes):
         def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[Note]]:
@@ -392,10 +336,10 @@ class _BaseVoice:
             return deque(merged_line)
 
     def _resolve_parallel_notes(self, src: T_ParallelNotes):
-        current_bar, current_beat = self.current_bar, self.current_beat
+        current_bar, current_pulse = self.current_bar, self.current_pulse
 
         def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[Note]]:
-            self.current_bar, self.current_beat = current_bar, current_beat
+            self.current_bar, self.current_pulse = current_bar, current_pulse
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
@@ -441,9 +385,9 @@ class _BaseVoice:
         asserted_bar_number = int(asserted_bar_number)
 
         if force_assertion:
-            self.current_beat = 0
+            self.current_pulse = 0
             self.current_bar = asserted_bar_number
-        elif self.current_beat != 0:
+        elif self.current_pulse != 0:
             raise ValueError("wrong barline location")
         elif self.current_bar != asserted_bar_number:
             raise ValueError("wrong bar number")
@@ -499,107 +443,39 @@ class _BaseVoice:
         sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
         position = self.position.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
-        current_bar, current_beat = self.current_bar, self.current_beat
+        current_bar, current_pulse = self.current_bar, self.current_pulse
 
         def transform(
             *noteblocks: NoteBlock | None,
             dynamic: Iterable[T_StaticAbsoluteDynamic],
-            position: Iterable[T_Index | None],
+            position: Iterable[T_PositionIndex],
         ):
             def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 for noteblock, note_position in zip(noteblocks, position, strict=False):
                     yield self._create_note(noteblock=noteblock, delay=delay, position=note_position)
-                    if (beat := self.current_beat + 1) < time:
-                        self.current_beat = beat
+                    if (pulse := self.current_pulse + 1) < time:
+                        self.current_pulse = pulse
                     else:
-                        self.current_beat = 0
+                        self.current_pulse = 0
                         self.current_bar += 1
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            self.current_bar, self.current_beat = current_bar, current_beat
+            self.current_bar, self.current_pulse = current_bar, current_pulse
             return apply_dynamic(apply_delay_and_position(noteblocks))
 
-        parallel_lines = positional_map(transform, *noteblocks, dynamic=dynamic, position=position)
+        parallel_lines = multivalue_map(transform, *noteblocks, dynamic=dynamic, position=position)
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return deque(merged_line)
         return deque(parallel_lines)
 
-    def _create_note(
-        self,
-        *,
-        noteblock: NoteBlock | None,
-        delay: T_Delay,
-        position: T_Index | None | tuple[None, None],
-    ) -> Note:
-        return cast(
-            Note,
-            _Note(
-                noteblock=noteblock,
-                delay=delay,
-                position=position,
-                voice=self.name,
-                where=(self.current_bar, self.current_beat),
-            ),
+    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_PositionIndex):
+        return Note(
+            noteblock=noteblock,
+            delay=delay,
+            position=position,
+            voice=self.name,
+            where=(self.current_bar, self.current_pulse),
         )
-
-
-class SingleDivisionVoice(_BaseVoice, Iterable[Iterable["SingleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_SingleDivisionVoice, env: SingleDivisionSection):
-        self.position = SingleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-class DoubleDivisionVoice(_BaseVoice, Iterable[Iterable["DoubleDivisionNote"]]):
-    def __init__(self, index: T_LevelIndex, src: T_DoubleDivisionVoice, env: DoubleDivisionSection):
-        self.position = DoubleDivisionPosition(index)
-        super().__init__(index, src, env)
-
-
-Voice = SingleDivisionVoice | DoubleDivisionVoice
-
-
-@dataclass(kw_only=True, slots=True)
-class _Note:
-    # run-time-significant attributes
-    noteblock: NoteBlock | None
-    delay: T_Delay
-    position: T_Index | None | tuple[None, None]
-    # ---------------
-    voice: str  # for error messages
-    where: tuple[int, int]  # for compile-time checks
-
-    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
-        if self.noteblock is None or dynamic == 0:
-            dynamic = 1
-            # no need to copy, we only __mul__ a freshly-created note
-            self.noteblock = None
-            if isinstance(self.position, int):
-                self.position = None
-            elif isinstance(self.position, int):
-                self.position = (None, None)
-        return repeat(self, dynamic)
-
-    def __repr__(self):
-        return f"{self.voice}@{self.where}"
-
-
-class SingleDivisionNote(Protocol):
-    noteblock: NoteBlock | None
-    delay: T_Delay
-    position: T_LevelIndex | None
-    voice: str
-    where: tuple[int, int]
-
-
-class DoubleDivisionNote(Protocol):
-    noteblock: NoteBlock | None
-    delay: T_Delay
-    position: T_DoubleIndex | tuple[None, None]
-    voice: str
-    where: tuple[int, int]
-
-
-Note = SingleDivisionNote | DoubleDivisionNote

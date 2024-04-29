@@ -82,15 +82,15 @@
             { "$ref": "meta.schema.json#/default" }
         ]
     },
-    "singleDivisionPosition": {
+    "position": {
         "title": "Where to place the noteblocks",
         "oneOf": [
-            { "$ref": "#/singleDivisionPosition/$def/value" },
+            { "$ref": "#/position/$def/value" },
             {
                 "title": "Multiple placements",
                 "type": "array",
                 "minItems": 1,
-                "items": { "$ref": "#/singleDivisionPosition/$def/value" }
+                "items": { "$ref": "#/position/$def/value" }
             }
         ],
         "$def": {
@@ -102,55 +102,139 @@
                         "inclusiveMinimum": 0
                     },
                     {
-                        "description": "Variable levelent",
-                        "type": "string",
-                        "pattern": "^(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
-                    },
-                    {
-                        "description": "Level of placement relative to environment",
+                        "description": "Relative level of placement",
                         "type": "string",
                         "pattern": "^[+-]\\d+$"
                     },
                     {
-                        "description": "Variable level, relative to environment",
+                        "description": "Variable level",
+                        "type": "string",
+                        "pattern": "^(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
+                    },
+                    {
+                        "description": "Variable relative level",
                         "type": "string",
                         "pattern": "^([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))+$"
                     },
-                    { "$ref": "meta.schema.json#/reset" },
-                    { "$ref": "meta.schema.json#/delete" },
-                    { "$ref": "meta.schema.json#/default" }
-                ]
-            }
-        }
-    },
-    "doubleDivisionPosition": {
-        "title": "Where to place the noteblocks",
-        "oneOf": [
-            { "$ref": "#/doubleDivisionPosition/$def/value" },
-            {
-                "title": "Multiple placements",
-                "type": "array",
-                "minItems": 1,
-                "items": { "$ref": "#/doubleDivisionPosition/$def/value" }
-            }
-        ],
-        "$def": {
-            "value": {
-                "anyOf": [
-                    { "$ref": "#/singleDivisionPosition/$def/value" },
                     {
-                        "description": "Which side relative to the player.",
+                        "description": "At the middle of the player",
                         "type": "string",
-                        "pattern": "^(L|R|LR)$"
+                        "const": "M"
                     },
                     {
-                        "description": "Switch side: left becomes right, right becomes left.",
-                        "const": "A"
+                        "description": "On the left of the player",
+                        "type": "string",
+                        "const": "L"
                     },
                     {
-                        "description": "Control both level of placement and which side relative to the player.",
+                        "description": "On the right of the player",
                         "type": "string",
-                        "pattern": "^(L|R|LR|A)[+-]?\\d+$"
+                        "const": "R"
+                    },
+                    {
+                        "description": "On bothsides of the player",
+                        "type": "string",
+                        "const": "LR"
+                    },
+                    {
+                        "description": "Switch side",
+                        "const": "SW"
+                    },
+                    {
+                        "description": "At the middle of the player & Level of placement",
+                        "type": "string",
+                        "pattern": "^M\\d+"
+                    },
+                    {
+                        "description": "On the left of the player & Level of placement",
+                        "type": "string",
+                        "pattern": "^L\\d+"
+                    },
+                    {
+                        "description": "On the right of the player & Level of placement",
+                        "type": "string",
+                        "pattern": "^R\\d+"
+                    },
+                    {
+                        "description": "On bothsides of the player & Level of placement",
+                        "type": "string",
+                        "pattern": "^LR\\d+"
+                    },
+                    {
+                        "description": "Switch side & Level of placement",
+                        "pattern": "^SW\\d+"
+                    },
+                    {
+                        "description": "At the middle of the player & Relative level of placement",
+                        "type": "string",
+                        "pattern": "^M[+-]\\d+"
+                    },
+                    {
+                        "description": "On the left of the player & Relative level of placement",
+                        "type": "string",
+                        "pattern": "^L[+-]\\d+"
+                    },
+                    {
+                        "description": "On the right of the player & Relative level of placement",
+                        "type": "string",
+                        "pattern": "^R[+-]\\d+"
+                    },
+                    {
+                        "description": "On bothsides of the player & Relative level of placement",
+                        "type": "string",
+                        "pattern": "^LR[+-]\\d+"
+                    },
+                    {
+                        "description": "Switch side & Relative level of placement",
+                        "pattern": "^SW[+-]\\d+"
+                    },
+                    {
+                        "description": "At the middle of the player & Variable level",
+                        "type": "string",
+                        "pattern": "^M\\s*(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On the left of the player & Variable level",
+                        "type": "string",
+                        "pattern": "^L\\s*(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On the right of the player & Variable level",
+                        "type": "string",
+                        "pattern": "^R\\s*(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On bothsides of the player & Variable level",
+                        "type": "string",
+                        "pattern": "^LR\\s*(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "Switch side & Variable level",
+                        "pattern": "^SW\\s*(\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "At the middle of the player & Variable relative level",
+                        "type": "string",
+                        "pattern": "^M\\s*([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On the left of the player & Variable relative level",
+                        "type": "string",
+                        "pattern": "^L\\s*([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On the right of the player & Variable relative level",
+                        "type": "string",
+                        "pattern": "^R\\s*([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "On bothsides of the player & Variable relative level",
+                        "type": "string",
+                        "pattern": "^LR\\s*([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
+                    },
+                    {
+                        "description": "Switch side & Variable relative level",
+                        "pattern": "^SW\\s*([+-]?\\d+((\\s+[+-]?|\\s*[+-])(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?))+(\\s*,\\s*|$))"
                     },
                     { "$ref": "meta.schema.json#/reset" },
                     { "$ref": "meta.schema.json#/delete" },

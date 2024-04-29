@@ -1,21 +1,48 @@
 from __future__ import annotations
 
 from contextlib import suppress
+from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal, TypeVar, final
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Hashable, Iterable, Literal, TypeGuard, TypeVar, final
 
-from pydantic import AfterValidator, BaseModel, Field, NonNegativeInt, PositiveFloat, PositiveInt, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    Field,
+    NonNegativeInt,
+    PositiveFloat,
+    PositiveInt,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 
 from .loader import PATH_KEY, REF_KEY
 
+_CT = TypeVar("_CT", bound=Callable)
+
 
 @final
 class T_MultiValue(tuple["T", ...]):
-    __slots__ = ()
-
     def __add__(self, other: Iterable[T]):
         return T_MultiValue(super().__add__(tuple(other)))
+
+
+def typed_cache(func: _CT) -> _CT:
+    if TYPE_CHECKING:
+        return func
+    return cache(func)
+
+
+@typed_cache
+def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
+    try:
+        TypeAdapter(typeform).validate_python(obj, strict=strict)
+    except ValidationError:
+        return False
+    else:
+        return True
 
 
 T = TypeVar("T")
@@ -28,14 +55,9 @@ else:  # for pydantic
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 T_Tuple = tuple[T, ...]
-T_LevelIndex = int
-T_DivisionIndex = Literal[0, 1]
-T_DoubleIndex = tuple[T_DivisionIndex, T_LevelIndex]
-T_Index = T_LevelIndex | T_DoubleIndex
 T_Duration = int
 T_NoteValue = int
 T_Name = str
-T_Continuous = bool
 T_Time = PositiveInt
 T_Width = Annotated[int, Field(ge=8, le=16)]
 T_Delay = Annotated[int, Field(ge=1, le=4)]
@@ -262,14 +284,14 @@ T_CompoundNote = Annotated[
     ),
 ]
 T_TrillStyle = Literal["normal", "alt"]
-T_StaticAbsoluteLevel = NonNegativeInt
+T_StaticAbsoluteLevel = NonNegativeInt  # higher is closer to the player
 T_VariableAbsoluteLevel = Annotated[
     str,
     Field(
         pattern=(
             "^"
             "("  # begin repeat
-            "\\d+"  # a value
+            "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
@@ -287,7 +309,7 @@ T_StaticRelativeLevel = Annotated[
         pattern=(
             "^"
             "[+-]"  # + to raise, - to lower
-            "\\d+"  # value
+            "\\d+"  # level: higher is closer to the player
             "$"
         )
     ),
@@ -298,8 +320,8 @@ T_VariableRelativeLevel = Annotated[
         pattern=(
             "^"
             "("  # begin repeat
-            "[+-]"  # + to raise, - to lower
-            "\\d+"  # value
+            "[+-]?"  # optional: + to raise, - to lower
+            "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
             "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
@@ -314,37 +336,92 @@ T_RelativeLevel = T_StaticRelativeLevel | T_VariableRelativeLevel
 T_StaticLevel = T_StaticAbsoluteLevel | T_StaticRelativeLevel
 T_VariableLevel = T_VariableAbsoluteLevel | T_VariableRelativeLevel
 T_Level = T_StaticLevel | T_VariableLevel
-T_AbsoluteDivision = Literal["L", "R", "LR"]  # left, right, both
-T_RelativeDivision = Literal["A"]  # switch
+assert T_Level == T_AbsoluteLevel | T_RelativeLevel
+T_AbsoluteDivision = Literal[  # which side relative to the player
+    "M",  # middle (default)
+    "L",  # left
+    "R",  # right
+    "LR",  # both sides
+]
+T_RelativeDivision = Literal["SW"]  # switch
 T_Division = T_AbsoluteDivision | T_RelativeDivision
-T_AbsoluteCompoundPosition = Annotated[
+T_StaticAbsoluteCompoundPosition = Annotated[
     str,
     Field(
         pattern=(
             "^"
-            "(L|R|LR)"  # which side relative to the player
+            "(M|L|R|LR)"  # which side relative to the player
+            "\\s*"
             "\\d+"  # level: higher is closer to the player
             "$"
         )
     ),
 ]
-T_RelativeCompoundPosition = Annotated[
+T_StaticRelativeCompoundPosition = Annotated[
     str,
     Field(
         pattern=(
             "^"
-            "(L|R|LR|A)"  # which side relative to the player
-            "[+-]?"  # optionally relative level: + to raise, - to lower
-            "\\d+"  # value
+            "(M|L|R|LR|SW)"  # which side relative to the player
+            "\\s*"
+            "[+-]?"  # optional: + to raise, - to lower
+            "\\d+"  # level: higher is closer to the player
             "$"
         )
     ),
 ]
+T_StaticCompoundPosition = T_StaticAbsoluteCompoundPosition | T_StaticRelativeCompoundPosition
+T_VariableAbsoluteCompoundPosition = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^"
+            "(M|L|R|LR)"  # which side relative to the player
+            "\\s*"
+            "("  # begin repeat
+            "\\d+"  # level: higher is closer to the player
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")+"  # end duration
+            "(\\s*,\\s*|$)"  # "," or end of string
+            ")+"  # end repeat
+            "$"
+        )
+    ),
+]
+T_VariableRelativeCompoundPosition = Annotated[
+    str,
+    Field(
+        pattern=(
+            "^"
+            "(M|L|R|LR|SW)"  # 1 which side relative to the player
+            "\\s*"
+            "("  # begin repeat
+            "[+-]?"  # optional: + to raise, - to lower
+            "\\d+"  # level: higher is closer to the player
+            "("  # begin duration
+            "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            ")+"  # end duration
+            "(\\s*,\\s*|$)"  # "," or end of string
+            ")+"  # end repeat
+            "$"
+        )
+    ),
+]
+T_VariableCompoundPosition = T_VariableAbsoluteCompoundPosition | T_VariableRelativeCompoundPosition
+T_AbsoluteCompoundPosition = T_StaticAbsoluteCompoundPosition | T_VariableAbsoluteCompoundPosition
+T_RelativeCompoundPosition = T_StaticRelativeCompoundPosition | T_VariableRelativeCompoundPosition
 T_CompoundPosition = T_AbsoluteCompoundPosition | T_RelativeCompoundPosition
-T_SingleDivisionPosition = T_Level
-T_DoubleDivisionPosition = T_Level | T_Division | T_CompoundPosition
-T_StaticPosition = T_StaticLevel | T_Division | T_CompoundPosition
-T_Position = T_SingleDivisionPosition | T_DoubleDivisionPosition
+assert T_CompoundPosition == T_StaticCompoundPosition | T_VariableCompoundPosition
+T_StaticAbsolutePosition = T_StaticAbsoluteLevel | T_AbsoluteDivision | T_StaticAbsoluteCompoundPosition
+T_StaticPosition = T_StaticLevel | T_Division | T_StaticCompoundPosition
+T_VariablePosition = T_VariableLevel | T_VariableCompoundPosition
+T_AbsolutePosition = T_AbsoluteLevel | T_AbsoluteDivision | T_AbsoluteCompoundPosition
+T_RelativePosition = T_RelativeLevel | T_RelativeDivision | T_RelativeCompoundPosition
+T_Position = T_StaticPosition | T_VariablePosition
+assert T_Position == T_AbsolutePosition | T_RelativePosition
 
 
 def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
@@ -368,18 +445,14 @@ class _BaseNoteModel(_BaseModel):
     delay: T_StaticProperty[T_Delay] = None
     beat: T_StaticProperty[T_Beat] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
+    position: T_PositionalProperty[T_Position] = None
     instrument: T_PositionalProperty[T_Instrument] = None
     dynamic: T_PositionalProperty[T_Dynamic] = None
     transpose: T_PositionalProperty[T_Transpose] = None
     sustain: T_PositionalProperty[T_Sustain] = None
 
 
-class T_SingleDivisionNotesModifier(_BaseNoteModel):
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-class T_DoubleDivisionNotesModifier(_BaseNoteModel):
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
+class T_NotesModifier(_BaseNoteModel): ...
 
 
 class _BaseNote(_BaseNoteModel):
@@ -391,75 +464,38 @@ class _BaseNote(_BaseNoteModel):
         return _to_dict(data, key="note")
 
 
-class _BaseRegularNote(_BaseNote):
+class T_RegularNote(_BaseNote):
     note: T_BarDelimiter | T_Rest | T_NoteName | T_MultipleNotes | T_CompoundNote
 
 
-class T_SingleDivisionRegularNote(_BaseRegularNote):
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-class T_DoubleDivisionRegularNote(_BaseRegularNote):
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
-
-
-class _BaseTrilledNote(_BaseNote):
+class T_TrilledNote(_BaseNote):
     note: T_NoteName
     trill: T_NoteName
 
 
-class T_SingleDivisionTrilledNote(_BaseTrilledNote):
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
+T_SingleNote = T_RegularNote | T_TrilledNote
 
 
-class T_DoubleDivisionTrilledNote(_BaseTrilledNote):
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
+class T_ParallelNotes(_BaseNote):
+    note: T_Tuple[T_SingleNote | T_SequentialNotes]
 
 
-class T_SingleDivisionParallelNotes(_BaseNote):
-    note: T_Tuple[
-        T_SingleDivisionRegularNote  #
-        | T_SingleDivisionTrilledNote
-        | T_SingleDivisionSequentialNotes
-    ]
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
+class T_SequentialNotes(_BaseNote):
+    note: T_Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
 
 
-class T_DoubleDivisionParallelNotes(_BaseNote):
-    note: T_Tuple[
-        T_DoubleDivisionRegularNote  #
-        | T_DoubleDivisionTrilledNote
-        | T_DoubleDivisionSequentialNotes
-    ]
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
+T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
+T_NoteMeta = T_NotesModifier | T_Note
 
 
-class T_SingleDivisionSequentialNotes(_BaseNote):
-    note: T_Tuple[
-        T_SingleDivisionRegularNote
-        | T_SingleDivisionTrilledNote
-        | T_SingleDivisionParallelNotes
-        | T_SingleDivisionNotesModifier
-    ]
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-class T_DoubleDivisionSequentialNotes(_BaseNote):
-    note: T_Tuple[
-        T_DoubleDivisionRegularNote
-        | T_DoubleDivisionTrilledNote
-        | T_DoubleDivisionParallelNotes
-        | T_DoubleDivisionNotesModifier
-    ]
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
-
-
-class _BaseVoice(_BaseModel):
+class T_Voice(_BaseModel):
     path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
+    notes: T_SequentialNotes
     time: T_StaticProperty[T_Time] = None
     beat: T_StaticProperty[T_Beat] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
+    position: T_PositionalProperty[T_Position] = None
     instrument: T_PositionalProperty[T_Instrument] = None
     dynamic: T_PositionalProperty[T_Dynamic] = None
     transpose: T_PositionalProperty[T_Transpose] = None
@@ -477,16 +513,6 @@ class _BaseVoice(_BaseModel):
         return data
 
 
-class T_SingleDivisionVoice(_BaseVoice):
-    notes: T_SingleDivisionSequentialNotes
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-class T_DoubleDivisionVoice(_BaseVoice):
-    notes: T_DoubleDivisionSequentialNotes
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
-
-
 class _BaseSection(_BaseModel):
     path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
@@ -496,6 +522,7 @@ class _BaseSection(_BaseModel):
     beat: T_StaticProperty[T_Beat] = None
     tick: T_StaticProperty[T_Tick] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
+    position: T_PositionalProperty[T_Position] = None
     instrument: T_PositionalProperty[T_Instrument] = None
     dynamic: T_PositionalProperty[T_Dynamic] = None
     transpose: T_PositionalProperty[T_Transpose] = None
@@ -507,49 +534,20 @@ class _BaseSection(_BaseModel):
         return _to_dict(data, key="voices")
 
 
-class T_SingleDivisionSection(_BaseSection):
-    voices: T_Tuple[T_Positional[T_SingleDivisionVoice] | None]
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
+class T_SingleSection(_BaseSection):
+    voices: T_Tuple[T_Positional[T_Voice] | None]
 
 
-class T_DoubleDivisionSection(_BaseSection):
-    voices: T_Tuple[T_Positional[T_DoubleDivisionVoice] | None]
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
+T_CompoundSection = T_Positional[T_SingleSection]
 
 
-class _BaseMultiSections(_BaseSection):
-    continuous: T_StaticProperty[T_Continuous] = None
+class T_MultiSection(_BaseSection):
+    sections: T_Tuple[T_CompoundSection | T_MultiSection]
 
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        return _to_dict(data, key="sections")
-
-
-class T_SingleDivisionMultiSection(_BaseMultiSections):
-    sections: T_Tuple[T_SingleDivisionSection | T_SingleDivisionMultiSection]
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-class T_DoubleDivisionMultiSection(_BaseMultiSections):
-    sections: T_Tuple[T_DoubleDivisionSection | T_DoubleDivisionMultiSection]
-    position: T_PositionalProperty[T_DoubleDivisionPosition] = None
-
-
-class T_MixedMultiSection(_BaseMultiSections):
-    sections: T_Tuple[T_Section]
-    position: T_PositionalProperty[T_SingleDivisionPosition] = None
-
-
-T_NotesModifier = T_SingleDivisionNotesModifier | T_DoubleDivisionNotesModifier
-T_RegularNote = T_SingleDivisionRegularNote | T_DoubleDivisionRegularNote
-T_TrilledNote = T_SingleDivisionTrilledNote | T_DoubleDivisionTrilledNote
-T_SingleNote = T_RegularNote | T_TrilledNote
-T_ParallelNotes = T_SingleDivisionParallelNotes | T_DoubleDivisionParallelNotes
-T_SequentialNotes = T_SingleDivisionSequentialNotes | T_DoubleDivisionSequentialNotes
-T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
-T_NoteMeta = T_NotesModifier | T_Note
-T_Voice = T_SingleDivisionVoice | T_DoubleDivisionVoice
-T_SingleSection = T_SingleDivisionSection | T_DoubleDivisionSection
-T_MultiSection = T_SingleDivisionMultiSection | T_DoubleDivisionMultiSection | T_MixedMultiSection
-T_Section = T_SingleSection | T_MultiSection
+        data = _to_dict(data, key="sections")
+        if not is_typeform(data["sections"], T_Tuple):
+            data["sections"] = (data["sections"],)
+        return data

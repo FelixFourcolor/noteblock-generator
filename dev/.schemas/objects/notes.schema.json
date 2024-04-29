@@ -1,6 +1,191 @@
 {
-    "anyOf": [
-        { "$ref": "single-division/notes.schema.json#" },
-        { "$ref": "double-division/notes.schema.json#" }
-    ]
+    "oneOf": [
+        { "$ref": "#/$def/sequentialNotes" },
+        { "$ref": "../types/meta.schema.json#/reference" }
+    ],
+    "$def": {
+        "notesModifier": {
+            "description": "Apply this configuration to subsequent notes in this environment.",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "time": { "$ref": "../types/properties.schema.json#/time" },
+                "delay": { "$ref": "../types/properties.schema.json#/delay" },
+                "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../types/properties.schema.json#/position" },
+                "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+            }
+        },
+        "regularNote": {
+            "oneOf": [
+                { "$ref": "#/$def/regularNote/$def/note" },
+                {
+                    "title": "Modified note",
+                    "description": "Apply this configuration to this note.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "oneOf": [
+                        { "required": [ "note" ] },
+                        { "required": [ "notes" ] }
+                    ],
+                    "properties": {
+                        "note": { "$ref": "#/$def/regularNote/$def/note" },
+                        "notes": { "$ref": "#/$def/regularNote/$def/note" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../types/properties.schema.json#/position" },
+                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+                    }
+                }
+            ],
+            "$def": {
+                "note": {
+                    "oneOf": [
+                        { "$ref": "../types/notes.schema.json#/noteName" },
+                        { "$ref": "../types/notes.schema.json#/multipleNotes" },
+                        { "$ref": "../types/notes.schema.json#/compoundNote" }
+                    ]
+                }
+            }
+        },
+        "emptyNote": {
+            "oneOf": [
+                { "$ref": "#/$def/emptyNote/$def/note" },
+                {
+                    "title": "Modified note",
+                    "description": "Apply this configuration to this note.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [ "note" ],
+                    "properties": {
+                        "note": { "$ref": "#/$def/emptyNote/$def/note" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
+                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                        "delay": { "$ref": "../types/properties.schema.json#/delay" }
+                    }
+                }
+            ],
+            "$def": {
+                "note": {
+                    "oneOf": [
+                        { "$ref": "../types/notes.schema.json#/rest" },
+                        { "$ref": "../types/notes.schema.json#/barDelimiter" }
+                    ]
+                }
+            }
+        },
+        "trilledNote": {
+            "title": "Trilled note",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "note", "trill" ],
+            "properties": {
+                "note": { "$ref": "../types/notes.schema.json#/noteName" },
+                "trill": { "$ref": "../types/notes.schema.json#/noteName" },
+                "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                "time": { "$ref": "../types/properties.schema.json#/time" },
+                "delay": { "$ref": "../types/properties.schema.json#/delay" },
+                "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                "position": { "$ref": "../types/properties.schema.json#/position" },
+                "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+            }
+        },
+        "singleNote": {
+            "oneOf": [
+                { "$ref": "#/$def/regularNote" },
+                { "$ref": "#/$def/emptyNote" },
+                { "$ref": "#/$def/trilledNote" }
+            ]
+        },
+        "parallelNotes": {
+            "title": "Parallel notes",
+            "oneOf": [
+                { "$ref": "#/$def/parallelNotes/$def/note" },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "oneOf": [
+                        { "required": [ "note" ] },
+                        { "required": [ "notes" ] }
+                    ],
+                    "properties": {
+                        "note": { "$ref": "#/$def/parallelNotes/$def/note" },
+                        "notes": { "$ref": "#/$def/parallelNotes/$def/note" },
+                        "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../types/properties.schema.json#/position" },
+                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+                    }
+                }
+            ],
+            "$def": {
+                "note": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/$def/singleNote" },
+                            { "$ref": "#/$def/sequentialNotes" }
+                        ]
+                    }
+                }
+            }
+        },
+        "sequentialNotes": {
+            "title": "Sequential notes",
+            "oneOf": [
+                { "$ref": "#/$def/sequentialNotes/$def/note" },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "oneOf": [
+                        { "required": [ "note" ] },
+                        { "required": [ "notes" ] }
+                    ],
+                    "properties": {
+                        "note": { "$ref": "#/$def/sequentialNotes/$def/note" },
+                        "notes": { "$ref": "#/$def/sequentialNotes/$def/note" },
+                        "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                        "time": { "$ref": "../types/properties.schema.json#/time" },
+                        "delay": { "$ref": "../types/properties.schema.json#/delay" },
+                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                        "position": { "$ref": "../types/properties.schema.json#/position" },
+                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+                    }
+                }
+            ],
+            "$def": {
+                "note": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "#/$def/singleNote" },
+                            { "$ref": "#/$def/notesModifier" },
+                            { "$ref": "#/$def/parallelNotes" }
+                        ]
+                    }
+                }
+            }
+        }
+    }
 }

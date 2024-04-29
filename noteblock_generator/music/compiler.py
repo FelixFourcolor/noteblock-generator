@@ -3,17 +3,138 @@ from __future__ import annotations
 from contextlib import contextmanager
 from enum import Enum
 from functools import singledispatchmethod
-from itertools import pairwise
-from typing import Literal
+from itertools import chain, pairwise
+from typing import Iterable, Literal
 
 from multimethod import multidispatch
 
-from .parser import DoubleDivision, Music, NoteBlock, Section, SingleDivision, T_Subsection, Unit
-from .typedefs import T_Delay, T_Width
+from .parser import Chord, CompoundSection, MultiSection, Note, NoteBlock, SingleSection
+from .properties import Dynamic, T_LevelIndex
+from .typedefs import T_Delay, T_Tick, T_Tuple, T_Width
+from .utils import transpose
 
 
-def compile(music: Music) -> T_Data:  # noqa: A001
-    return Compiler().generate(music)
+def compile(src: MultiSection) -> T_Data:  # noqa: A001
+    return _Compiler(src).generate()
+
+
+class Unit(T_Tuple[NoteBlock]):  # TODO: optimization: not every unit needs to be generated
+    delay: T_Delay
+
+    def __new__(cls, notes: Iterable[Note], *, delay: T_Delay):
+        def get_noteblocks(notes: Iterable[Note]) -> Iterable[NoteBlock]:
+            for note in notes:
+                if (noteblock := note.noteblock) is not None:
+                    yield noteblock
+
+        self = super().__new__(cls, get_noteblocks(notes := tuple(notes)))
+        if len(self) > Dynamic.MAX:
+            raise ValueError(f"Slot overflow: {notes}")  # TODO: error handling
+        self.delay = delay
+        return self
+
+    def __bool__(self):
+        return bool(filter(None, self))
+
+
+class SingleDivision(list[list[Unit]]):
+    @classmethod
+    def from_src(cls, sequential_notes: SingleSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        def assign_levels(chord: Chord) -> Iterable[Unit]:
+            return (
+                Unit(filter(lambda note: note.level == level, chord), delay=chord.delay)
+                for level in range(min_level, max_level + 1)
+            )
+
+        return cls(
+            transpose(map(assign_levels, sequential_notes)),
+            width=sequential_notes.width.resolve(),
+            tick=sequential_notes.tick.resolve(),
+        )
+
+    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
+        self.width = width
+        self.tick = tick
+        self += map(list, sequence)
+
+    @property
+    def length(self):
+        return len(self[0])
+
+    @property
+    def height(self):
+        return len(self)
+
+
+class DoubleDivision(tuple[SingleDivision, SingleDivision]):
+    @classmethod
+    def from_src(cls, section: SingleSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        def create_subdivision(division: Literal[0, 1]):
+            def assign_levels(chord: Chord) -> Iterable[Unit]:
+                return (
+                    Unit(
+                        filter(lambda note: note.division == division and note.level == level, chord),
+                        delay=chord.delay,
+                    )
+                    for level in range(min_level, max_level + 1)
+                )
+
+            return SingleDivision(
+                transpose(map(assign_levels, section)),
+                width=width,
+                tick=tick,
+            )
+
+        width = section.width.resolve()
+        tick = section.tick.resolve()
+        return cls(map(create_subdivision, (0, 1)))
+
+    @property
+    def width(self):
+        return self[0].width
+
+    @property
+    def tick(self):
+        return self[0].tick
+
+    @property
+    def length(self):
+        return self[0].length
+
+    @property
+    def height(self):
+        return self[0].height
+
+
+T_Subsection = SingleDivision | DoubleDivision
+
+
+class Section(list[T_Subsection]):
+    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+        # TODO: initial padding
+        for subsection in src:
+            if subsection.type == "single":
+                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+            else:
+                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+
+        self.length = sum(subsection.length for subsection in self)
+        self.height = self[0].height
+
+
+class Music(list[Section]):
+    def __init__(self, src: MultiSection):
+        levels = tuple(chain.from_iterable(subsection.level_iter() for section in src for subsection in section))
+        if levels:
+            min_level, max_level = min(levels), max(levels)
+        else:
+            min_level = max_level = 0
+
+        for section in src:
+            self.append(Section(section, min_level=min_level, max_level=max_level))
+
+        self.length = sum(section.length for section in self)
+        self.height = self[0].height
 
 
 class Direction(tuple[int, int], Enum):
@@ -73,16 +194,16 @@ T_Block = Block | Literal[0, 1]
 T_Data = dict[T_Coordinates, T_Block]
 
 
-class Compiler:
+class _Compiler:
     # TODO: handle multiple widths
     # TODO: implement tick
 
-    __slots__ = ("X", "Y", "Z", "x_dir", "z_dir", "_data")
-
-    def __init__(self):
+    def __init__(self, src: MultiSection):
         self.X, self.Y, self.Z = (0, 0, 0)
         self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
         self._data: T_Data = {}
+
+        self._music = Music(src)
 
     @property
     def z_i(self) -> Literal[1, -1]:
@@ -110,9 +231,9 @@ class Compiler:
                 return
             self._data[self.X, self.Y, self.Z] = value
 
-    def generate(self, music: Music):
+    def generate(self):
         x = self.X
-        for section in music:
+        for section in self._music:
             with self.localize() as self:
                 self.generate_section(section)
                 x = self.X
@@ -218,7 +339,7 @@ class Compiler:
 class Circuit(dict[T_Coordinates, Literal["wire"] | T_Delay]):
     # The series of redstones is assumed to form a valid circuit, there are no runtime checks.
 
-    def __init__(self, compiler: Compiler):
+    def __init__(self, compiler: _Compiler):
         self._compiler = compiler
 
     def __enter__(self):
