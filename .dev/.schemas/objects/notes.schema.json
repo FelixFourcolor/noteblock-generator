@@ -28,13 +28,9 @@
                     "description": "Apply this configuration to this note.",
                     "type": "object",
                     "additionalProperties": false,
-                    "oneOf": [
-                        { "required": [ "note" ] },
-                        { "required": [ "notes" ] }
-                    ],
+                    "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/regularNote/$def/note" },
-                        "notes": { "$ref": "#/$def/regularNote/$def/note" },
                         "time": { "$ref": "../types/properties.schema.json#/time" },
                         "delay": { "$ref": "../types/properties.schema.json#/delay" },
                         "beat": { "$ref": "../types/properties.schema.json#/beat" },
@@ -115,13 +111,9 @@
                 {
                     "type": "object",
                     "additionalProperties": false,
-                    "oneOf": [
-                        { "required": [ "note" ] },
-                        { "required": [ "notes" ] }
-                    ],
+                    "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/parallelNotes/$def/note" },
-                        "notes": { "$ref": "#/$def/parallelNotes/$def/note" },
                         "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
                         "time": { "$ref": "../types/properties.schema.json#/time" },
                         "delay": { "$ref": "../types/properties.schema.json#/delay" },
@@ -154,13 +146,9 @@
                 {
                     "type": "object",
                     "additionalProperties": false,
-                    "oneOf": [
-                        { "required": [ "note" ] },
-                        { "required": [ "notes" ] }
-                    ],
+                    "required": [ "note" ],
                     "properties": {
                         "note": { "$ref": "#/$def/sequentialNotes/$def/note" },
-                        "notes": { "$ref": "#/$def/sequentialNotes/$def/note" },
                         "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
                         "time": { "$ref": "../types/properties.schema.json#/time" },
                         "delay": { "$ref": "../types/properties.schema.json#/delay" },

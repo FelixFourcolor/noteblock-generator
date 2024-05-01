@@ -460,8 +460,6 @@ class _BaseNote(_BaseNoteModel):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        if isinstance(data, dict) and "notes" in data:
-            data["note"] = data.pop("notes")
         return _to_dict(data, key="note")
 
 
