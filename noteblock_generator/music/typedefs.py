@@ -429,7 +429,8 @@ def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
         if key in data:
             return data
         with suppress(KeyError):
-            return {key: data.pop(REF_KEY)}
+            data[key] = data.pop(REF_KEY)
+            return data
     return {key: data}
 
 
