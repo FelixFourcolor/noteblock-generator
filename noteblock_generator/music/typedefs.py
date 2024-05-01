@@ -506,8 +506,7 @@ class T_Voice(_BaseModel):
         data = _to_dict(data, key="notes")
         if PATH_KEY not in data:
             notes = data["notes"]  # guarantee valid key by _to_dict
-            with suppress(TypeError, KeyError):
-                # try setting voice's path to notes' path, if it exists
+            with suppress(Exception):
                 data[PATH_KEY] = notes.pop(PATH_KEY)
         return data
 
@@ -527,14 +526,17 @@ class _BaseSection(_BaseModel):
     transpose: T_PositionalProperty[T_Transpose] = None
     sustain: T_PositionalProperty[T_Sustain] = None
 
-    @model_validator(mode="before")
-    @classmethod
-    def _(cls, data):
-        return _to_dict(data, key="voices")
-
 
 class T_SingleSection(_BaseSection):
     voices: T_Tuple[T_Positional[T_Voice] | None]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _(cls, data):
+        data = _to_dict(data, key="voices")
+        with suppress(ValidationError):
+            data["voices"] = [T_Voice.model_validate(data["voices"])]
+        return data
 
 
 T_CompoundSection = T_Positional[T_SingleSection]
@@ -547,6 +549,6 @@ class T_MultiSection(_BaseSection):
     @classmethod
     def _(cls, data):
         data = _to_dict(data, key="sections")
-        if not is_typeform(data["sections"], T_Tuple):
-            data["sections"] = (data["sections"],)
+        with suppress(ValidationError):
+            data["sections"] = [TypeAdapter(T_SingleSection).validate_python(data["sections"])]
         return data

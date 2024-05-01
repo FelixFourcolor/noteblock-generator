@@ -1,8 +1,5 @@
 {
-    "oneOf": [
-        { "$ref": "#/$def/sequentialNotes" },
-        { "$ref": "../types/meta.schema.json#/reference" }
-    ],
+    "$ref": "#/$def/sequentialNotes",
     "$def": {
         "notesModifier": {
             "description": "Apply this configuration to subsequent notes in this environment.",

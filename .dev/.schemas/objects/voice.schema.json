@@ -1,16 +1,18 @@
 {
+    "title": "Voice",
     "oneOf": [
-        { "$ref": "#/$def/voice" },
-        { "$ref": "../types/meta.schema.json#/reference" }
-    ],
-    "$def": {
-        "voice": {
-            "title": "Voice",
+        { "$ref": "notes.schema.json#" },
+        {
             "type": "object",
             "additionalProperties": false,
             "required": [ "notes" ],
             "properties": {
-                "notes": { "$ref": "notes.schema.json#" },
+                "notes": {
+                    "oneOf": [
+                        { "$ref": "notes.schema.json#" },
+                        { "$ref": "../types/meta.schema.json#/reference" }
+                    ]
+                },
                 "name": { "$ref": "../types/properties.schema.json#/name" },
                 "time": { "$ref": "../types/properties.schema.json#/time" },
                 "beat": { "$ref": "../types/properties.schema.json#/beat" },
@@ -22,5 +24,5 @@
                 "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
             }
         }
-    }
+    ]
 }
