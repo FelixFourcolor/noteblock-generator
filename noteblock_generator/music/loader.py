@@ -6,14 +6,19 @@ from pathlib import Path
 import yaml
 
 
-def load(src_path: str):
-    return _resolve_references(f"file://{src_path}", prefix=Path.cwd())  # TODO: error handling
+def load(src_path: str) -> object:
+    # TODO: error handling: path not found, or yaml syntax error
+    path = _find_path(Path.cwd() / src_path)
+    text = _resolve_references(path.read_text(), prefix=path.parent)
+    if isinstance(raw_data := yaml.safe_load(text), dict):
+        raw_data[PATH_KEY] = str(path)
+    else:
+        raw_data = {PATH_KEY: str(path), REF_KEY: raw_data}
+    return raw_data
 
 
-REF_KEY = "$ref"
 PATH_KEY = "$path"
-
-
+REF_KEY = "$ref"
 _REF_PATTERN = re.compile('["]?file://([^",\\n]+)["]?')
 
 
@@ -52,8 +57,9 @@ def _find_path(path: Path):
 
 def _load_reference(path: Path):
     text = _resolve_references(path.read_text(), prefix=path.parent)
-    if isinstance(obj := yaml.safe_load(text), dict):
-        obj[PATH_KEY] = str(path)
+    if isinstance(data := yaml.safe_load(text), dict):
+        data[PATH_KEY] = str(path)
     else:
-        obj = {PATH_KEY: str(path), REF_KEY: obj}
-    return json.dumps(obj)  # must load yaml but dump json otherwise it doesn't work
+        data = {PATH_KEY: str(path), REF_KEY: data}
+    # dump json instead of yaml, otherwise _resolve_references doesn't work
+    return json.dumps(data)

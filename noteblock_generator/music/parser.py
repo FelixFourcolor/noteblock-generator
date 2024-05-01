@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
 from typing import Iterable, Iterator, Literal, Protocol, overload
 
-from pydantic import TypeAdapter
-
 from .properties import (
     Beat,
     Delay,
@@ -27,7 +25,16 @@ from .properties import (
     TrillStyle,
     Width,
 )
-from .typedefs import (
+from .utils import (
+    is_typeform,
+    multivalue_flatten,
+    multivalue_map,
+    parse_duration,
+    split_timedvalue,
+    strip_split,
+    transpose,
+)
+from .validator import (
     T_BarDelimiter,
     T_CompoundNote,
     T_CompoundSection,
@@ -49,14 +56,10 @@ from .typedefs import (
     T_TrilledNote,
     T_TrillStyle,
     T_Voice,
-    is_typeform,
 )
-from .utils import multivalue_flatten, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
 
 
-def parse(src_code: str):
-    validated_src_code = TypeAdapter(T_MultiSection).validate_json(src_code)
-
+def parse(validated_data: T_MultiSection):
     class _DefaultEnvironment:
         name = Name()
         width = Width()
@@ -71,7 +74,7 @@ def parse(src_code: str):
         sustain = Sustain()
         transpose = Transpose()
 
-    return MultiSection(0, validated_src_code, _DefaultEnvironment)
+    return MultiSection(0, validated_data, _DefaultEnvironment)  # TODO: error handling
 
 
 @dataclass(kw_only=True, slots=True)

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Hashable, Iterable, Literal, TypeGuard, TypeVar, final
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Literal, TypeVar, final
 
 from pydantic import (
     AfterValidator,
@@ -20,29 +19,15 @@ from pydantic.alias_generators import to_camel
 
 from .loader import PATH_KEY, REF_KEY
 
-_CT = TypeVar("_CT", bound=Callable)
+
+def validate(raw_data: object):
+    return T_MultiSection.model_validate(raw_data)  # TODO: error handling
 
 
 @final
 class T_MultiValue(tuple["T", ...]):
     def __add__(self, other: Iterable[T]):
         return T_MultiValue(super().__add__(tuple(other)))
-
-
-def typed_cache(func: _CT) -> _CT:
-    if TYPE_CHECKING:
-        return func
-    return cache(func)
-
-
-@typed_cache
-def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
-    try:
-        TypeAdapter(typeform).validate_python(obj, strict=strict)
-    except ValidationError:
-        return False
-    else:
-        return True
 
 
 T = TypeVar("T")

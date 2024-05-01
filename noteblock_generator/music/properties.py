@@ -11,7 +11,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Literal, Protocol, TypeVar, cast
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
-from .typedefs import (
+from .utils import (
+    is_typeform,
+    multivalue_flatten,
+    multivalue_map,
+    parse_duration,
+    split_timedvalue,
+    strip_split,
+    transpose,
+    typed_cache,
+)
+from .validator import (
     T_AbsoluteDynamic,
     T_AbsoluteSustain,
     T_Beat,
@@ -48,16 +58,6 @@ from .typedefs import (
     T_VariableDynamic,
     T_VariableLevel,
     T_Width,
-    is_typeform,
-)
-from .utils import (
-    multivalue_flatten,
-    multivalue_map,
-    parse_duration,
-    split_timedvalue,
-    strip_split,
-    transpose,
-    typed_cache,
 )
 
 

@@ -1,14 +1,31 @@
 from __future__ import annotations
 
 import re
-from functools import partial
+from contextlib import suppress
+from functools import cache, partial
 from itertools import repeat
-from typing import Any, Callable, Iterable, Iterator, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
 
-from .typedefs import T_Beat, T_Duration, T_MultiValue, T_Positional, typed_cache
+from pydantic import TypeAdapter, ValidationError
+
+from .validator import T_Beat, T_Duration, T_MultiValue, T_Positional
 
 T = TypeVar("T")
 CT = TypeVar("CT", bound=Callable)
+
+
+def typed_cache(func: CT) -> CT:
+    if TYPE_CHECKING:
+        return func
+    return cache(func)
+
+
+@typed_cache
+def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
+    with suppress(ValidationError):
+        TypeAdapter(typeform).validate_python(obj, strict=strict)
+        return True
+    return False
 
 
 def multivalue_flatten(nested_iterable: Iterable[T_Positional[T]]) -> T_MultiValue[T]:

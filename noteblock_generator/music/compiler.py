@@ -10,12 +10,12 @@ from multimethod import multidispatch
 
 from .parser import Chord, CompoundSection, MultiSection, Note, NoteBlock, SingleSection
 from .properties import Dynamic, T_LevelIndex
-from .typedefs import T_Delay, T_Tick, T_Tuple, T_Width
 from .utils import transpose
+from .validator import T_Delay, T_Tick, T_Tuple, T_Width
 
 
-def compile(src: MultiSection) -> T_Data:  # noqa: A001
-    return _Compiler(src).generate()
+def compile(parsed_data: MultiSection) -> T_Data:  # noqa: A001
+    return _Compiler(parsed_data).generate()
 
 
 class Unit(T_Tuple[NoteBlock]):  # TODO: optimization: not every unit needs to be generated
