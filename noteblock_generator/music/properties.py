@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Literal, Protocol
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .utils import (
+    cache,
     is_typeform,
     multivalue_flatten,
     multivalue_map,
@@ -19,7 +20,6 @@ from .utils import (
     split_timedvalue,
     strip_split,
     transpose,
-    typed_cache,
 )
 from .validator import (
     T_AbsoluteDynamic,
@@ -121,7 +121,7 @@ class _StaticProperty(Generic[T]):
     def __init__(self):
         self._value = self._original_value = self._DEFAULT
 
-    @typed_cache
+    @cache
     def transform(self, modifier: T_StaticProperty[T], *, save=False):
         self = shallowcopy(self)
         if modifier is not None:
@@ -227,7 +227,7 @@ class _PositionalProperty(
         # no idea why pyright complains
         return T_MultiValue(working_modifier)  # pyright: ignore[reportGeneralTypeIssues]
 
-    @typed_cache
+    @cache
     def transform(self, modifier: T_PositionalProperty[U], *, save=False):
         self = shallowcopy(self)
         modifier = self._prepare_transform(modifier)
@@ -243,7 +243,7 @@ class _PositionalProperty(
             self._original_value = self._value
         return self
 
-    @typed_cache
+    @cache
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
         if _is_empty(out := multivalue_map(self._resolve_core, self._value, *args, **kwargs)):
             return self._NULL_VALUE
@@ -389,7 +389,7 @@ class Position(
         result = map(transform, transformations)
         return islice(chain(result, repeat(None)), note_duration)
 
-    @typed_cache
+    @cache
     def resolve(
         self,
         *,
@@ -472,7 +472,7 @@ class Instrument(
             if note_value in (instrument_range := INSTRUMENT_RANGE[instrument]):
                 return NoteBlock(note=instrument_range.index(note_value), instrument=instrument)
 
-    @typed_cache
+    @cache
     def resolve(
         self,
         note_name: str,

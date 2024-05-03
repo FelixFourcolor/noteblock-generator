@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import functools
 import re
 from contextlib import suppress
-from functools import cache, partial
 from itertools import repeat
 from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
 
@@ -14,13 +14,13 @@ T = TypeVar("T")
 CT = TypeVar("CT", bound=Callable)
 
 
-def typed_cache(func: CT) -> CT:
+def cache(func: CT) -> CT:
     if TYPE_CHECKING:
         return func
-    return cache(func)
+    return functools.cache(func)
 
 
-@typed_cache
+@cache
 def is_typeform(obj: Hashable, typeform: type[T], *, strict=True) -> TypeGuard[T]:
     with suppress(ValidationError):
         TypeAdapter(typeform).validate_python(obj, strict=strict)
@@ -39,7 +39,7 @@ def multivalue_flatten(nested_iterable: Iterable[T_Positional[T]]) -> T_MultiVal
     return T_MultiValue(flatten_core())
 
 
-@typed_cache
+@cache
 def split_timedvalue(value: str) -> list[str]:
     def append(element: str):
         if element:
@@ -54,13 +54,13 @@ def split_timedvalue(value: str) -> list[str]:
     return out
 
 
-@typed_cache
+@cache
 def parse_duration(*durations: str, beat: T_Beat) -> T_Duration:
     if not durations:
         return beat
 
     if len(durations) > 1:
-        return sum(map(partial(parse_duration, beat=beat), durations))
+        return sum(map(functools.partial(parse_duration, beat=beat), durations))
 
     if not (duration := durations[0]):
         return beat
@@ -81,7 +81,7 @@ def strip_split(string: str, delimiter: str):
 def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
     single_kwargs = {k: v for k, v in kwargs.items() if type(v) is not T_MultiValue}
     multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
-    zipped_kwargs = map(dict, map(partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))
+    zipped_kwargs = map(dict, map(functools.partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))
 
     multi_args = [arg for arg in args if type(arg) is T_MultiValue]
     if not multi_args:
@@ -95,7 +95,7 @@ def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T
     return T_MultiValue(func(*arg, **single_kwargs, **kwarg) for arg, kwarg in strict_zip(zipped_args, zipped_kwargs))
 
 
-strict_zip = partial(zip, strict=True)
+strict_zip = functools.partial(zip, strict=True)
 
 
 def transpose(double_iterable: Iterable[Iterable[T]]) -> Iterable[Iterable[T]]:
