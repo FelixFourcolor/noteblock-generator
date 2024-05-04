@@ -36,12 +36,13 @@ from .utils import (
 )
 from .validator import (
     T_BarDelimiter,
+    T_BaseSection,
+    T_Composition,
     T_CompoundNote,
-    T_CompoundSection,
     T_Delay,
     T_Duration,
+    T_Movement,
     T_MultipleNotes,
-    T_MultiSection,
     T_MultiValue,
     T_NoteMeta,
     T_NoteName,
@@ -49,9 +50,9 @@ from .validator import (
     T_ParallelNotes,
     T_Positional,
     T_Rest,
+    T_Section,
     T_SequentialNotes,
     T_SingleNote,
-    T_SingleSection,
     T_StaticAbsoluteDynamic,
     T_TrilledNote,
     T_TrillStyle,
@@ -59,7 +60,7 @@ from .validator import (
 )
 
 
-def parse(validated_data: T_MultiSection):
+def parse(validated_data: T_Composition):
     class _DefaultEnvironment:
         name = Name()
         width = Width()
@@ -74,7 +75,7 @@ def parse(validated_data: T_MultiSection):
         sustain = Sustain()
         transpose = Transpose()
 
-    return MultiSection(0, validated_data, _DefaultEnvironment)  # TODO: error handling
+    return Composition(0, validated_data, _DefaultEnvironment)  # TODO: error handling
 
 
 @dataclass(kw_only=True, slots=True)
@@ -151,7 +152,7 @@ class _Environment(Protocol):
 
 
 class _BaseSection:
-    def __init__(self, index: int | tuple[int, int], src: T_SingleSection | T_MultiSection, env: _Environment):
+    def __init__(self, index: int | tuple[int, int], src: T_BaseSection, env: _Environment):
         self.name = env.name.transform(index, src)
         self.time = env.time.transform(src.time)
         self.width = env.width.transform(self.time.resolve(), src.width)
@@ -166,12 +167,12 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class SingleSection(_BaseSection, list[Chord]):
-    def __init__(self, index: int | tuple[int, int], src: T_SingleSection, env: _Environment):
+class Section(_BaseSection, list[Chord]):
+    def __init__(self, index: int | tuple[int, int], src: T_Section, env: _Environment):
         super().__init__(index, src, env)
         voices = multivalue_flatten(
             multivalue_map(Voice, i, voice, self)  #
-            for i, voice in enumerate(src.voices)
+            for i, voice in enumerate(src)
             if voice is not None
         )
         # voices are not necesarily of equal length, pad them with empty notes
@@ -181,8 +182,8 @@ class SingleSection(_BaseSection, list[Chord]):
     @overload
     def __getitem__(self, key: int) -> Chord: ...
     @overload
-    def __getitem__(self, key: slice) -> SingleSection: ...
-    def __getitem__(self, key: int | slice) -> Chord | SingleSection:
+    def __getitem__(self, key: slice) -> Section: ...
+    def __getitem__(self, key: int | slice) -> Chord | Section:
         if isinstance(key, int):
             return super().__getitem__(key)
 
@@ -194,7 +195,7 @@ class SingleSection(_BaseSection, list[Chord]):
             del out[key.stop :]
         return out
 
-    def split(self, index: int) -> SingleSection:
+    def split(self, index: int) -> Section:
         other = shallowcopy(self)
         del self[:index]
         del other[index:]
@@ -214,15 +215,15 @@ class SingleSection(_BaseSection, list[Chord]):
                     yield level
 
 
-class CompoundSection(list[SingleSection]):
-    def __init__(self, index: int, src: T_CompoundSection, env: _Environment):
-        if isinstance(src, T_SingleSection):
-            self.append(SingleSection(index, src, env))
+class Movement(list[Section]):
+    def __init__(self, index: int, src: T_Movement, env: _Environment):
+        if isinstance(src, T_Section):
+            self.append(Section(index, src, env))
         else:
             for i, subsection in enumerate(src):
-                self._merge(SingleSection((index, i), subsection, env))
+                self._merge(Section((index, i), subsection, env))
 
-    def _merge(self, section: SingleSection):
+    def _merge(self, section: Section):
         subsections = self._split(section)
 
         if len(self) == 0:
@@ -241,8 +242,8 @@ class CompoundSection(list[SingleSection]):
             before.extend(after)  # otherwise extend the previous one
         self += subsections
 
-    def _split(self, section: SingleSection):
-        def _split_core(section: SingleSection, *, index__: int) -> list[SingleSection]:
+    def _split(self, section: Section):
+        def _split_core(section: Section, *, index__: int) -> list[Section]:
             out = [section]
 
             if len(section) < 2:
@@ -268,17 +269,17 @@ class CompoundSection(list[SingleSection]):
         return _split_core(section, index__=0)
 
 
-class MultiSection(_BaseSection, list[CompoundSection]):
-    def __init__(self, base_index: int, src: T_MultiSection, env: _Environment):
+class Composition(_BaseSection, list[Movement]):
+    def __init__(self, base_index: int, src: T_Composition, env: _Environment):
         super().__init__(base_index, src, env)
         self.current_index = 0
-        for section in src.sections:
-            if isinstance(section, T_MultiSection):
-                subsection = MultiSection(base_index + self.current_index, section, self)
+        for movement in src:
+            if isinstance(movement, T_Composition):
+                subsection = Composition(base_index + self.current_index, movement, self)
                 self += subsection
                 self.current_index = subsection.current_index
             else:
-                self.append(CompoundSection(base_index + self.current_index, section, self))
+                self.append(Movement(base_index + self.current_index, movement, self))
                 self.current_index += 1
 
 

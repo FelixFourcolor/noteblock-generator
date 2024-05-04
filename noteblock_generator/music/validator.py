@@ -21,7 +21,7 @@ from .loader import PATH_KEY, REF_KEY
 
 
 def validate(raw_data: object):
-    return T_MultiSection.model_validate(raw_data)  # TODO: error handling
+    return T_Composition.model_validate(raw_data)  # TODO: error handling
 
 
 @final
@@ -463,9 +463,15 @@ T_SingleNote = T_RegularNote | T_TrilledNote
 class T_ParallelNotes(_BaseNote):
     note: T_Tuple[T_SingleNote | T_SequentialNotes]
 
+    def __iter__(self):
+        yield from self.note
+
 
 class T_SequentialNotes(_BaseNote):
     note: T_Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
+
+    def __iter__(self):
+        yield from self.note
 
 
 T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
@@ -495,8 +501,11 @@ class T_Voice(_BaseModel):
                 data[PATH_KEY] = notes.pop(PATH_KEY)
         return data
 
+    def __iter__(self):
+        yield from self.notes
 
-class _BaseSection(_BaseModel):
+
+class T_BaseSection(_BaseModel):
     path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
     width: T_Width | None = None
@@ -512,7 +521,7 @@ class _BaseSection(_BaseModel):
     sustain: T_PositionalProperty[T_Sustain] = None
 
 
-class T_SingleSection(_BaseSection):
+class T_Section(T_BaseSection):
     voices: T_Tuple[T_Positional[T_Voice] | None]
 
     @model_validator(mode="before")
@@ -523,17 +532,23 @@ class T_SingleSection(_BaseSection):
             data["voices"] = [T_Voice.model_validate(data["voices"])]
         return data
 
+    def __iter__(self):
+        yield from self.voices
 
-T_CompoundSection = T_Positional[T_SingleSection]
+
+T_Movement = T_Positional[T_Section]
 
 
-class T_MultiSection(_BaseSection):
-    sections: T_Tuple[T_CompoundSection | T_MultiSection]
+class T_Composition(T_BaseSection):
+    movements: T_Tuple[T_Movement | T_Composition]
 
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = _to_dict(data, key="sections")
+        data = _to_dict(data, key="movements")
         with suppress(ValidationError):
-            data["sections"] = [TypeAdapter(T_SingleSection).validate_python(data["sections"])]
+            data["movements"] = [TypeAdapter(T_Movement).validate_python(data["movements"])]
         return data
+
+    def __iter__(self):
+        yield from self.movements

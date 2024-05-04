@@ -1,0 +1,17 @@
+{
+    "title": "Movement",
+    "oneOf": [
+        { "$ref": "section.schema.json#" },
+        {
+            "description": "Continuous sequential sections",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "oneOf": [
+                    { "$ref": "section.schema.json#" },
+                    { "$ref": "../types/meta.schema.json#/reference" }
+                ]
+            }
+        }
+    ]
+}

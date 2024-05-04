@@ -1,0 +1,40 @@
+{
+    "title": "Composition",
+    "oneOf": [
+        {
+            "title": "Single-movement composition",
+            "$ref": "movement.schema.json#" 
+        },
+        {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "movements" ],
+            "properties": {
+                "movements": {
+                    "title": "Movements",
+                    "description": "Non-continuous sequential sections",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "oneOf": [
+                            { "$ref": "movement.schema.json#" },
+                            { "$ref": "../types/meta.schema.json#/reference" }
+                        ]
+                    }
+                },
+                "name": { "$ref": "../types/properties.schema.json#/name" },
+                "width": { "$ref": "../types/properties.schema.json#/width" },
+                "continuous": { "$ref": "../types/properties.schema.json#/continuous" },
+                "time": { "$ref": "../types/properties.schema.json#/time" },
+                "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                "tick": { "$ref": "../types/properties.schema.json#/tick" },
+                "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../types/properties.schema.json#/position" },
+                "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
+            }
+        }
+    ]
+}

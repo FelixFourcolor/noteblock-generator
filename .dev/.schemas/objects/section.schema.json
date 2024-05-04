@@ -1,31 +1,11 @@
 {
-    "$ref": "#/$def/multiSection",
-    "$def": {
-        "singleSection": {
-            "title": "Single section",
-            "oneOf": [
-                { "$ref": "voice.schema.json#" },
-                {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [ "voices" ],
-                    "properties": {
-                        "voices": { "$ref": "#/$def/singleSection/$def/voices" },
-                        "name": { "$ref": "../types/properties.schema.json#/name" },
-                        "time": { "$ref": "../types/properties.schema.json#/time" },
-                        "width": { "$ref": "../types/properties.schema.json#/width" },
-                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
-                        "tick": { "$ref": "../types/properties.schema.json#/tick" },
-                        "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
-                        "position": { "$ref": "../types/properties.schema.json#/position" },
-                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
-                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
-                    }
-                }
-            ],
-            "$def": {
+    "oneOf": [
+        { "$ref": "voice.schema.json#" },
+        {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [ "voices" ],
+            "properties": {
                 "voices": {
                     "title": "List of voices to be played in parallel",
                     "description": "Higher on the list == closer to the player.",
@@ -53,59 +33,19 @@
                             }
                         ]
                     }
-                }
-            }
-        },
-        "multiSection": {
-            "title": "Multi-section",
-            "oneOf": [
-                { "$ref": "#/$def/singleSection" },
-                {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "required": [ "sections" ],
-                    "properties": {
-                        "sections": { "$ref": "#/$def/multiSection/$def/sections" },
-                        "name": { "$ref": "../types/properties.schema.json#/name" },
-                        "width": { "$ref": "../types/properties.schema.json#/width" },
-                        "continuous": { "$ref": "../types/properties.schema.json#/continuous" },
-                        "time": { "$ref": "../types/properties.schema.json#/time" },
-                        "beat": { "$ref": "../types/properties.schema.json#/beat" },
-                        "tick": { "$ref": "../types/properties.schema.json#/tick" },
-                        "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
-                        "position": { "$ref": "../types/properties.schema.json#/position" },
-                        "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
-                        "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
-                        "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
-                        "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
-                    }
-                }
-            ],
-            "$def": {
-                "sections": {
-                    "description": "Non-continuous sequential sections",
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "oneOf": [
-                            { "$ref": "#/$def/singleSection" },
-                            {
-                                "title": "Compound section",
-                                "description": "Continuous sequential sections",
-                                "type": "array",
-                                "minItems": 1,
-                                "items": {
-                                    "oneOf": [
-                                        { "$ref": "#/$def/singleSection" },
-                                        { "$ref": "../types/meta.schema.json#/reference" }
-                                    ]
-                                }
-                            },
-                            { "$ref": "../types/meta.schema.json#/reference" }
-                        ]
-                    }
-                }
+                },
+                "name": { "$ref": "../types/properties.schema.json#/name" },
+                "time": { "$ref": "../types/properties.schema.json#/time" },
+                "width": { "$ref": "../types/properties.schema.json#/width" },
+                "beat": { "$ref": "../types/properties.schema.json#/beat" },
+                "tick": { "$ref": "../types/properties.schema.json#/tick" },
+                "trillStyle": { "$ref": "../types/properties.schema.json#/trillStyle" },
+                "position": { "$ref": "../types/properties.schema.json#/position" },
+                "instrument": { "$ref": "../types/properties.schema.json#/instrument" },
+                "dynamic": { "$ref": "../types/properties.schema.json#/dynamic" },
+                "transpose": { "$ref": "../types/properties.schema.json#/transpose" },
+                "sustain": { "$ref": "../types/properties.schema.json#/sustain" }
             }
         }
-    }
+    ]
 }

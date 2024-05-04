@@ -8,13 +8,13 @@ from typing import Iterable, Literal
 
 from multimethod import multidispatch
 
-from .parser import Chord, CompoundSection, MultiSection, Note, NoteBlock, SingleSection
+from .parser import Chord, Composition, Movement, Note, NoteBlock, Section
 from .properties import Dynamic, T_LevelIndex
 from .utils import transpose
 from .validator import T_Delay, T_Tick, T_Tuple, T_Width
 
 
-def compile(parsed_data: MultiSection) -> T_Data:  # noqa: A001
+def compile(parsed_data: Composition) -> T_Data:  # noqa: A001
     return _Compiler(parsed_data).generate()
 
 
@@ -39,7 +39,7 @@ class Unit(T_Tuple[NoteBlock]):  # TODO: optimization: not every unit needs to b
 
 class SingleDivision(list[list[Unit]]):
     @classmethod
-    def from_src(cls, sequential_notes: SingleSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+    def from_src(cls, sequential_notes: Section, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         def assign_levels(chord: Chord) -> Iterable[Unit]:
             return (
                 Unit(filter(lambda note: note.level == level, chord), delay=chord.delay)
@@ -68,7 +68,7 @@ class SingleDivision(list[list[Unit]]):
 
 class DoubleDivision(tuple[SingleDivision, SingleDivision]):
     @classmethod
-    def from_src(cls, section: SingleSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+    def from_src(cls, section: Section, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         def create_subdivision(division: Literal[0, 1]):
             def assign_levels(chord: Chord) -> Iterable[Unit]:
                 return (
@@ -106,34 +106,34 @@ class DoubleDivision(tuple[SingleDivision, SingleDivision]):
         return self[0].height
 
 
-T_Subsection = SingleDivision | DoubleDivision
+_Section = SingleDivision | DoubleDivision
 
 
-class Section(list[T_Subsection]):
-    def __init__(self, src: CompoundSection, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
+class _Movement(list[_Section]):
+    def __init__(self, src: Movement, *, min_level: T_LevelIndex, max_level: T_LevelIndex):
         # TODO: initial padding
-        for subsection in src:
-            if subsection.type == "single":
-                self.append(SingleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+        for section in src:
+            if section.type == "single":
+                self.append(SingleDivision.from_src(section, min_level=min_level, max_level=max_level))
             else:
-                self.append(DoubleDivision.from_src(subsection, min_level=min_level, max_level=max_level))
+                self.append(DoubleDivision.from_src(section, min_level=min_level, max_level=max_level))
 
-        self.length = sum(subsection.length for subsection in self)
+        self.length = sum(section.length for section in self)
         self.height = self[0].height
 
 
-class Music(list[Section]):
-    def __init__(self, src: MultiSection):
-        levels = tuple(chain.from_iterable(subsection.level_iter() for section in src for subsection in section))
+class _Composition(list[_Movement]):
+    def __init__(self, src: Composition):
+        levels = tuple(chain.from_iterable(section.level_iter() for movement in src for section in movement))
         if levels:
             min_level, max_level = min(levels), max(levels)
         else:
             min_level = max_level = 0
 
-        for section in src:
-            self.append(Section(section, min_level=min_level, max_level=max_level))
+        for movement in src:
+            self.append(_Movement(movement, min_level=min_level, max_level=max_level))
 
-        self.length = sum(section.length for section in self)
+        self.length = sum(movement.length for movement in self)
         self.height = self[0].height
 
 
@@ -198,12 +198,11 @@ class _Compiler:
     # TODO: handle multiple widths
     # TODO: implement tick
 
-    def __init__(self, src: MultiSection):
+    def __init__(self, src: Composition):
         self.X, self.Y, self.Z = (0, 0, 0)
         self.x_dir, self.z_dir = Direction((1, 0)), Direction((0, 1))
         self._data: T_Data = {}
-
-        self._music = Music(src)
+        self._composition = _Composition(src)
 
     @property
     def z_i(self) -> Literal[1, -1]:
@@ -233,46 +232,46 @@ class _Compiler:
 
     def generate(self):
         x = self.X
-        for section in self._music:
+        for movement in self._composition:
             with self.localize() as self:
-                self.generate_section(section)
+                self.generate_movement(movement)
                 x = self.X
             self.X = x + 4
         return self._data
 
-    def generate_section(self, section: Section):
-        self.generate_subsection(section[0])
-        for this_, next_ in pairwise(section):
-            self.generate_subsections_bridge(this_, next_)
-            self.generate_subsection(next_)
+    def generate_movement(self, movement: _Movement):
+        self.generate_section(movement[0])
+        for this_section, next_section in pairwise(movement):
+            self.generate_sections_bridge(this_section, next_section)
+            self.generate_section(next_section)
 
     @singledispatchmethod
-    def generate_subsection(self, subsection: T_Subsection): ...
+    def generate_section(self, section: _Section): ...
 
-    @generate_subsection.register
-    def _(self, subsection: SingleDivision):
+    @generate_section.register
+    def _(self, section: SingleDivision):
         x, z = self.X, self.Z
-        for i, level in enumerate(subsection):
+        for i, level in enumerate(section):
             with self.localize(y=2 * i) as self:
-                self.generate_level(level, width=subsection.width)
+                self.generate_level(level, width=section.width)
                 x, z = self.X, self.Z
         self.X, self.Z = x, z
 
-    @generate_subsection.register
-    def _(self, subsection: DoubleDivision):
+    @generate_section.register
+    def _(self, section: DoubleDivision):
         x, z = self.X, self.Z
-        left_division, right_division = subsection
+        left_division, right_division = section
         with self.localize() as self:
-            self.generate_subsection(left_division)
+            self.generate_section(left_division)
             x, z = self.X, self.Z
-        with self.localize(z=2 * subsection.width + 4) as self:
-            self.generate_subsection(right_division)
+        with self.localize(z=2 * section.width + 4) as self:
+            self.generate_section(right_division)
         self.X, self.Z = x, z
 
     @multidispatch
-    def generate_subsections_bridge(self, from_: T_Subsection, to_: T_Subsection): ...
+    def generate_sections_bridge(self, from_: _Section, to_: _Section): ...
 
-    @generate_subsections_bridge.register
+    @generate_sections_bridge.register
     def _(self, from_: SingleDivision, to_: SingleDivision):
         x, z = self.X, self.Z
         for i, row in enumerate(from_):
@@ -281,23 +280,23 @@ class _Compiler:
                 x, z = self.X, self.Z
         self.X, self.Z = x, z
 
-    @generate_subsections_bridge.register
+    @generate_sections_bridge.register
     def _(self, from_: DoubleDivision, to_: DoubleDivision):
         left_from, right_from = from_
         left_to, right_to = to_
 
         x, z = self.X, self.Z
         with self.localize() as self:
-            self.generate_subsections_bridge(left_from, left_to)
+            self.generate_sections_bridge(left_from, left_to)
             x, z = self.X, self.Z
         with self.localize(z=2 * from_.width + 4) as self:
-            self.generate_subsection(right_from, right_to)
+            self.generate_section(right_from, right_to)
         self.X, self.Z = x, z
 
-    @generate_subsections_bridge.register
+    @generate_sections_bridge.register
     def _(self, from_: SingleDivision, to_: DoubleDivision): ...  # TODO
 
-    @generate_subsections_bridge.register
+    @generate_sections_bridge.register
     def _(self, from_: DoubleDivision, to_: SingleDivision): ...  # TODO
 
     def generate_level(self, level: list[Unit], *, width: T_Width):
