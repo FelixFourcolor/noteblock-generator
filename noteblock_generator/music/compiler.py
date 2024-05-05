@@ -2,11 +2,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from enum import Enum
-from functools import singledispatchmethod
 from itertools import chain, pairwise
 from typing import Iterable, Literal
-
-from multimethod import multidispatch
 
 from .parser import Chord, Composition, Movement, Note, NoteBlock, Section
 from .properties import Dynamic, T_LevelIndex
@@ -242,14 +239,16 @@ class _Compiler:
     def generate_movement(self, movement: _Movement):
         self.generate_section(movement[0])
         for this_section, next_section in pairwise(movement):
-            self.generate_sections_bridge(this_section, next_section)
+            self.generate_bridge(this_section, next_section)
             self.generate_section(next_section)
 
-    @singledispatchmethod
-    def generate_section(self, section: _Section): ...
+    def generate_section(self, section: _Section):
+        if isinstance(section, SingleDivision):
+            self._single_division(section)
+        else:
+            self._double_division(section)
 
-    @generate_section.register
-    def _(self, section: SingleDivision):
+    def _single_division(self, section: SingleDivision):
         x, z = self.X, self.Z
         for i, level in enumerate(section):
             with self.localize(y=2 * i) as self:
@@ -257,8 +256,7 @@ class _Compiler:
                 x, z = self.X, self.Z
         self.X, self.Z = x, z
 
-    @generate_section.register
-    def _(self, section: DoubleDivision):
+    def _double_division(self, section: DoubleDivision):
         x, z = self.X, self.Z
         left_division, right_division = section
         with self.localize() as self:
@@ -268,36 +266,41 @@ class _Compiler:
             self.generate_section(right_division)
         self.X, self.Z = x, z
 
-    @multidispatch
-    def generate_sections_bridge(self, from_: _Section, to_: _Section): ...
+    def generate_bridge(self, from_section: _Section, to_section: _Section):
+        if isinstance(from_section, SingleDivision):
+            if isinstance(to_section, SingleDivision):
+                self._single_to_single(from_section, to_section)
+            else:
+                self._single_to_double(from_section, to_section)
+        else:  # noqa: PLR5501
+            if isinstance(to_section, SingleDivision):
+                self._double_to_single(from_section, to_section)
+            else:
+                self._double_to_double(from_section, to_section)
 
-    @generate_sections_bridge.register
-    def _(self, from_: SingleDivision, to_: SingleDivision):
+    def _single_to_single(self, from_section: SingleDivision, to_section: SingleDivision):
         x, z = self.X, self.Z
-        for i, row in enumerate(from_):
+        for i, row in enumerate(from_section):
             with self.localize(y=2 * i) as self:
                 self.generate_rows_bridge(delay=row[-1].delay)
                 x, z = self.X, self.Z
         self.X, self.Z = x, z
 
-    @generate_sections_bridge.register
-    def _(self, from_: DoubleDivision, to_: DoubleDivision):
-        left_from, right_from = from_
-        left_to, right_to = to_
+    def _double_to_double(self, from_section: DoubleDivision, to_section: DoubleDivision):
+        from_L, from_R = from_section
+        to_L, to_R = to_section
 
         x, z = self.X, self.Z
         with self.localize() as self:
-            self.generate_sections_bridge(left_from, left_to)
+            self.generate_bridge(from_L, to_L)
             x, z = self.X, self.Z
-        with self.localize(z=2 * from_.width + 4) as self:
-            self.generate_section(right_from, right_to)
+        with self.localize(z=2 * from_section.width + 4) as self:
+            self.generate_bridge(from_R, to_R)
         self.X, self.Z = x, z
 
-    @generate_sections_bridge.register
-    def _(self, from_: SingleDivision, to_: DoubleDivision): ...  # TODO
+    def _single_to_double(self, from_section: SingleDivision, to_section: DoubleDivision): ...  # TODO
 
-    @generate_sections_bridge.register
-    def _(self, from_: DoubleDivision, to_: SingleDivision): ...  # TODO
+    def _double_to_single(self, from_section: DoubleDivision, to_section: SingleDivision): ...  # TODO
 
     def generate_level(self, level: list[Unit], *, width: T_Width):
         for i, (unit, _) in enumerate(pairwise(level)):
