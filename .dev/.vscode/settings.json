@@ -1,9 +1,5 @@
 {
-    "json.schemas": [
-        {
-            "fileMatch": [ "src/**/*.json" ],
-            "url": "./.schemas/schema.json"
-        }
-    ],
-    "yaml.schemas": { "./.schemas/schema.json": "src/**/*.yaml" },
+    "yaml.schemas": {
+        "./.schemas/schema.json": "src/**/*.yaml"
+    },
 }

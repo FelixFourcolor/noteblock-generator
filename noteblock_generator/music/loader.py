@@ -35,7 +35,7 @@ def _find_path(path: Path):
     def find(path: Path, /, *, match_name: str = None) -> Path | None:
         if path.is_dir():
             cwd, directories, files = next(os.walk(path))
-            files = [f for f in files if f.endswith((".json", ".yaml"))]
+            files = [f for f in files if f.endswith(".yaml")]
             if len(files) == 1:
                 return path / Path(files[0])
             for subpath in map(Path, files + directories):
