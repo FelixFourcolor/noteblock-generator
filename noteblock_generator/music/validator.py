@@ -45,7 +45,6 @@ T_NoteValue = int
 T_Name = str
 T_Time = PositiveInt
 T_Width = Annotated[int, Field(ge=8, le=16)]
-T_Delay = Annotated[int, Field(ge=1, le=4)]
 T_Beat = PositiveInt
 T_Tick = PositiveFloat
 T_Instrument = Annotated[
@@ -409,7 +408,7 @@ T_Position = T_StaticPosition | T_VariablePosition
 assert T_Position == T_AbsolutePosition | T_RelativePosition
 
 
-def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
+def to_dict(data: Any, *, key: str) -> dict[str, Any]:
     if isinstance(data, dict):
         if key in data:
             return data
@@ -419,16 +418,15 @@ def _to_dict(data: Any, *, key: str) -> dict[str, Any]:
     return {key: data}
 
 
-class _BaseModel(BaseModel):
+class T_Environment(BaseModel):
     class Config:
         frozen = True
         extra = "forbid"
         alias_generator = to_camel
 
-
-class _BaseNoteModel(_BaseModel):
+    width: T_StaticProperty[T_Width] = None
+    tick: T_StaticProperty[T_Tick] = None
     time: T_StaticProperty[T_Time] = None
-    delay: T_StaticProperty[T_Delay] = None
     beat: T_StaticProperty[T_Beat] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
     position: T_PositionalProperty[T_Position] = None
@@ -438,14 +436,16 @@ class _BaseNoteModel(_BaseModel):
     sustain: T_PositionalProperty[T_Sustain] = None
 
 
-class T_NotesModifier(_BaseNoteModel): ...
+class T_NotesModifier(T_Environment): ...
 
 
-class _BaseNote(_BaseNoteModel):
+class _BaseNote(T_Environment):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        return _to_dict(data, key="note")
+        if isinstance(data, dict) and "notes" in data:
+            data["note"] = data.pop("notes")
+        return to_dict(data, key="note")
 
 
 class T_RegularNote(_BaseNote):
@@ -478,23 +478,18 @@ T_Note = T_SingleNote | T_ParallelNotes | T_SequentialNotes
 T_NoteMeta = T_NotesModifier | T_Note
 
 
-class T_Voice(_BaseModel):
+class T_NamedEnvironment(T_Environment):
     path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
     name: T_Name | None = None
-    notes: T_SequentialNotes
-    time: T_StaticProperty[T_Time] = None
-    beat: T_StaticProperty[T_Beat] = None
-    trill_style: T_StaticProperty[T_TrillStyle] = None
-    position: T_PositionalProperty[T_Position] = None
-    instrument: T_PositionalProperty[T_Instrument] = None
-    dynamic: T_PositionalProperty[T_Dynamic] = None
-    transpose: T_PositionalProperty[T_Transpose] = None
-    sustain: T_PositionalProperty[T_Sustain] = None
+
+
+class T_Voice(T_NamedEnvironment, T_SequentialNotes):
+    notes: T_Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
 
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = _to_dict(data, key="notes")
+        data = to_dict(data, key="notes")
         if PATH_KEY not in data:
             notes = data["notes"]  # guarantee valid key by _to_dict
             with suppress(Exception):
@@ -505,29 +500,13 @@ class T_Voice(_BaseModel):
         yield from self.notes
 
 
-class T_BaseSection(_BaseModel):
-    path: Path | None = Field(alias=PATH_KEY, default=None, exclude=True)
-    name: T_Name | None = None
-    width: T_Width | None = None
-    time: T_StaticProperty[T_Time] = None
-    delay: T_StaticProperty[T_Delay] = None
-    beat: T_StaticProperty[T_Beat] = None
-    tick: T_StaticProperty[T_Tick] = None
-    trill_style: T_StaticProperty[T_TrillStyle] = None
-    position: T_PositionalProperty[T_Position] = None
-    instrument: T_PositionalProperty[T_Instrument] = None
-    dynamic: T_PositionalProperty[T_Dynamic] = None
-    transpose: T_PositionalProperty[T_Transpose] = None
-    sustain: T_PositionalProperty[T_Sustain] = None
-
-
-class T_Section(T_BaseSection):
+class T_Section(T_NamedEnvironment):
     voices: T_Tuple[T_Positional[T_Voice] | None]
 
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = _to_dict(data, key="voices")
+        data = to_dict(data, key="voices")
         with suppress(ValidationError):
             data["voices"] = [T_Voice.model_validate(data["voices"])]
         return data
@@ -539,13 +518,13 @@ class T_Section(T_BaseSection):
 T_Movement = T_Positional[T_Section]
 
 
-class T_Composition(T_BaseSection):
+class T_Composition(T_NamedEnvironment):
     movements: T_Tuple[T_Movement | T_Composition]
 
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = _to_dict(data, key="movements")
+        data = to_dict(data, key="movements")
         with suppress(ValidationError):
             data["movements"] = [TypeAdapter(T_Movement).validate_python(data["movements"])]
         return data
