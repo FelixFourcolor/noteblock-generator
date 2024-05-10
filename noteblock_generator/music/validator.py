@@ -9,7 +9,6 @@ from pydantic import (
     BaseModel,
     Field,
     NonNegativeInt,
-    PositiveFloat,
     PositiveInt,
     TypeAdapter,
     ValidationError,
@@ -43,10 +42,26 @@ T_Tuple = tuple[T, ...]
 T_Duration = int
 T_NoteValue = int
 T_Name = str
-T_Time = PositiveInt
-T_Width = Annotated[int, Field(ge=8, le=16)]
-T_Beat = PositiveInt
-T_Tick = PositiveFloat
+T_Time = (
+    PositiveInt
+    | Annotated[
+        str,
+        Field(
+            pattern=(
+                "^"
+                "("  # begin repeat
+                "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
+                "[1-9]\\d*b?"  # number of ticks or of beats
+                ")+"  # end repeat
+                "$"
+            )
+        ),
+    ]
+)
+T_Beat = Annotated[int, Field(ge=1, lt=12)]
+T_BeatRate = Annotated[int, Field(ge=6, lt=2500)]
+T_TickRate = Annotated[float, Field(ge=0.1, lt=500.0)]
+T_Tempo = T_BeatRate | tuple[T_BeatRate, Literal["bpm"]] | tuple[T_TickRate, Literal["tps"]]
 T_Instrument = Annotated[
     # Format: <instrument 1> / <instrument 2> / etc,
     # e.g. "harp/guitar/flute".
@@ -74,7 +89,7 @@ T_VariableAbsoluteDynamic = Annotated[
             "[0-6]"  # dynamic value: 0 to 6
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -103,7 +118,7 @@ T_VariableRelativeDynamic = Annotated[
             "[0-6]"  # a value from 0 to 6
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -155,7 +170,7 @@ T_AbsoluteSustain = (
     | int
     | Annotated[
         str,
-        Field(pattern=("^(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)$")),  # number of pulses or of beats
+        Field(pattern=("^(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)$")),  # number of ticks or of beats
     ]
 )
 T_RelativeSustain = Annotated[
@@ -164,7 +179,7 @@ T_RelativeSustain = Annotated[
         pattern=(
             "^"
             "[+-]"  # + to increase, - to decrease
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             "$"
         )
     ),
@@ -190,7 +205,7 @@ T_Rest = Annotated[
             "[rR]"  # R for rest
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")*"  # end duration
             "$"
         )
@@ -210,7 +225,7 @@ T_NoteName = Annotated[
             ")"  # end octave
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")*"  # end duration
             "$"
         )
@@ -235,7 +250,7 @@ T_MultipleNotes = Annotated[
             ")"  # end note name
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")*"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             "){2,}"  # repeat at least 2x
@@ -259,7 +274,7 @@ T_CompoundNote = Annotated[
             ")"  # end octave
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")*"  # end duration
             "(\\s*,\\s*|\\))"  # "," or closing parenthesis
             "){2,}"  # repeat at least 2x
@@ -278,7 +293,7 @@ T_VariableAbsoluteLevel = Annotated[
             "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -308,7 +323,7 @@ T_VariableRelativeLevel = Annotated[
             "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -366,7 +381,7 @@ T_VariableAbsoluteCompoundPosition = Annotated[
             "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -386,7 +401,7 @@ T_VariableRelativeCompoundPosition = Annotated[
             "\\d+"  # level: higher is closer to the player
             "("  # begin duration
             "(\\s+[+-]?|\\s*[+-])"  # multiple values separated by spaces or signs
-            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of pulses or of beats
+            "(([1-9]\\d*b?)?\\.|[1-9]\\d*b?\\.?)"  # number of ticks or of beats
             ")+"  # end duration
             "(\\s*,\\s*|$)"  # "," or end of string
             ")+"  # end repeat
@@ -424,9 +439,8 @@ class T_Environment(BaseModel):
         extra = "forbid"
         alias_generator = to_camel
 
-    width: T_StaticProperty[T_Width] = None
-    tick: T_StaticProperty[T_Tick] = None
     time: T_StaticProperty[T_Time] = None
+    tempo: T_StaticProperty[T_Tempo] = None
     beat: T_StaticProperty[T_Beat] = None
     trill_style: T_StaticProperty[T_TrillStyle] = None
     position: T_PositionalProperty[T_Position] = None
