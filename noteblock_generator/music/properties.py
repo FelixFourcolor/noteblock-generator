@@ -25,8 +25,8 @@ from .validator import (
     T_AbsoluteDynamic,
     T_AbsoluteSustain,
     T_Beat,
+    T_BeatRate,
     T_CompoundPosition,
-    T_Delay,
     T_Delete,
     T_Division,
     T_Duration,
@@ -49,7 +49,8 @@ from .validator import (
     T_StaticProperty,
     T_StaticRelativeLevel,
     T_Sustain,
-    T_Tick,
+    T_Tempo,
+    T_TickRate,
     T_Time,
     T_Transpose,
     T_TrillStyle,
@@ -57,7 +58,6 @@ from .validator import (
     T_VariableCompoundPosition,
     T_VariableDynamic,
     T_VariableLevel,
-    T_Width,
 )
 
 
@@ -89,33 +89,18 @@ class Name:
         return self._value
 
 
-class Width:
-    def __init__(self, value: T_Width = None):
-        self._value = value
-
-    def transform(self, time: T_Time, value: T_Width | None):
-        if value is not None:
-            return Width(value)
-        if self._value is None:
-            return Width(self._resolve_time(time))
-        return self
-
-    def _resolve_time(self, time: T_Time):
-        for n in range(16, 7, -1):
-            if not (time % n and n % time):
-                return n
-
-    def resolve(self) -> T_Width:
-        return self._value or 12
-
-
 S = TypeVar("S")
 T = TypeVar("T", bound=Hashable)
 U = TypeVar("U", bound=Hashable)
 V = TypeVar("V")
 
 
-class _StaticProperty(Generic[T]):
+class _StaticProperty(
+    Generic[
+        T,  # `transform` argument type
+        V,  # `resolve` output type
+    ]
+):
     _DEFAULT: T
 
     def __init__(self):
@@ -133,27 +118,36 @@ class _StaticProperty(Generic[T]):
             self._original_value = self._value
         return self
 
-    def resolve(self) -> T:
-        return self._value
+    def resolve(self) -> V:
+        return cast(V, self._value)
 
 
-class Time(_StaticProperty[T_Time]):
+class Time(_StaticProperty[T_Time, int]):
     _DEFAULT = 16
 
-
-class Delay(_StaticProperty[T_Delay]):
-    _DEFAULT = 1
-
-
-class Beat(_StaticProperty[T_Beat]):
-    _DEFAULT = 2
+    def resolve(self, *, beat: T_Beat) -> int:
+        if isinstance(self._value, int):
+            return self._value
+        return parse_duration(*split_timedvalue(self._value), beat=beat)
 
 
-class Tick(_StaticProperty[T_Tick]):
-    _DEFAULT = 20.0
+class Tempo(_StaticProperty[T_Tempo, T_TickRate]):
+    _DEFAULT = (150, "bpm")
+
+    def resolve(self, *, beat: T_Beat) -> T_TickRate:
+        if isinstance(value := self._value, tuple):
+            value = value[0]
+        if isinstance(value, T_BeatRate):
+            GAME_TICKS_PER_REDSTONE_TICK = 2
+            return value * GAME_TICKS_PER_REDSTONE_TICK * beat / 60
+        return value
 
 
-class TrillStyle(_StaticProperty[T_TrillStyle]):
+class Beat(_StaticProperty[T_Beat, T_Beat]):
+    _DEFAULT = 4
+
+
+class TrillStyle(_StaticProperty[T_TrillStyle, T_TrillStyle]):
     _DEFAULT = "normal"
 
 
@@ -411,7 +405,9 @@ class Position(
             return convert_special(out)
         if not out:
             return self._NULL_VALUE
-        return multivalue_flatten(map(convert_special, out))  # pyright complains but idk, it looks right to me...
+        return multivalue_flatten(map(convert_special, out))
+        # idk why pyright complains, it looks right to me
+        # not suppressing the error just in case I'm wrong
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
