@@ -8,7 +8,7 @@ from typing import Iterable, Literal
 from .parser import Chord, Composition, Movement, Note, NoteBlock, Section
 from .properties import Dynamic, T_LevelIndex
 from .utils import transpose
-from .validator import T_Delay, T_Tick, T_Tuple, T_Width
+from .validator import T_Delay, T_Tempo, T_Tuple, T_Width
 
 
 def compile(parsed_data: Composition) -> T_Data:  # noqa: A001
@@ -49,7 +49,7 @@ class SingleDivision(list[list[Unit]]):
             tick=sequential_notes.tick.resolve(),
         )
 
-    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tick):
+    def __init__(self, sequence: Iterable[Iterable[Unit]], *, width: T_Width, tick: T_Tempo):
         self.width = width
         self.tick = tick
         self += map(list, sequence)

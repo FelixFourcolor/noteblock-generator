@@ -6,11 +6,10 @@ from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat, zip_longest
-from typing import Iterable, Iterator, Literal, Protocol, overload
+from typing import Iterable, Iterator, Literal, Protocol
 
 from .properties import (
     Beat,
-    Delay,
     Dynamic,
     Instrument,
     Name,
@@ -19,11 +18,10 @@ from .properties import (
     Sustain,
     T_LevelIndex,
     T_PositionIndex,
-    Tick,
+    Tempo,
     Time,
     Transpose,
     TrillStyle,
-    Width,
 )
 from .utils import (
     is_typeform,
@@ -36,14 +34,14 @@ from .utils import (
 )
 from .validator import (
     T_BarDelimiter,
-    T_BaseSection,
     T_Composition,
     T_CompoundNote,
-    T_Delay,
     T_Duration,
+    T_Environment,
     T_Movement,
     T_MultipleNotes,
     T_MultiValue,
+    T_NamedEnvironment,
     T_NoteMeta,
     T_NoteName,
     T_NotesModifier,
@@ -63,11 +61,9 @@ from .validator import (
 def parse(validated_data: T_Composition):
     class _DefaultEnvironment:
         name = Name()
-        width = Width()
         time = Time()
-        delay = Delay()
         beat = Beat()
-        tick = Tick()
+        tempo = Tempo()
         trill_style = TrillStyle()
         position = Position()
         instrument = Instrument()
@@ -78,15 +74,19 @@ def parse(validated_data: T_Composition):
     return Composition(0, validated_data, _DefaultEnvironment)  # TODO: error handling
 
 
+T_Bar = T_Tick = int
+
+
 @dataclass(kw_only=True, slots=True)
 class Note:
     # run-time-significant attributes
     noteblock: NoteBlock | None
-    delay: T_Delay
+    tempo: float
+    time: int
     position: T_PositionIndex
-    # for error message only
+    # for error checking only
     voice: str
-    where: tuple[int, int]
+    index: tuple[T_Bar, T_Tick]
 
     @property
     def division(self):
@@ -106,19 +106,16 @@ class Note:
         return repeat(self, dynamic)
 
     def __repr__(self):
-        return f"{self.voice}@{self.where}"
+        return f"{self.voice}@{self.index}"
 
 
 class Chord(list[Note]):
     def __init__(self, src: Iterator[Note]):
-        first = next(src)  # every chord is guaranteed to have at least one note (see _Note.__mul__)
+        first = next(src)  # every chord is guaranteed to have at least one note (see Note.__mul__)
         self.append(first)
-        self.delay = first.delay
         for note in src:
-            if first.where != note.where:
+            if first.index != note.index:
                 raise ValueError(f"inconsistent placements: {first} & {note}")
-            if self.delay < note.delay:
-                self.delay = note.delay
             self.append(note)
 
         if all(note.position is None for note in self):
@@ -137,12 +134,9 @@ class Chord(list[Note]):
 
 
 class _Environment(Protocol):
-    name: Name
-    width: Width
     time: Time
-    delay: Delay
+    tempo: Tempo
     beat: Beat
-    tick: Tick
     trill_style: TrillStyle
     position: Position
     instrument: Instrument
@@ -151,14 +145,19 @@ class _Environment(Protocol):
     transpose: Transpose
 
 
-class _BaseSection:
-    def __init__(self, index: int | tuple[int, int], src: T_BaseSection, env: _Environment):
+class _NamedEnvironment(_Environment, Protocol):
+    name: Name
+
+
+class _BaseEnvironment:
+    def __init__(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: _NamedEnvironment):
         self.name = env.name.transform(index, src)
+        self.transform(src, env)
+
+    def transform(self, src: T_Environment, env: _Environment):
         self.time = env.time.transform(src.time)
-        self.width = env.width.transform(self.time.resolve(), src.width)
-        self.delay = env.delay.transform(src.delay)
+        self.tempo = env.tempo.transform(src.tempo)
         self.beat = env.beat.transform(src.beat)
-        self.tick = env.tick.transform(src.tick)
         self.trill_style = env.trill_style.transform(src.trill_style)
         self.position = env.position.transform(src.position)
         self.instrument = env.instrument.transform(src.instrument)
@@ -167,8 +166,8 @@ class _BaseSection:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class Section(_BaseSection, list[Chord]):
-    def __init__(self, index: int | tuple[int, int], src: T_Section, env: _Environment):
+class Section(_BaseEnvironment, list[Chord]):
+    def __init__(self, index: int | tuple[int, int], src: T_Section, env: _NamedEnvironment):
         super().__init__(index, src, env)
         voices = multivalue_flatten(
             multivalue_map(Voice, i, voice, self)  #
@@ -179,35 +178,6 @@ class Section(_BaseSection, list[Chord]):
         merged_voice = map(chain.from_iterable, zip_longest(*voices, fillvalue=()))
         self += map(Chord, merged_voice)
 
-    @overload
-    def __getitem__(self, key: int) -> Chord: ...
-    @overload
-    def __getitem__(self, key: slice) -> Section: ...
-    def __getitem__(self, key: int | slice) -> Chord | Section:
-        if isinstance(key, int):
-            return super().__getitem__(key)
-
-        assert key.step is None
-        out = shallowcopy(self)
-        if key.start is not None:
-            del out[: key.start]
-        if key.stop is not None:
-            del out[key.stop :]
-        return out
-
-    def split(self, index: int) -> Section:
-        other = shallowcopy(self)
-        del self[:index]
-        del other[index:]
-        return other
-
-    @property
-    def type(self):
-        for chord in self:
-            if typ := chord.type:
-                return typ
-        raise Exception("not happening")
-
     def level_iter(self) -> Iterator[T_LevelIndex]:
         for chord in self:
             for note in chord:
@@ -216,61 +186,16 @@ class Section(_BaseSection, list[Chord]):
 
 
 class Movement(list[Section]):
-    def __init__(self, index: int, src: T_Movement, env: _Environment):
+    def __init__(self, index: int, src: T_Movement, env: _NamedEnvironment):
         if isinstance(src, T_Section):
             self.append(Section(index, src, env))
         else:
             for i, subsection in enumerate(src):
-                self._merge(Section((index, i), subsection, env))
-
-    def _merge(self, section: Section):
-        subsections = self._split(section)
-
-        if len(self) == 0:
-            self += subsections
-            return
-
-        before = self[-1]
-        after = subsections.pop(0)
-        if (
-            before.width != after.width
-            or before.tick != after.tick
-            or None is not before.type != after.type is not None
-        ):  # if before and after are imcompatible
-            self.append(after)  # add a new subsection
-        else:
-            before.extend(after)  # otherwise extend the previous one
-        self += subsections
-
-    def _split(self, section: Section):
-        def _split_core(section: Section, *, index__: int) -> list[Section]:
-            out = [section]
-
-            if len(section) < 2:
-                return out
-
-            if len(section) == 2:
-                if None is not section[0].type != section[1].type is not None:
-                    out.append(section.split(1))
-                return out
-
-            before, this, after = section[:3]
-            index__ += 1
-            if None is not before.type != this.type is not None:
-                out.append(section.split(index__))
-            elif this.type is None and (None is not before.type != after.type is not None):
-                if index__ % width:
-                    out.append(section.split(index__))
-                else:
-                    out.append(section.split(index__ + 1))
-            return out + _split_core(section[1:], index__=index__)
-
-        width = section.width.resolve()
-        return _split_core(section, index__=0)
+                self += Section((index, i), subsection, env)
 
 
-class Composition(_BaseSection, list[Movement]):
-    def __init__(self, base_index: int, src: T_Composition, env: _Environment):
+class Composition(_BaseEnvironment, list[Movement]):
+    def __init__(self, base_index: int, src: T_Composition, env: _NamedEnvironment):
         super().__init__(base_index, src, env)
         self.current_index = 0
         for movement in src:
@@ -283,47 +208,27 @@ class Composition(_BaseSection, list[Movement]):
                 self.current_index += 1
 
 
-class Voice:
-    def __init__(self, index: T_LevelIndex, src: T_Voice, env: _Environment):
-        # --- setup env ---
-        self.name = env.name.transform(index, src).resolve()
-        self.time = env.time.transform(src.time, save=True)
-        self.delay = env.delay.transform(None, save=True)
-        self.beat = env.beat.transform(src.beat, save=True)
-        self.trill_style = env.trill_style.transform(src.trill_style, save=True)
+class Voice(_BaseEnvironment):
+    def __init__(self, index: T_LevelIndex, src: T_Voice, env: _NamedEnvironment):
+        super().__init__(index, src, env)
         self.position = env.position.anchor(index).transform(src.position, save=True)
-        self.instrument = env.instrument.transform(src.instrument, save=True)
-        self.dynamic = env.dynamic.transform(src.dynamic, save=True)
-        self.sustain = env.sustain.transform(src.sustain, save=True)
-        self.transpose = env.transpose.transform(src.transpose, save=True)
         # --- parse notes ---
         self.current_bar = 1  # bar indexing starts from 1
-        self.current_pulse = 0  # but pulse starts from 0
-        self._notes = self._resolve_sequential_notes(src.notes)
+        self.current_tick = 0  # but tick starts from 0
+        self._notes = self._resolve_sequential_notes(src)
 
     def __iter__(self) -> Iterator[Iterable[Note]]:
         yield from self._notes
 
-    def _transform_core(self, src: T_NoteMeta):
-        self.time = self.time.transform(src.time)
-        self.delay = self.delay.transform(src.delay)
-        self.beat = self.beat.transform(src.beat)
-        self.trill_style = self.trill_style.transform(src.trill_style)
-        self.position = self.position.transform(src.position)
-        self.instrument = self.instrument.transform(src.instrument)
-        self.dynamic = self.dynamic.transform(src.dynamic)
-        self.sustain = self.sustain.transform(src.sustain)
-        self.transpose = self.transpose.transform(src.transpose)
-
     @contextmanager
-    def _transform(self, src: T_NoteMeta):
+    def transform(self, src: T_NoteMeta):
         self_copy = shallowcopy(self)
-        self_copy._transform_core(src)  # noqa: SLF001
+        super(Voice, self_copy).transform(src, self)
         try:
             yield self_copy
         finally:
             self.current_bar = self_copy.current_bar
-            self.current_pulse = self_copy.current_pulse
+            self.current_tick = self_copy.current_tick
 
     def _resolve_sequential_notes(self, src: T_SequentialNotes):
         def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[Note]]:
@@ -331,31 +236,31 @@ class Voice:
                 return self._resolve_single_note(note)
             if isinstance(note, T_ParallelNotes):
                 return self._resolve_parallel_notes(note)
-            self._transform_core(note)
+            super(Voice, self).transform(note, self)
             return ()
 
-        with self._transform(src) as self:
+        with self.transform(src) as self:
             sequential_lines = map(_resolve_core, src.note)
             merged_line = chain.from_iterable(sequential_lines)
             return deque(merged_line)
 
     def _resolve_parallel_notes(self, src: T_ParallelNotes):
-        current_bar, current_pulse = self.current_bar, self.current_pulse
+        current_bar, current_tick = self.current_bar, self.current_tick
 
         def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[Note]]:
-            self.current_bar, self.current_pulse = current_bar, current_pulse
+            self.current_bar, self.current_tick = current_bar, current_tick
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
-        with self._transform(src) as self:
+        with self.transform(src) as self:
             parallel_lines = map(_resolve_core, src.note)
             # fail if parallel lines written by the user are not of the same length # TODO: error handling
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return deque(merged_line)
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[Note]]:
-        with self._transform(src) as self:
+        with self.transform(src) as self:
             if isinstance(src, T_TrilledNote):
                 trill_style = self.trill_style.resolve()
                 return self._resolve_trilled_note(src.note, src.trill, trill_style)
@@ -389,15 +294,17 @@ class Voice:
         asserted_bar_number = int(asserted_bar_number)
 
         if force_assertion:
-            self.current_pulse = 0
+            self.current_tick = 0
             self.current_bar = asserted_bar_number
-        elif self.current_pulse != 0:
+        elif self.current_tick != 0:
             raise ValueError("wrong barline location")
         elif self.current_bar != asserted_bar_number:
             raise ValueError("wrong bar number")
 
         if rest:
-            return self._resolve_regular_note(f"r {self.time.resolve()}")
+            beat = self.beat.resolve()
+            time = self.time.resolve(beat=beat)
+            return self._resolve_regular_note(f"r {time}")
         return ()
 
     def _parse_note(self, src: T_NoteName | T_Rest) -> tuple[T_Positional[NoteBlock | None], T_Duration]:
@@ -429,8 +336,8 @@ class Voice:
         trill_noteblock, trill_duration = self._parse_note(trill)
         if trill_duration < 0:
             trill_duration += note_duration
-        # if a trill only lasted one pulse, it wouldn't be a trill,
-        # unless the main note also lasts only one pulse
+        # if a trill only lasted one tick, it wouldn't be a trill,
+        # unless the main note also lasts only one tick
         trill_duration = max(trill_duration, min(note_duration, 2))
 
         place_trill_here = (lambda i: i % 2 == 0) if trill_style == "alt" else (lambda i: i % 2 == 1)
@@ -441,45 +348,46 @@ class Voice:
 
     def _apply_phrasing(self, *noteblocks: T_Positional[NoteBlock | None]) -> Iterable[Iterable[Note]]:
         note_duration = len(noteblocks)
-        time = self.time.resolve()
         beat = self.beat.resolve()
-        delay = self.delay.resolve()
+        time = self.time.resolve(beat=beat)
+        tempo = self.tempo.resolve(beat=beat)
         sustain = self.sustain.resolve(beat=beat, note_duration=note_duration)
         position = self.position.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
-        current_bar, current_pulse = self.current_bar, self.current_pulse
+        current_bar, current_tick = self.current_bar, self.current_tick
+
+        def create_note(noteblock: NoteBlock | None, position: T_PositionIndex):
+            return Note(
+                noteblock=noteblock,
+                tempo=tempo,
+                time=time,
+                position=position,
+                voice=str(self),
+                index=(self.current_bar, self.current_tick),
+            )
 
         def transform(
             *noteblocks: NoteBlock | None,
             dynamic: Iterable[T_StaticAbsoluteDynamic],
             position: Iterable[T_PositionIndex],
         ):
-            def apply_delay_and_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
+            def apply_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[Note]:
                 for noteblock, note_position in zip(noteblocks, position, strict=False):
-                    yield self._create_note(noteblock=noteblock, delay=delay, position=note_position)
-                    if (pulse := self.current_pulse + 1) < time:
-                        self.current_pulse = pulse
+                    yield create_note(noteblock=noteblock, position=note_position)
+                    if (tick := self.current_tick + 1) < time:
+                        self.current_tick = tick
                     else:
-                        self.current_pulse = 0
+                        self.current_tick = 0
                         self.current_bar += 1
 
             def apply_dynamic(notes: Iterable[Note]) -> Iterable[Iterable[Note]]:
                 return map(operator.mul, notes, dynamic)
 
-            self.current_bar, self.current_pulse = current_bar, current_pulse
-            return apply_dynamic(apply_delay_and_position(noteblocks))
+            self.current_bar, self.current_tick = current_bar, current_tick
+            return apply_dynamic(apply_position(noteblocks))
 
         parallel_lines = multivalue_map(transform, *noteblocks, dynamic=dynamic, position=position)
         if type(parallel_lines) is T_MultiValue:
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return deque(merged_line)
         return deque(parallel_lines)
-
-    def _create_note(self, *, noteblock: NoteBlock | None, delay: T_Delay, position: T_PositionIndex):
-        return Note(
-            noteblock=noteblock,
-            delay=delay,
-            position=position,
-            voice=self.name,
-            where=(self.current_bar, self.current_pulse),
-        )
