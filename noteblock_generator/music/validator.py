@@ -503,15 +503,13 @@ class T_Voice(T_NamedEnvironment, T_SequentialNotes):
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):
-        data = to_dict(data, key="notes")
-        if PATH_KEY not in data:
-            notes = data["notes"]  # guarantee valid key by _to_dict
-            with suppress(Exception):
+        data = to_dict(data, key="note")
+        notes = data["note"]
+        with suppress(KeyError, TypeError):
+            data["note"] = notes.pop(REF_KEY)
+            if PATH_KEY not in data:
                 data[PATH_KEY] = notes.pop(PATH_KEY)
         return data
-
-    def __iter__(self):
-        yield from self.notes
 
 
 class T_Section(T_NamedEnvironment):
