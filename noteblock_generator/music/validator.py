@@ -498,8 +498,6 @@ class T_NamedEnvironment(T_Environment):
 
 
 class T_Voice(T_NamedEnvironment, T_SequentialNotes):
-    notes: T_Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
-
     @model_validator(mode="before")
     @classmethod
     def _(cls, data):

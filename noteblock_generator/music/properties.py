@@ -137,10 +137,11 @@ class Tempo(_StaticProperty[T_Tempo, T_TickRate]):
     def resolve(self, *, beat: T_Beat) -> T_TickRate:
         if isinstance(value := self._value, tuple):
             value = value[0]
-        if isinstance(value, T_BeatRate):
-            GAME_TICKS_PER_REDSTONE_TICK = 2
-            return value * GAME_TICKS_PER_REDSTONE_TICK * beat / 60
-        return value
+        if is_typeform(value, T_TickRate):
+            return value
+        assert is_typeform(value, T_BeatRate)
+        GAME_TICKS_PER_REDSTONE_TICK = 2
+        return value * GAME_TICKS_PER_REDSTONE_TICK * beat / 60
 
 
 class Beat(_StaticProperty[T_Beat, T_Beat]):
@@ -259,7 +260,7 @@ class Position(
         Iterable[T_PositionIndex],
     ],
 ):
-    _DEFAULT: T_Tuple[T_StaticAbsoluteLevel]
+    _DEFAULT: T_Tuple[T_StaticAbsoluteLevel] = ()
     _NULL_VALUE: Iterable[None] = repeat(None)
 
     def anchor(self, index: T_LevelIndex):

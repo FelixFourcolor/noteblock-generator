@@ -110,6 +110,10 @@ class Note:
 
 
 class Chord(list[Note]):
+    type: Literal["single", "double", None]
+    time: int
+    tempo: float
+
     def __init__(self, src: Iterator[Note]):
         first = next(src)  # every chord is guaranteed to have at least one note (see Note.__mul__)
         self.append(first)
@@ -118,8 +122,13 @@ class Chord(list[Note]):
                 raise ValueError(f"inconsistent placements: {first} & {note}")
             self.append(note)
 
+        self._check_position()
+        self._check_time()
+        self._check_tempo()
+
+    def _check_position(self):
         if all(note.position is None for note in self):
-            self.type: Literal["single", "double", None] = None
+            self.type = None
         elif all(is_typeform(note.position, tuple[None, T_LevelIndex]) for note in self):
             self.type = "single"
         else:
@@ -131,6 +140,58 @@ class Chord(list[Note]):
                     note.position = (0, level)
                     copy.position = (1, level)
                     self.append(copy)
+
+    def _check_time(self):
+        times: dict[int, list[Note]] = {}
+        for note in self:
+            if note.time not in times:
+                times[note.time] = [note]
+            else:
+                times[note.time].append(note)
+
+        def time_error():
+            it = iter(times.values())
+            note1 = next(it)[0]
+            note2 = next(it)[0]
+            t1, t2 = note1.time, note2.time
+            return ValueError(f"inconsistent time signatures: {note1}(time={t1}) & {note2}(time={t2})")
+
+        if len(times) > 2:
+            raise time_error()
+        if len(times) == 2:
+            if len(self) == 2:
+                raise time_error()
+            self.time = min(times, key=lambda x: len(times[x]))
+            if len(times[self.time]) != 1:
+                raise time_error()
+        else:
+            self.time = next(iter(times))
+
+    def _check_tempo(self):
+        tempi: dict[float, list[Note]] = {}
+        for note in self:
+            if note.tempo not in tempi:
+                tempi[note.tempo] = [note]
+            else:
+                tempi[note.tempo].append(note)
+
+        def tempo_error():
+            it = iter(tempi.values())
+            note1 = next(it)[0]
+            note2 = next(it)[0]
+            t1, t2 = note1.tempo, note2.tempo
+            return ValueError(f"inconsistent tempi: {note1}(tempo={t1}) & {note2}(tempo={t2})")
+
+        if len(tempi) > 2:
+            raise tempo_error()
+        if len(tempi) == 2:
+            if len(self) == 2:
+                raise tempo_error()
+            self.tempo = min(tempi, key=lambda x: len(tempi[x]))
+            if len(tempi[self.tempo]) != 1:
+                raise tempo_error()
+        else:
+            self.tempo = next(iter(tempi))
 
 
 class _Environment(Protocol):
@@ -212,18 +273,22 @@ class Voice(_BaseEnvironment):
     def __init__(self, index: T_LevelIndex, src: T_Voice, env: _NamedEnvironment):
         super().__init__(index, src, env)
         self.position = env.position.anchor(index).transform(src.position, save=True)
+        self._str = self.name.resolve()
         # --- parse notes ---
         self.current_bar = 1  # bar indexing starts from 1
         self.current_tick = 0  # but tick starts from 0
         self._notes = self._resolve_sequential_notes(src)
 
+    def __str__(self):
+        return self._str
+
     def __iter__(self) -> Iterator[Iterable[Note]]:
         yield from self._notes
 
     @contextmanager
-    def transform(self, src: T_NoteMeta):
+    def local_transform(self, src: T_NoteMeta):
         self_copy = shallowcopy(self)
-        super(Voice, self_copy).transform(src, self)
+        self_copy.transform(src, self)
         try:
             yield self_copy
         finally:
@@ -236,10 +301,10 @@ class Voice(_BaseEnvironment):
                 return self._resolve_single_note(note)
             if isinstance(note, T_ParallelNotes):
                 return self._resolve_parallel_notes(note)
-            super(Voice, self).transform(note, self)
+            self.transform(note, self)
             return ()
 
-        with self.transform(src) as self:
+        with self.local_transform(src) as self:
             sequential_lines = map(_resolve_core, src.note)
             merged_line = chain.from_iterable(sequential_lines)
             return deque(merged_line)
@@ -253,14 +318,14 @@ class Voice(_BaseEnvironment):
                 return self._resolve_single_note(note)
             return self._resolve_sequential_notes(note)
 
-        with self.transform(src) as self:
+        with self.local_transform(src) as self:
             parallel_lines = map(_resolve_core, src.note)
-            # fail if parallel lines written by the user are not of the same length # TODO: error handling
+            # TODO: error handling: fail if parallel lines written by the user are not of the same length
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return deque(merged_line)
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[Note]]:
-        with self.transform(src) as self:
+        with self.local_transform(src) as self:
             if isinstance(src, T_TrilledNote):
                 trill_style = self.trill_style.resolve()
                 return self._resolve_trilled_note(src.note, src.trill, trill_style)
