@@ -7,8 +7,7 @@ from collections import deque
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, islice, repeat
-from pathlib import Path
-from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Literal, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Literal, TypeVar, cast
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .utils import (
@@ -34,6 +33,7 @@ from .validator import (
     T_Instrument,
     T_MultiValue,
     T_Name,
+    T_NamedEnvironment,
     T_NoteValue,
     T_Position,
     T_Positional,
@@ -61,13 +61,8 @@ from .validator import (
 )
 
 
-class SupportsName(Protocol):
-    name: T_Name | None
-    path: Path | None
-
-
 class Name:
-    def _init_core(self, index: int | tuple[int, int] = 0, src: SupportsName = None):
+    def _init_core(self, index: int | tuple[int, int] = 0, src: T_NamedEnvironment = None):
         if src is None:
             return ""
         if (name := src.name) is not None:
@@ -79,7 +74,7 @@ class Name:
     def __init__(self):
         self._value = self._init_core()
 
-    def transform(self, index: int | tuple[int, int], src: SupportsName) -> Name:
+    def transform(self, index: int | tuple[int, int], src: T_NamedEnvironment) -> Name:
         self = shallowcopy(self)
         name = self._init_core(index, src)
         self._value += f"/{name}"
