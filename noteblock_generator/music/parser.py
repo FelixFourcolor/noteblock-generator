@@ -23,15 +23,7 @@ from .properties import (
     Transpose,
     TrillStyle,
 )
-from .utils import (
-    is_typeform,
-    multivalue_flatten,
-    multivalue_map,
-    parse_duration,
-    split_timedvalue,
-    strip_split,
-    transpose,
-)
+from .utils import is_typeform, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
 from .validator import (
     T_BarDelimiter,
     T_Composition,
@@ -91,7 +83,7 @@ class _P_NamedEnvironment(_P_Environment, Protocol):
     name: Name
 
 
-class _BaseEnvironment:
+class _Environment:
     def __init__(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: _P_NamedEnvironment):
         self.name = env.name.transform(index, src)
         self.transform(src, env)
@@ -108,7 +100,7 @@ class _BaseEnvironment:
         self.transpose = env.transpose.transform(src.transpose)
 
 
-class P_Composition(_BaseEnvironment, Iterable["P_Movement"]):
+class P_Composition(_Environment, Iterable["P_Movement"]):
     def __init__(self, index: int, src: T_Composition, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
 
@@ -145,26 +137,31 @@ class P_Movement(Iterable["P_Chord"]):
         yield from self._chords
 
 
-class P_Section(_BaseEnvironment, Iterable["P_Chord"]):
+class P_Section(_Environment, Iterable["P_Chord"]):
     def __init__(self, index: int | tuple[int, int], src: T_Section, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
-        voices = multivalue_flatten(
-            multivalue_map(_Voice, i, voice, self)  #
-            for i, voice in enumerate(src)
-            if voice is not None
-        )
-        # voices are not necesarily of equal length, pad them with empty notes
-        merged_voice = map(chain.from_iterable, zip_longest(*voices, fillvalue=()))
-        self._chords = map(_ChordFactory, merged_voice)
+
+        def get_voices() -> Iterator[_Voice]:
+            for i, sub_src in enumerate(src):
+                if isinstance(sub_src, T_Voice):
+                    yield _Voice(i, sub_src, self)
+                elif sub_src is not None:
+                    for j, voice in enumerate(sub_src):
+                        yield _Voice((i, j), voice, self)
+
+        self._voices = get_voices()
 
     def __iter__(self) -> Iterator[P_Chord]:
-        yield from self._chords
+        # voices are not necesarily of equal length, pad them with empty notes
+        merged_voice = map(chain.from_iterable, zip_longest(*self._voices, fillvalue=()))
+        yield from map(_ChordFactory, merged_voice)
 
 
-class _Voice(_BaseEnvironment, Iterable[Iterable["_Note"]]):
-    def __init__(self, index: T_LevelIndex, src: T_Voice, env: _P_NamedEnvironment):
+class _Voice(_Environment, Iterable[Iterable["_Note"]]):
+    def __init__(self, index: int | tuple[int, int], src: T_Voice, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
-        self.position = env.position.anchor(index).transform(src.position, save=True)
+        level = index if isinstance(index, int) else index[0]
+        self.position = env.position.anchor(level).transform(src.position, save=True)
         self._str = self.name.resolve()
         # --- parse notes ---
         self.i_bar = 1  # bar indexing starts from 1
