@@ -160,10 +160,19 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 class _Voice(_Environment, Iterable[Iterable["_Note"]]):
     def __init__(self, index: int | tuple[int, int], src: T_Voice, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
-        level = index if isinstance(index, int) else index[0]
-        self.position = env.position.anchor(level).transform(src.position, save=True)
         self._str = self.name.resolve()
-        # --- parse notes ---
+        # --- anchor ---
+        # meaning, if a note "$reset" a property, it will be reset to this current value
+        self.time.anchor()
+        self.tempo.anchor()
+        self.beat.anchor()
+        self.trill_style.anchor()
+        self.position.anchor(index if isinstance(index, int) else index[0])
+        self.instrument.anchor()
+        self.dynamic.anchor()
+        self.sustain.anchor()
+        self.transpose.anchor()
+        # --- parse ---
         self.i_bar = 1  # bar indexing starts from 1
         self.i_tick = 0  # but tick starts from 0
         self._notes = self._resolve_sequential_notes(src)
@@ -265,7 +274,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         tokens = split_timedvalue(src)
         note_name = tokens[0].lower()
         note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
-        note = self.instrument.resolve(note_name, transpose=self.transpose.resolve())  # TODO: error handling
+        note = self.instrument.resolve(note_name=note_name, transpose=self.transpose.resolve())  # TODO: error handling
         return note, note_duration
 
     def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock | None]]:

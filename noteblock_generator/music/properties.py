@@ -3,11 +3,12 @@ from __future__ import annotations
 import functools
 import math
 import re
+from abc import ABC, abstractmethod
 from collections import deque
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, islice, repeat
-from typing import TYPE_CHECKING, Generic, Hashable, Iterable, Literal, TypeVar, cast
+from typing import Generic, Hashable, Iterable, Literal, TypeVar, cast, final
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .utils import (
@@ -21,8 +22,6 @@ from .utils import (
     transpose,
 )
 from .validator import (
-    T_AbsoluteDynamic,
-    T_AbsoluteSustain,
     T_Beat,
     T_BeatRate,
     T_CompoundPosition,
@@ -41,7 +40,6 @@ from .validator import (
     T_Reset,
     T_StaticAbsoluteDynamic,
     T_StaticAbsoluteLevel,
-    T_StaticAbsolutePosition,
     T_StaticCompoundPosition,
     T_StaticDynamic,
     T_StaticLevel,
@@ -54,10 +52,10 @@ from .validator import (
     T_Time,
     T_Transpose,
     T_TrillStyle,
-    T_Tuple,
     T_VariableCompoundPosition,
     T_VariableDynamic,
     T_VariableLevel,
+    Tuple,
 )
 
 
@@ -96,21 +94,27 @@ class _StaticProperty(
         V,  # `resolve` output type
     ]
 ):
+    _value: T
+    _anchored_value: T
     _DEFAULT: T
 
     def __init__(self):
-        self._value = self._original_value = self._DEFAULT
+        self._value = self._anchored_value = self._DEFAULT
+
+    def anchor(self, modifier: T = None):
+        if modifier is None:
+            self._anchored_value = self._value
+        else:
+            self._anchored_value = modifier
 
     @cache
-    def transform(self, modifier: T_StaticProperty[T], *, save=False):
+    def transform(self, modifier: T_StaticProperty[T]):
         self = shallowcopy(self)
         if modifier is not None:
             if modifier == "$reset":
-                self._value = self._original_value
+                self._value = self._anchored_value
             else:
                 self._value = cast(T, modifier)
-        if save:
-            self._original_value = self._value
         return self
 
     def resolve(self) -> V:
@@ -147,43 +151,45 @@ class TrillStyle(_StaticProperty[T_TrillStyle, T_TrillStyle]):
     _DEFAULT = "normal"
 
 
-def _is_empty(positional_value: T_Positional):
-    return type(positional_value) is T_MultiValue and not positional_value
-
-
 class _PositionalProperty(
+    ABC,
     Generic[
-        T,  # internal representation type
         U,  # `transform` argument type
         V,  # `resolve` output type
-    ]
+    ],
 ):
-    _DEFAULT: T
+    _DEFAULT: Tuple[U] = ()
     _NULL_VALUE: T_Positional[V] = T_MultiValue()
-    _original_value: T_Positional[T]
-    _value: T_Positional[T]
+    _anchored_value: T_Positional[Tuple[U]]
+    _value: T_Positional[Tuple[U]]
 
-    def _transform_core(self, current: T, modifier: U) -> T:
-        # must override if T != U
-        return cast(T, modifier)
-
-    def _resolve_core(self, current: T) -> V:
-        # must override if T != V, or if resolve_core should take more arguments
-        return cast(V, current)
-
+    @final
     def __init__(self):
-        self._value = self._original_value = self._DEFAULT
+        self._value = self._anchored_value = self._DEFAULT
 
-    def _transform_core_wrapper(self, origin: T, current: T, modifier: U | T_Reset | T_Delete | None) -> T | T_Delete:
+    @final
+    def anchor(self, modifier: U = None):
+        if modifier is not None:
+            self._value = multivalue_map(lambda current, modifier: (modifier, *current), self._value, modifier)
+        self._anchored_value = self._value
+
+    @final
+    def _transform_core(
+        self,
+        anchor: Tuple[U],
+        data: Tuple[U],
+        modifier: U | T_Reset | T_Delete | None,
+    ) -> Tuple[U] | None:
         if modifier is None:
-            return current
+            return data
         if modifier == "$reset":
-            return origin
+            return anchor
         if modifier == "$del":
-            return "$del"
-        return self._transform_core(current, modifier)
+            return None
+        return (*data, modifier)
 
-    def _prepare_transform(self, modifier: T_PositionalProperty[U]) -> T_PositionalProperty[U]:
+    @final
+    def _prepare_modifier(self, modifier: T_PositionalProperty[U]) -> T_PositionalProperty[U]:
         if type(modifier) is not T_MultiValue:
             return modifier
 
@@ -194,10 +200,10 @@ class _PositionalProperty(
             current_len = len(self._value)
             # fewer modifiers than current values -> implicit delete
             if modifier_len < current_len:
-                working_modifier += ("$del" for _ in range(current_len - modifier_len))
+                working_modifier.extend(repeat("$del", current_len - modifier_len))
             # more modifiers than current values -> apply extra modifiers to _DEFAULT
             elif modifier_len > current_len:
-                self._value += (self._DEFAULT for _ in range(modifier_len - current_len))
+                self._value += repeat(self._DEFAULT, modifier_len - current_len)
 
         def replace(iterable: Iterable[S], old: S, new: S) -> Iterable[S]:
             for element in iterable:
@@ -206,36 +212,39 @@ class _PositionalProperty(
                 else:
                     yield element
 
-        if type(self._original_value) is T_MultiValue:
-            original_len = len(self._original_value)
+        if type(self._anchored_value) is T_MultiValue:
+            original_len = len(self._anchored_value)
             # replace every "$reset" modifier with "$del" if it overflows original value
             if modifier_len > original_len:
                 inbound_modifiers = working_modifier[:original_len]
                 outbound_modifiers = replace(working_modifier[original_len:], "$reset", "$del")
-                working_modifier = inbound_modifiers + list(outbound_modifiers)
+                working_modifier = chain(inbound_modifiers, outbound_modifiers)
 
         # no idea why pyright complains
         return T_MultiValue(working_modifier)  # pyright: ignore[reportGeneralTypeIssues]
 
+    @final
     @cache
-    def transform(self, modifier: T_PositionalProperty[U], *, save=False):
+    def transform(self, modifier: T_PositionalProperty[U]):
         self = shallowcopy(self)
-        modifier = self._prepare_transform(modifier)
+        modifier = self._prepare_modifier(modifier)
 
-        new_value = multivalue_map(self._transform_core_wrapper, self._original_value, self._value, modifier)
+        new_value = multivalue_map(self._transform_core, self._anchored_value, self._value, modifier)
         if type(new_value) is T_MultiValue:
-            self._value = T_MultiValue(e for e in new_value if e != "$del")
-        elif new_value == "$del":
+            self._value = T_MultiValue(e for e in new_value if e is not None)
+        elif new_value is None:
             self._value = T_MultiValue()
         else:
             self._value = new_value
-        if save:
-            self._original_value = self._value
         return self
 
-    @cache
+    @abstractmethod
+    def _resolve_core(self, data: Tuple[U]) -> V: ...
+
+    @abstractmethod
     def resolve(self, *args, **kwargs) -> T_Positional[V]:
-        if _is_empty(out := multivalue_map(self._resolve_core, self._value, *args, **kwargs)):
+        out = multivalue_map(self._resolve_core, self._value, *args, **kwargs)
+        if type(out) is T_MultiValue and not out:
             return self._NULL_VALUE
         return out
 
@@ -248,33 +257,14 @@ _T_SpecialDivisionIndex = T_DivisionIndex | Literal[True]  # True stands for bot
 _T_SpecialPositionIndex = tuple[_T_SpecialDivisionIndex, T_LevelIndex] | None
 
 
-class Position(
-    _PositionalProperty[
-        T_Tuple[T_Position],
-        T_Position,
-        Iterable[T_PositionIndex],
-    ],
-):
-    _DEFAULT: T_Tuple[T_StaticAbsoluteLevel] = ()
+class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
+    _DEFAULT: Tuple[T_StaticAbsoluteLevel] = ()
     _NULL_VALUE: Iterable[None] = repeat(None)
-
-    def anchor(self, index: T_LevelIndex):
-        def apply(previous_values: T_Tuple[T_Position]) -> T_Tuple[T_Position]:
-            return (index, *previous_values)
-
-        self = shallowcopy(self)
-        self._original_value = self._DEFAULT = (index,)
-        self._value = multivalue_map(apply, self._value)
-        return self
-
-    def _transform_core(self, current, modifier) -> T_Tuple[T_Position]:
-        if is_typeform(modifier, T_StaticAbsolutePosition):
-            return (modifier,)
-        return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Tuple[T_Position],
+        data: Tuple[T_Position],
+        *,
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
@@ -372,10 +362,11 @@ class Position(
             return division, level
 
         def transform(transformation: Iterable[T_StaticPosition]) -> tuple[_T_SpecialDivisionIndex, T_LevelIndex]:
-            initial = None, self._DEFAULT[0]
+            initial = None, self._anchored_value[0]
+            assert is_typeform(initial, tuple[_T_SpecialDivisionIndex, T_LevelIndex])
             return functools.reduce(binary_transform, transformation, initial)
 
-        transformations = transpose(map(parse_to_static, current))
+        transformations = transpose(map(parse_to_static, data))
         result = map(transform, transformations)
         return islice(chain(result, repeat(None)), note_duration)
 
@@ -396,7 +387,13 @@ class Position(
 
             return multivalue_map(lambda *x: x, *map(convert_core, position))
 
-        out = multivalue_map(self._resolve_core, self._value, beat, sustain_duration, note_duration)
+        out = multivalue_map(
+            self._resolve_core,
+            self._value,
+            beat=beat,
+            sustain_duration=sustain_duration,
+            note_duration=note_duration,
+        )
         if type(out) is not T_MultiValue:
             return convert_special(out)
         if not out:
@@ -415,17 +412,16 @@ class NoteBlock:
 class Instrument(
     _PositionalProperty[
         T_Instrument,
-        T_Instrument,
         NoteBlock | None,
     ]
 ):
-    _DEFAULT = "harp"
+    _DEFAULT = ("harp",)
     _NULL_VALUE = None
 
     def _resolve_core(
         self,
-        origin: T_Instrument,
-        current: T_Instrument,
+        data: Tuple[T_Instrument],
+        *,
         note_name: str,
         transpose: _TransposeType,
     ) -> NoteBlock | None:
@@ -437,6 +433,9 @@ class Instrument(
                 note_name, octave = parse_relative_octave(note_name[:-1], default_octave)
                 return note_name, octave - 1
             return note_name, default_octave
+
+        origin = data[0]
+        current = data[-1]
 
         if is_typeform(note_name[-1], int, strict=False):
             note_value = NOTE_VALUE[note_name] + transpose.value
@@ -467,34 +466,24 @@ class Instrument(
     @cache
     def resolve(
         self,
-        note_name: str,
         *,
+        note_name: str,
         transpose: T_Positional[_TransposeType],
     ) -> T_Positional[NoteBlock | None]:
-        if note_name == "r" or _is_empty(self._value) or _is_empty(transpose):
+        if note_name == "r":
             return self._NULL_VALUE
-        return multivalue_map(self._resolve_core, self._original_value, self._value, note_name, transpose)
+        return super().resolve(note_name=note_name, transpose=transpose)
 
 
-class Dynamic(
-    _PositionalProperty[
-        T_Tuple[T_Dynamic],
-        T_Dynamic,
-        Iterable[T_StaticAbsoluteDynamic],
-    ]
-):
+class Dynamic(_PositionalProperty[T_Dynamic, Iterable[T_StaticAbsoluteDynamic]]):
     MAX = 6
-    _DEFAULT: T_Tuple[T_StaticAbsoluteDynamic] = (1,)
+    _DEFAULT: Tuple[T_StaticAbsoluteDynamic] = (1,)
     _NULL_VALUE = repeat(0)
-
-    def _transform_core(self, current, modifier) -> T_Tuple[T_Dynamic]:
-        if is_typeform(modifier, T_AbsoluteDynamic):
-            return (modifier,)
-        return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Tuple[T_Dynamic],
+        data: Tuple[T_Dynamic],
+        *,
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
@@ -528,47 +517,37 @@ class Dynamic(
             return min(max(out, low), high)
 
         def transform(transformation: Iterable[T_StaticDynamic]) -> T_StaticAbsoluteDynamic:
-            return functools.reduce(binary_transform, transformation, self._DEFAULT[0])
+            return functools.reduce(binary_transform, transformation, 1)
 
-        transformations = transpose(map(parse, current))
+        transformations = transpose(map(parse, data))
         result = map(transform, transformations)
         # 0 is arbitrary, dynamic doesn't matter for notes outside of sustain duration
         out = islice(chain(result, repeat(0)), note_duration)
         return deque(out)  # must exhaust the iterator to cache the result
 
-    if TYPE_CHECKING:
+    @cache
+    def resolve(
+        self,
+        *,
+        beat: T_Positional[T_Beat],
+        sustain_duration: T_Positional[T_Duration],
+        note_duration: T_Positional[T_Duration],
+    ) -> T_Positional[Iterable[T_StaticAbsoluteDynamic]]:
+        return super().resolve(beat=beat, sustain_duration=sustain_duration, note_duration=note_duration)
 
-        def resolve(
-            self,
-            *,
-            beat: T_Positional[T_Beat],
-            sustain_duration: T_Positional[T_Duration],
-            note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[Iterable[T_StaticAbsoluteDynamic]]: ...
 
-
-class Sustain(
-    _PositionalProperty[
-        T_Tuple[T_Sustain],
-        T_Sustain,
-        int,
-    ]
-):
+class Sustain(_PositionalProperty[T_Sustain, int]):
     _DEFAULT = (-1,)
-
-    def _transform_core(self, current, modifier) -> T_Tuple[T_Sustain]:
-        if is_typeform(modifier, T_AbsoluteSustain):
-            return (modifier,)
-        return (*current, modifier)
 
     def _resolve_core(
         self,
-        current: T_Tuple[T_Sustain],
+        data: Tuple[T_Sustain],
+        *,
         beat: T_Beat,
         note_duration: T_Duration,
     ) -> int:
         out = 1
-        for sustain in current:
+        for sustain in data:
             relative = False
             if isinstance(sustain, bool):
                 duration = note_duration if sustain else 1
@@ -585,14 +564,14 @@ class Sustain(
         low, high = 1, note_duration
         return min(max(out, low), high)
 
-    if TYPE_CHECKING:
-
-        def resolve(
-            self,
-            *,
-            beat: T_Positional[T_Beat],
-            note_duration: T_Positional[T_Duration],
-        ) -> T_Positional[int]: ...
+    @cache
+    def resolve(
+        self,
+        *,
+        beat: T_Positional[T_Beat],
+        note_duration: T_Positional[T_Duration],
+    ) -> T_Positional[int]:
+        return super().resolve(beat=beat, note_duration=note_duration)
 
 
 @dataclass(kw_only=True, frozen=True)
@@ -601,36 +580,34 @@ class _TransposeType:
     auto: bool
 
 
-class Transpose(
-    _PositionalProperty[
-        _TransposeType,
-        T_Transpose,
-        _TransposeType,
-    ]
-):
-    _DEFAULT = _TransposeType(value=0, auto=False)
+class Transpose(_PositionalProperty[T_Transpose, _TransposeType]):
+    _DEFAULT = (0,)
 
-    def _transform_core(self, current, modifier):
-        if isinstance(modifier, bool):
-            return _TransposeType(value=current.value, auto=modifier)
-        if isinstance(modifier, int):
-            return _TransposeType(value=modifier, auto=current.auto)
+    def _resolve_core(self, data: Tuple[T_Transpose]) -> _TransposeType:
+        def binary_transform(current: _TransposeType, modifier: T_Transpose) -> _TransposeType:
+            if isinstance(modifier, bool):
+                return _TransposeType(value=current.value, auto=modifier)
+            if isinstance(modifier, int):
+                return _TransposeType(value=modifier, auto=current.auto)
 
-        if modifier.endswith(("?", "!")):
-            auto = modifier.endswith("?")
-            modifier = modifier[:-1]
-        else:
-            auto = current.auto
+            if modifier.endswith(("?", "!")):
+                auto = modifier.endswith("?")
+                modifier = modifier[:-1]
+            else:
+                auto = current.auto
 
-        if not modifier:
-            value = current.value
-        elif modifier.startswith("{"):
-            value = int(modifier[1:-1])
-        else:
-            value = current.value + int(modifier)
+            if not modifier:
+                value = current.value
+            elif modifier.startswith("{"):
+                value = int(modifier[1:-1])
+            else:
+                value = current.value + int(modifier)
 
-        return _TransposeType(value=value, auto=auto)
+            return _TransposeType(value=value, auto=auto)
 
-    if TYPE_CHECKING:
+        initial = _TransposeType(value=0, auto=False)
+        return functools.reduce(binary_transform, data, initial)
 
-        def resolve(self) -> T_Positional[_TransposeType]: ...
+    @cache
+    def resolve(self) -> T_Positional[_TransposeType]:
+        return super().resolve()

@@ -38,7 +38,7 @@ else:  # for pydantic
     T_Positional = T | Annotated[list[T], Field(min_length=1), AfterValidator(T_MultiValue)]
 T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
-T_Tuple = tuple[T, ...]
+Tuple = tuple[T, ...]
 T_Duration = int
 T_NoteValue = int
 T_Name = str
@@ -475,14 +475,14 @@ T_SingleNote = T_RegularNote | T_TrilledNote
 
 
 class T_ParallelNotes(_BaseNote):
-    note: T_Tuple[T_SingleNote | T_SequentialNotes]
+    note: Tuple[T_SingleNote | T_SequentialNotes]
 
     def __iter__(self):
         yield from self.note
 
 
 class T_SequentialNotes(_BaseNote):
-    note: T_Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
+    note: Tuple[T_SingleNote | T_ParallelNotes | T_NotesModifier]
 
     def __iter__(self):
         yield from self.note
@@ -511,7 +511,7 @@ class T_Voice(T_NamedEnvironment, T_SequentialNotes):
 
 
 class T_Section(T_NamedEnvironment):
-    voices: T_Tuple[T_Positional[T_Voice] | None]
+    voices: Tuple[T_Positional[T_Voice] | None]
 
     @model_validator(mode="before")
     @classmethod
@@ -529,7 +529,7 @@ T_Movement = T_Positional[T_Section]
 
 
 class T_Composition(T_NamedEnvironment):
-    movements: T_Tuple[T_Movement | T_Composition]
+    movements: Tuple[T_Movement | T_Composition]
 
     @model_validator(mode="before")
     @classmethod
