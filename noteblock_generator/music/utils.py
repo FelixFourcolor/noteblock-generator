@@ -10,7 +10,9 @@ from pydantic import TypeAdapter, ValidationError
 
 from .validator import T_Beat, T_Duration, T_MultiValue, T_Positional
 
+S = TypeVar("S")
 T = TypeVar("T")
+U = TypeVar("U")
 CT = TypeVar("CT", bound=Callable)
 
 
@@ -100,3 +102,16 @@ strict_zip = functools.partial(zip, strict=True)
 
 def transpose(double_iterable: Iterable[Iterable[T]]) -> Iterable[Iterable[T]]:
     return strict_zip(*double_iterable)
+
+
+class MultiSet(dict[S, list[T]]):
+    def __init__(self, iterable: Iterable[T], predicate: Callable[[T], S]):
+        for elem in iterable:
+            if (value := predicate(elem)) in self:
+                self[value].append(elem)
+            else:
+                self[value] = [elem]
+
+    def flatten(self) -> Iterator[T]:
+        for key in self.keys():
+            yield from self[key]

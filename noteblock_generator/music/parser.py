@@ -23,7 +23,7 @@ from .properties import (
     Transpose,
     TrillStyle,
 )
-from .utils import is_typeform, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
+from .utils import MultiSet, is_typeform, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
 from .validator import (
     T_BarDelimiter,
     T_Composition,
@@ -86,7 +86,11 @@ class _P_NamedEnvironment(_P_Environment, Protocol):
 class _Environment:
     def __init__(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: _P_NamedEnvironment):
         self.name = env.name.transform(index, src)
+        self._hash = hash(str(type(self)) + str(index))
         self.transform(src, env)
+
+    def __hash__(self):
+        return self._hash
 
     def transform(self, src: T_Environment, env: _P_Environment):
         self.time = env.time.transform(src.time)
@@ -177,11 +181,24 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         self.i_tick = 0  # but tick starts from 0
         self._notes = self._resolve_sequential_notes(src)
 
+    def __iter__(self) -> Iterator[Iterable[_Note]]:
+        def check_tempo(notes: Iterable[_Note]) -> Iterator[_Note]:
+            notes_by_tempo = MultiSet(notes, lambda note: note.tempo)
+            if len(notes_by_tempo) < 2:
+                return notes_by_tempo.flatten()
+            raise _tempo_error(notes_by_tempo)
+
+        def check_time(notes: Iterable[_Note]) -> Iterator[_Note]:
+            notes_by_time = MultiSet(notes, lambda note: note.time)
+            if len(notes_by_time) < 2:
+                return notes_by_time.flatten()
+            raise _time_error(notes_by_time)
+
+        for tick in self._notes:
+            yield check_time(check_tempo(tick))
+
     def __str__(self):
         return self._str
-
-    def __iter__(self) -> Iterator[Iterable[_Note]]:
-        yield from self._notes
 
     @contextmanager
     def local_transform(self, src: T_NoteMeta):
@@ -205,7 +222,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         with self.local_transform(src) as self:
             sequential_lines = map(_resolve_core, src.note)
             merged_line = chain.from_iterable(sequential_lines)
-            return deque(merged_line)
+            return merged_line
 
     def _resolve_parallel_notes(self, src: T_ParallelNotes):
         i_bar, i_tick = self.i_bar, self.i_tick
@@ -220,7 +237,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
             parallel_lines = map(_resolve_core, src.note)
             # TODO: error handling: fail if parallel lines written by the user are not of the same length
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
-            return deque(merged_line)
+            return merged_line
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[_Note]]:
         with self.local_transform(src) as self:
@@ -325,7 +342,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
                 tempo=tempo,
                 time=time,
                 position=position,
-                voice=str(self),
+                voice=self,
                 index=(self.i_bar, self.i_tick),
             )
 
@@ -367,7 +384,7 @@ class _Note:
     time: int
     position: T_PositionIndex
     # for error checking only
-    voice: str
+    voice: _Voice
     index: tuple[T_Bar, T_Tick]
 
     @property
@@ -443,58 +460,55 @@ class _ChordFactory:
         return "double"
 
     @classmethod
-    def check_tempo(cls, notes: list[_Note]) -> T_TickRate:
-        tempi: dict[T_TickRate, list[_Note]] = {}
-        for note in notes:
-            if note.tempo not in tempi:
-                tempi[note.tempo] = [note]
-            else:
-                tempi[note.tempo].append(note)
+    def check_tempo(cls, notes: list[_Note]) -> T_TickRate:  # TODO: horrible algorithm
+        # Error if different voices conflict,
+        # EXCEPT if there are more than two voices, and exactly one voice goes against all others,
+        # then that voice's value triumphs.
+        # ....
+        # The idea is that the lone conflicting voice will be interpreted as the lead voice.
+        # This makes it easier to change tempo
+        # (only have to change one voice rather than all of them, which would be a huge pain).
 
-        def tempo_error():
-            it = iter(tempi.values())
-            note1 = next(it)[0]
-            note2 = next(it)[0]
-            t1, t2 = note1.tempo, note2.tempo
-            return ValueError(f"inconsistent tempi: {note1}(tempo={t1}) & {note2}(tempo={t2})")
-
-        if len(tempi) > 2:
-            raise tempo_error()
-        if len(tempi) == 2:
-            if len(notes) == 2:
-                raise tempo_error()
-            tempo = min(tempi, key=lambda x: len(tempi[x]))
-            if len(tempi[tempo]) != 1:
-                raise tempo_error()
-            return tempo
-        return next(iter(tempi))
+        notes_by_tempo = MultiSet(notes, lambda note: note.tempo)
+        if len(notes_by_tempo) < 2:
+            return next(iter(notes_by_tempo))
+        if len(notes_by_tempo) > 2 or len(notes) == 2:
+            raise _tempo_error(notes_by_tempo)
+        notes_by_tempo_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_tempo.items()}
+        result = min(notes_by_tempo_by_voice, key=lambda tempo: len(notes_by_tempo_by_voice[tempo]))
+        if len(notes_by_tempo[result]) != 1:
+            raise _tempo_error(notes_by_tempo)
+        return result
 
     @classmethod
     def check_time(cls, notes: list[_Note]) -> int:
-        times: dict[int, list[_Note]] = {}
-        for note in notes:
-            if note.time not in times:
-                times[note.time] = [note]
-            else:
-                times[note.time].append(note)
+        # TODO: horrible algorithm
+        # TODO: 95% duplicate code with tempo
 
-        def time_error():
-            it = iter(times.values())
-            note1 = next(it)[0]
-            note2 = next(it)[0]
-            t1, t2 = note1.time, note2.time
-            return ValueError(f"inconsistent time signatures: {note1}(time={t1}) & {note2}(time={t2})")
+        notes_by_time = MultiSet(notes, lambda note: note.time)
+        if len(notes_by_time) < 2:
+            return next(iter(notes_by_time))
+        if len(notes_by_time) > 2 or len(notes) == 2:
+            raise _time_error(notes_by_time)
+        notes_by_time_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_time.items()}
+        result = min(notes_by_time_by_voice, key=lambda time: len(notes_by_time_by_voice[time]))
+        if len(notes_by_time[result]) != 1:
+            raise _time_error(notes_by_time)
+        return result
 
-        if len(times) > 2:
-            raise time_error()
-        if len(times) == 2:
-            if len(notes) == 2:
-                raise time_error()
-            time = min(times, key=lambda x: len(times[x]))
-            if len(times[time]) != 1:
-                raise time_error()
-            return time
-        return next(iter(times))
+
+def _tempo_error(notes_by_tempo: MultiSet[T_TickRate, _Note]):
+    it = iter(notes_by_tempo.items())
+    t1, note1 = next(it)
+    t2, note2 = next(it)
+    return ValueError(f"inconsistent tempi: {note1}(tempo={t1}) & {note2}(tempo={t2})")
+
+
+def _time_error(notes_by_time: MultiSet[int, _Note]):
+    it = iter(notes_by_time.items())
+    t1, note1 = next(it)
+    t2, note2 = next(it)
+    return ValueError(f"inconsistent times: {note1}(tempo={t1}) & {note2}(tempo={t2})")
 
 
 class P_SingleChord(list["P_SingleNote"]):
