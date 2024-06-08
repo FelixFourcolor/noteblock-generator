@@ -86,11 +86,15 @@ class _P_NamedEnvironment(_P_Environment, Protocol):
 class _Environment:
     def __init__(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: _P_NamedEnvironment):
         self.name = env.name.transform(index, src)
-        self._hash = hash(str(type(self)) + str(index))
+        self._str = self.name.resolve()
+        self._hash = hash(self._str)
         self.transform(src, env)
 
     def __hash__(self):
         return self._hash
+
+    def __str__(self):
+        return self._str
 
     def transform(self, src: T_Environment, env: _P_Environment):
         self.time = env.time.transform(src.time)
@@ -164,7 +168,6 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 class _Voice(_Environment, Iterable[Iterable["_Note"]]):
     def __init__(self, index: int | tuple[int, int], src: T_Voice, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
-        self._str = self.name.resolve()
         # --- anchor ---
         # meaning, if a note "$reset" a property, it will be reset to this current value
         self.time.anchor()
@@ -196,9 +199,6 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
 
         for tick in self._notes:
             yield check_time(check_tempo(tick))
-
-    def __str__(self):
-        return self._str
 
     @contextmanager
     def local_transform(self, src: T_NoteMeta):

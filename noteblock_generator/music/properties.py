@@ -60,26 +60,24 @@ from .validator import (
 
 
 class Name:
-    def _init_core(self, index: int | tuple[int, int] = 0, src: T_NamedEnvironment = None):
-        if src is None:
-            return ""
+    def __init__(self):
+        self._value: Tuple[str] = ()
+
+    def _transform_core(self, index: int | tuple[int, int], src: T_NamedEnvironment):
         if (name := src.name) is not None:
             return name.replace(" ", "_")
         if (path := src.path) is not None:
-            return path.stem
+            return path.stem.replace(" ", "_")
         return f"{type(src).__name__}-{index}"
-
-    def __init__(self):
-        self._value = self._init_core()
 
     def transform(self, index: int | tuple[int, int], src: T_NamedEnvironment) -> Name:
         self = shallowcopy(self)
-        name = self._init_core(index, src)
-        self._value += f"/{name}"
+        self._value = (*self._value, self._transform_core(index, src))
         return self
 
     def resolve(self) -> T_Name:
-        return self._value
+        return "/".join(self._value[1:])
+        # exclude the root directory, because it's the same for every env so it's redundant
 
 
 S = TypeVar("S")
