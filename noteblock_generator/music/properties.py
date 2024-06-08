@@ -168,7 +168,7 @@ class _PositionalProperty(
     @final
     def anchor(self, modifier: U = None):
         if modifier is not None:
-            self._value = multivalue_map(lambda current, modifier: (modifier, *current), self._value, modifier)
+            self._value = multivalue_map(lambda x, y: (y, *x), self._value, modifier)
         self._anchored_value = self._value
 
     @final
@@ -247,17 +247,19 @@ class _PositionalProperty(
         return out
 
 
-T_LevelIndex = int
-T_DivisionIndex = Literal[0, 1] | None  # None stands for no division, for single-division sections
-T_PositionIndex = tuple[T_DivisionIndex, T_LevelIndex] | None  # None stands for no position, for rests
+P_Level = int
+P_Division = Literal[0, 1]
+P_Position = tuple[P_Division, P_Level] | tuple[None, P_Level | None]
 
-_T_SpecialDivisionIndex = T_DivisionIndex | Literal[True]  # True stands for bothsides
-_T_SpecialPositionIndex = tuple[_T_SpecialDivisionIndex, T_LevelIndex] | None
+# temp position is to handle "LR" (bothsides) division
+# it's internally stored as a magic value (Literal["bothsides"]), then resolve() converts it to the proper format
+_P_TempDivision = P_Division | Literal[None, "bothsides"]
+_P_TempPosition = P_Position | tuple[_P_TempDivision, P_Level]
 
 
-class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
+class Position(_PositionalProperty[T_Position, Iterable[P_Position]]):
     _DEFAULT: Tuple[T_StaticAbsoluteLevel] = ()
-    _NULL_VALUE: Iterable[None] = repeat(None)
+    _NULL_VALUE: Iterable[tuple[None, None]] = repeat((None, None))
 
     def _resolve_core(
         self,
@@ -266,7 +268,7 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
         beat: T_Beat,
         sustain_duration: T_Duration,
         note_duration: T_Duration,
-    ) -> Iterable[_T_SpecialPositionIndex]:
+    ) -> Iterable[_P_TempPosition]:
         def parse_to_static(value: T_Position) -> Iterable[T_StaticPosition]:
             def split_variable_position(value: T_VariableCompoundPosition) -> tuple[T_Division, T_VariableLevel]:
                 match = re.search(r"(M|L|R|LR|SW)", value)
@@ -306,9 +308,9 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
             return parse_variable_level(value)
 
         def binary_transform(
-            current: tuple[_T_SpecialDivisionIndex, T_LevelIndex],
+            current: tuple[_P_TempDivision, P_Level],
             modifier: T_StaticPosition,
-        ) -> tuple[_T_SpecialDivisionIndex, T_LevelIndex]:
+        ) -> tuple[_P_TempDivision, P_Level]:
             def split_position(value: T_StaticCompoundPosition) -> tuple[T_Division, T_StaticLevel]:
                 match = re.search("[+-]?\\d+", value)
                 assert match is not None, match
@@ -321,7 +323,7 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
                 assert is_typeform(division, T_Division)
                 return cast(T_Division, division), level
 
-            def transform_division(current: _T_SpecialDivisionIndex, modifier: T_Division | None):
+            def transform_division(current: _P_TempDivision, modifier: T_Division | None):
                 if modifier is None:  # no changes
                     return current
                 if modifier == "SW":
@@ -331,10 +333,10 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
                 if modifier == "M":
                     return None
                 if modifier == "LR":
-                    return True
+                    return "bothsides"
                 return cast(Literal[0, 1], ["L", "R"].index(modifier))
 
-            def transform_level(current: int, modifier: T_StaticLevel | None) -> T_LevelIndex:
+            def transform_level(current: int, modifier: T_StaticLevel | None) -> P_Level:
                 if modifier is None:
                     return current
                 if is_typeform(modifier, T_StaticAbsoluteLevel):
@@ -359,14 +361,17 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
             level = transform_level(origin_level, transformation_level)
             return division, level
 
-        def transform(transformation: Iterable[T_StaticPosition]) -> tuple[_T_SpecialDivisionIndex, T_LevelIndex]:
-            initial = None, self._anchored_value[0]
-            assert is_typeform(initial, tuple[_T_SpecialDivisionIndex, T_LevelIndex])
+        def transform(transformation: Iterable[T_StaticPosition]) -> tuple[_P_TempDivision, P_Level]:
+            if type(self._anchored_value) is T_MultiValue:
+                initial = None, self._anchored_value[0][0]
+            else:
+                initial = None, self._anchored_value[0]
+            assert is_typeform(initial, tuple[_P_TempDivision, P_Level])
             return functools.reduce(binary_transform, transformation, initial)
 
         transformations = transpose(map(parse_to_static, data))
         result = map(transform, transformations)
-        return islice(chain(result, repeat(None)), note_duration)
+        return islice(chain(result, self._NULL_VALUE), note_duration)
 
     @cache
     def resolve(
@@ -375,15 +380,15 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
         beat: T_Positional[T_Beat],
         sustain_duration: T_Positional[T_Duration],
         note_duration: T_Positional[T_Duration],
-    ) -> T_Positional[Iterable[T_PositionIndex]]:
-        def convert_special(position: Iterable[_T_SpecialPositionIndex]) -> T_Positional[Iterable[T_PositionIndex]]:
-            def convert_core(value: _T_SpecialPositionIndex) -> T_Positional[T_PositionIndex]:
-                if is_typeform(value, tuple[Literal[True], T_LevelIndex]):
+    ) -> T_Positional[Iterable[P_Position]]:
+        def handle_temp_position(position: Iterable[_P_TempPosition]) -> T_Positional[Iterable[P_Position]]:
+            def core(value: _P_TempPosition) -> T_Positional[P_Position]:
+                if is_typeform(value, tuple[Literal["bothsides"], P_Level]):
                     return T_MultiValue([(0, value[1]), (1, value[1])])
-                assert is_typeform(value, T_PositionIndex), value
+                assert is_typeform(value, P_Position), value
                 return value
 
-            return multivalue_map(lambda *x: x, *map(convert_core, position))
+            return multivalue_map(lambda *x: x, *map(core, position))
 
         out = multivalue_map(
             self._resolve_core,
@@ -393,10 +398,10 @@ class Position(_PositionalProperty[T_Position, Iterable[T_PositionIndex]]):
             note_duration=note_duration,
         )
         if type(out) is not T_MultiValue:
-            return convert_special(out)
+            return handle_temp_position(out)
         if not out:
             return self._NULL_VALUE
-        return multivalue_flatten(map(convert_special, out))
+        return multivalue_flatten(map(handle_temp_position, out))
         # idk why pyright complains, it looks right to me
         # not suppressing the error just in case I'm wrong
 

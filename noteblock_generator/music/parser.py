@@ -14,10 +14,10 @@ from .properties import (
     Instrument,
     Name,
     NoteBlock,
+    P_Level,
+    P_Position,
     Position,
     Sustain,
-    T_LevelIndex,
-    T_PositionIndex,
     Tempo,
     Time,
     Transpose,
@@ -169,7 +169,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
     def __init__(self, index: int | tuple[int, int], src: T_Voice, env: _P_NamedEnvironment):
         super().__init__(index, src, env)
         # --- anchor ---
-        # meaning, if a note "$reset" a property, it will be reset to this current value
+        # meaning, if a note "$reset"s a property, it will be reset to this current value
         self.time.anchor()
         self.tempo.anchor()
         self.beat.anchor()
@@ -336,7 +336,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         dynamic = self.dynamic.resolve(beat=beat, sustain_duration=sustain, note_duration=note_duration)
         i_bar, i_tick = self.i_bar, self.i_tick
 
-        def create_note(noteblock: NoteBlock | None, position: T_PositionIndex):
+        def create_note(noteblock: NoteBlock | None, position: P_Position):
             return _Note(
                 noteblock=noteblock,
                 tempo=tempo,
@@ -349,7 +349,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         def transform(
             *noteblocks: NoteBlock | None,
             dynamic: Iterable[T_StaticAbsoluteDynamic],
-            position: Iterable[T_PositionIndex],
+            position: Iterable[P_Position],
         ):
             def apply_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[_Note]:
                 for noteblock, note_position in zip(noteblocks, position, strict=False):
@@ -382,26 +382,25 @@ class _Note:
     noteblock: NoteBlock | None
     tempo: T_TickRate
     time: int
-    position: T_PositionIndex
+    position: P_Position
     # for error checking only
     voice: _Voice
     index: tuple[T_Bar, T_Tick]
 
     @property
     def division(self):
-        if self.position is not None:
-            return self.position[0]
+        return self.position[0]
 
     @property
     def level(self):
-        if self.position is not None:
-            return self.position[1]
+        return self.position[1]
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
         if self.noteblock is None or dynamic == 0:
             dynamic = 1
             # no need to copy, we only __mul__ a freshly-created note
-            self.noteblock = self.position = None
+            self.noteblock = None
+            self.position = None, None
         return repeat(self, dynamic)
 
     def __repr__(self):
@@ -450,9 +449,9 @@ class _ChordFactory:
         if all(note.division is None for note in notes):
             return "single"
         for note in notes[:]:
-            assert note.position is not None  # because of clear_empty_notes()
             division, level = note.position
             if division is None:
+                assert level is not None  # because of clear_empty_notes()
                 copy = shallowcopy(note)
                 note.position = (0, level)
                 copy.position = (1, level)
@@ -550,7 +549,7 @@ class P_SingleNote(_P_BaseNote, Protocol):
     def division(self) -> None: ...
 
     @property
-    def level(self) -> T_LevelIndex: ...
+    def level(self) -> P_Level: ...
 
 
 class P_DoubleNote(_P_BaseNote, Protocol):
@@ -561,7 +560,7 @@ class P_DoubleNote(_P_BaseNote, Protocol):
     def division(self) -> Literal[0, 1]: ...
 
     @property
-    def level(self) -> T_LevelIndex: ...
+    def level(self) -> P_Level: ...
 
 
 class P_RestNote(_P_BaseNote, Protocol):
