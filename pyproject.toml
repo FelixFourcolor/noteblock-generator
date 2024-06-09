@@ -49,6 +49,7 @@ lint.ignore = [
     "ANN",
     "ARG",
     "B904",
+    "B905",
     "BLE",
     "COM812",
     "D",

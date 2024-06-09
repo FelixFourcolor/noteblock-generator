@@ -352,7 +352,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
             position: Iterable[P_Position],
         ):
             def apply_position(noteblocks: Iterable[NoteBlock | None]) -> Iterable[_Note]:
-                for noteblock, note_position in zip(noteblocks, position, strict=False):
+                for noteblock, note_position in zip(noteblocks, position):
                     yield create_note(noteblock=noteblock, position=note_position)
                     if (tick := self.i_tick + 1) < time:
                         self.i_tick = tick
