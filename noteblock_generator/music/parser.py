@@ -15,6 +15,7 @@ from .properties import (
     Name,
     NoteBlock,
     P_Level,
+    P_Named,
     P_Position,
     Position,
     Sustain,
@@ -53,6 +54,7 @@ from .validator import (
 
 def parse(validated_data: T_Composition):
     class _DefaultEnvironment:
+        children_count = 0
         name = Name()
         time = Time()
         beat = Beat()
@@ -79,22 +81,21 @@ class _P_Environment(Protocol):
     transpose: Transpose
 
 
-class _P_NamedEnvironment(_P_Environment, Protocol):
-    name: Name
+class _P_NamedEnvironment(_P_Environment, P_Named, Protocol): ...
 
 
 class _Environment:
     def __init__(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: _P_NamedEnvironment):
-        self.name = env.name.transform(index, src)
-        self._str = self.name.resolve()
-        self._hash = hash(self._str)
+        self.children_count = 0
+        env.children_count += 1
+        self.name = env.name.transform(index, src, self)
         self.transform(src, env)
 
     def __hash__(self):
-        return self._hash
+        return id(self)
 
     def __str__(self):
-        return self._str
+        return self.name.resolve()
 
     def transform(self, src: T_Environment, env: _P_Environment):
         self.time = env.time.transform(src.time)
@@ -404,7 +405,7 @@ class _Note:
         return repeat(self, dynamic)
 
     def __repr__(self):
-        return f"{self.voice}@{self.index}"
+        return f"{self.voice}{self.index}"
 
 
 class _ChordFactory:

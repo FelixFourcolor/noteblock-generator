@@ -8,7 +8,7 @@ from collections import deque
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, islice, repeat
-from typing import Generic, Hashable, Iterable, Literal, TypeVar, cast, final
+from typing import Generic, Hashable, Iterable, Literal, Protocol, TypeVar, cast, final
 
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .utils import (
@@ -59,25 +59,37 @@ from .validator import (
 )
 
 
+class P_Named(Protocol):
+    children_count: int
+    name: Name
+
+
+def _get_name(index: int | tuple[int, int], src: T_NamedEnvironment):
+    if (name := src.name) is not None:
+        return name.replace(" ", "_")
+    if (path := src.path) is not None:
+        return path.stem.replace(" ", "_")
+    env_type = type(src).__name__[2:]  # every env type name starts with "T_" (see validator.py), remove it
+    return f"{env_type}_{index}"
+
+
 class Name:
     def __init__(self):
-        self._value: Tuple[str] = ()
+        self._envs: Tuple[P_Named] = ()
+        self._names: Tuple[str] = ()
 
-    def _transform_core(self, index: int | tuple[int, int], src: T_NamedEnvironment):
-        if (name := src.name) is not None:
-            return name.replace(" ", "_")
-        if (path := src.path) is not None:
-            return path.stem.replace(" ", "_")
-        return f"{type(src).__name__}-{index}"
-
-    def transform(self, index: int | tuple[int, int], src: T_NamedEnvironment) -> Name:
+    def transform(self, index: int | tuple[int, int], src: T_NamedEnvironment, env: P_Named) -> Name:
         self = shallowcopy(self)
-        self._value = (*self._value, self._transform_core(index, src))
+        self._envs = (*self._envs, env)
+        self._names = (*self._names, _get_name(index, src))
         return self
 
     def resolve(self) -> T_Name:
-        return "/".join(self._value[1:])
-        # exclude the root directory, because it's the same for every env so it's redundant
+        # Skip components whose parent has <2 children,
+        # e.g. if the full name is "/my_symphony/movement_1/violin_I",
+        # but "my_symphony" is the only composition and "movement_1" is the only movement,
+        # the resolved name will just be "violin_I".
+        return "/".join(name for (env, name) in zip(self._envs[:-1], self._names[1:]) if env.children_count > 1)
 
 
 S = TypeVar("S")
