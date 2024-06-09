@@ -131,7 +131,7 @@ class P_Composition(_Environment, Iterable["P_Movement"]):
 
 
 class P_Movement(Iterable["P_Chord"]):
-    def __init__(self, index: int, src: T_Movement, env: _P_NamedEnvironment):
+    def __init__(self, index: int, src: T_Movement, env: P_Composition):
         def get_chords() -> Iterator[P_Chord]:
             if isinstance(src, T_Section):
                 yield from P_Section(index, src, env)
@@ -146,7 +146,7 @@ class P_Movement(Iterable["P_Chord"]):
 
 
 class P_Section(_Environment, Iterable["P_Chord"]):
-    def __init__(self, index: int | tuple[int, int], src: T_Section, env: _P_NamedEnvironment):
+    def __init__(self, index: int | tuple[int, int], src: T_Section, env: P_Composition):
         super().__init__(index, src, env)
 
         def get_voices() -> Iterator[_Voice]:
@@ -166,7 +166,7 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 
 
 class _Voice(_Environment, Iterable[Iterable["_Note"]]):
-    def __init__(self, index: int | tuple[int, int], src: T_Voice, env: _P_NamedEnvironment):
+    def __init__(self, index: int | tuple[int, int], src: T_Voice, env: P_Section):
         super().__init__(index, src, env)
         # --- anchor ---
         # meaning, if a note "$reset"s a property, it will be reset to this current value
