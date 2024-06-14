@@ -186,6 +186,41 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         self._notes = self._resolve_sequential_notes(src)
 
     def __iter__(self) -> Iterator[Iterable[_Note]]:
+        yield from self._notes
+
+    @contextmanager
+    def local_transform(self, src: T_NoteMeta):
+        self_copy = shallowcopy(self)
+        self_copy.transform(src, self)
+        try:
+            yield self_copy
+        finally:
+            self.i_bar = self_copy.i_bar
+            self.i_tick = self_copy.i_tick
+
+    def _resolve_sequential_notes(self, src: T_SequentialNotes) -> Iterable[Iterable[_Note]]:
+        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[_Note]]:
+            if isinstance(note, T_SingleNote):
+                return self._resolve_single_note(note)
+            if isinstance(note, T_ParallelNotes):
+                return self._resolve_parallel_notes(note)
+            self.transform(note, self)
+            return ()
+
+        with self.local_transform(src) as self:
+            sequential_lines = map(_resolve_core, src)
+            merged_line = chain.from_iterable(sequential_lines)
+            return merged_line
+
+    def _resolve_parallel_notes(self, src: T_ParallelNotes) -> Iterable[Iterable[_Note]]:
+        i_bar, i_tick = self.i_bar, self.i_tick
+
+        def resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[_Note]]:
+            self.i_bar, self.i_tick = i_bar, i_tick
+            if isinstance(note, T_SingleNote):
+                return self._resolve_single_note(note)
+            return self._resolve_sequential_notes(note)
+
         def check_tempo(notes: Iterable[_Note]) -> Iterator[_Note]:
             notes_by_tempo = MultiSet(notes, lambda note: note.tempo)
             if len(notes_by_tempo) < 2:
@@ -198,47 +233,12 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
                 return notes_by_time.flatten()
             raise _time_error(notes_by_time)
 
-        for tick in self._notes:
-            yield check_time(check_tempo(tick))
-
-    @contextmanager
-    def local_transform(self, src: T_NoteMeta):
-        self_copy = shallowcopy(self)
-        self_copy.transform(src, self)
-        try:
-            yield self_copy
-        finally:
-            self.i_bar = self_copy.i_bar
-            self.i_tick = self_copy.i_tick
-
-    def _resolve_sequential_notes(self, src: T_SequentialNotes):
-        def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[_Note]]:
-            if isinstance(note, T_SingleNote):
-                return self._resolve_single_note(note)
-            if isinstance(note, T_ParallelNotes):
-                return self._resolve_parallel_notes(note)
-            self.transform(note, self)
-            return ()
-
         with self.local_transform(src) as self:
-            sequential_lines = map(_resolve_core, src.note)
-            merged_line = chain.from_iterable(sequential_lines)
-            return merged_line
-
-    def _resolve_parallel_notes(self, src: T_ParallelNotes):
-        i_bar, i_tick = self.i_bar, self.i_tick
-
-        def _resolve_core(note: T_SingleNote | T_SequentialNotes) -> Iterable[Iterable[_Note]]:
-            self.i_bar, self.i_tick = i_bar, i_tick
-            if isinstance(note, T_SingleNote):
-                return self._resolve_single_note(note)
-            return self._resolve_sequential_notes(note)
-
-        with self.local_transform(src) as self:
-            parallel_lines = map(_resolve_core, src.note)
+            parallel_lines = map(resolve_core, src.note)
             # TODO: error handling: fail if parallel lines written by the user are not of the same length
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
-            return merged_line
+            for tick in merged_line:
+                yield check_time(check_tempo(tick))
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[_Note]]:
         with self.local_transform(src) as self:
