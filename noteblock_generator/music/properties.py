@@ -261,7 +261,7 @@ class _PositionalProperty(
 
 P_Level = int
 P_Division = Literal[0, 1]
-P_Position = tuple[P_Division, P_Level] | tuple[None, P_Level | None]
+P_Position = tuple[P_Division | None, P_Level] | tuple[None, P_Level | None]
 
 # temp position is to handle "LR" (bothsides) division
 # it's internally stored as a magic value (Literal["bothsides"]), then resolve() converts it to the proper format

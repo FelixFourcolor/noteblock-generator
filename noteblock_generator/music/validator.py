@@ -8,7 +8,7 @@ from pydantic import (
     AfterValidator,
     BaseModel,
     Field,
-    NonNegativeInt,
+    NonPositiveInt,
     PositiveInt,
     TypeAdapter,
     ValidationError,
@@ -283,7 +283,7 @@ T_CompoundNote = Annotated[
     ),
 ]
 T_TrillStyle = Literal["normal", "alt"]
-T_StaticAbsoluteLevel = NonNegativeInt  # higher is closer to the player
+T_StaticAbsoluteLevel = NonPositiveInt  # higher is closer to the player
 T_VariableAbsoluteLevel = Annotated[
     str,
     Field(

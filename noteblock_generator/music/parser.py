@@ -14,6 +14,7 @@ from .properties import (
     Instrument,
     Name,
     NoteBlock,
+    P_Division,
     P_Level,
     P_Named,
     P_Position,
@@ -157,6 +158,7 @@ class P_Movement(Iterable["P_Chord"]):
 class P_Section(_Environment, Iterable["P_Chord"]):
     def __init__(self, index: int | tuple[int, int], src: T_Section, env: P_Composition):
         super().__init__(index, src, env)
+        self.min_level = -len(src.voices) + 1
 
         def get_voices() -> Iterator[_Voice]:
             for i, sub_src in enumerate(src):
@@ -170,19 +172,112 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 
     def __iter__(self) -> Iterator[P_Chord]:
         merged_voice = map(chain.from_iterable, transpose(self._voices, fillvalue=()))
-        yield from map(_ChordFactory, merged_voice)
+        yield from map(self._create_chord, merged_voice)
+
+    def _create_chord(self, src: Iterator[_Note]) -> P_Chord:
+        notes = list(src)
+        self._check_index(notes)
+        tempo = self._check_tempo(notes)
+        time = self._check_time(notes)
+        note_type = self._check_position(notes)
+
+        if note_type == "single":
+            return P_SingleChord(
+                notes,  # pyright: ignore[reportGeneralTypeIssues]
+                tempo=tempo,
+                time=time,
+            )
+        if note_type == "double":
+            return P_DoubleChord(
+                notes,  # pyright: ignore[reportGeneralTypeIssues]
+                tempo=tempo,
+                time=time,
+            )
+        return P_Rest(tempo=tempo, time=time)
+
+    def _check_index(self, notes: list[_Note]) -> None:
+        first = notes[0]  # every chord is guaranteed to have at least one note (see _Note.__mul__)
+        for note in notes[1:]:
+            if first.index != note.index:
+                raise ValueError(f"inconsistent placements: {first} & {note}")
+
+    def _check_position(self, notes: list[_Note]) -> Literal["single", "double", None]:
+        notes[:] = (note for note in notes if note.level is not None)
+        if not notes:
+            return None
+        for note in notes:
+            note.level = min(0, max(note.level, self.min_level))  # pyright: ignore[reportGeneralTypeIssues]
+            # TODO: emit warning if value changes
+        if all(note.division is None for note in notes):
+            return "single"
+        for note in notes[:]:
+            if note.division is None:
+                notes.append(copy := shallowcopy(note))
+                note.division = 0
+                copy.division = 1
+        return "double"
+
+    def _check_tempo(self, notes: list[_Note]) -> T_TickRate:  # TODO: horrible algorithm
+        # Error if different voices conflict,
+        # EXCEPT if there are more than two voices, and exactly one voice goes against all others,
+        # then that voice's value triumphs.
+        # ....
+        # The idea is that the lone conflicting voice will be interpreted as the lead voice.
+        # This makes it easier to change tempo
+        # (only have to change one voice rather than all of them, which would be a huge pain).
+
+        notes_by_tempo = MultiSet(notes, lambda note: note.tempo)
+        if len(notes_by_tempo) < 2:
+            return next(iter(notes_by_tempo))
+        if len(notes_by_tempo) > 2 or len(notes) == 2:
+            raise _tempo_error(notes_by_tempo)
+        notes_by_tempo_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_tempo.items()}
+        result = min(notes_by_tempo_by_voice, key=lambda tempo: len(notes_by_tempo_by_voice[tempo]))
+        if len(notes_by_tempo[result]) != 1:
+            raise _tempo_error(notes_by_tempo)
+        return result
+
+    def _check_time(self, notes: list[_Note]) -> int:
+        # TODO: horrible algorithm
+        # TODO: 95% duplicate code with tempo
+
+        notes_by_time = MultiSet(notes, lambda note: note.time)
+        if len(notes_by_time) < 2:
+            return next(iter(notes_by_time))
+        if len(notes_by_time) > 2 or len(notes) == 2:
+            raise _time_error(notes_by_time)
+        notes_by_time_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_time.items()}
+        result = min(notes_by_time_by_voice, key=lambda time: len(notes_by_time_by_voice[time]))
+        if len(notes_by_time[result]) != 1:
+            raise _time_error(notes_by_time)
+        return result
+
+
+def _tempo_error(notes_by_tempo: MultiSet[T_TickRate, _Note]):
+    it = iter(notes_by_tempo.items())
+    t1, note1 = next(it)
+    t2, note2 = next(it)
+    return ValueError(f"inconsistent tempi: {note1}(tempo={t1}) & {note2}(tempo={t2})")
+
+
+def _time_error(notes_by_time: MultiSet[int, _Note]):
+    it = iter(notes_by_time.items())
+    t1, note1 = next(it)
+    t2, note2 = next(it)
+    return ValueError(f"inconsistent times: {note1}(tempo={t1}) & {note2}(tempo={t2})")
 
 
 class _Voice(_Environment, Iterable[Iterable["_Note"]]):
     def __init__(self, index: int | tuple[int, int], src: T_Voice, env: P_Section):
         super().__init__(index, src, env)
         # --- anchor ---
-        # meaning, if a note "$reset"s a property, it will be reset to this current value
+        # meaning, if a note `$reset`s a property, it will be reset to thisl value
         self.time.anchor()
         self.tempo.anchor()
         self.beat.anchor()
         self.trill_style.anchor()
-        self.position.anchor(index if isinstance(index, int) else index[0])
+        level_index = index if isinstance(index, int) else index[0]
+        self.position.anchor(-level_index)  # flip order: lower index is higher position
         self.instrument.anchor()
         self.dynamic.anchor()
         self.sustain.anchor()
@@ -243,8 +338,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         with self.local_transform(src) as self:
             parallel_lines = map(resolve_core, src.note)
             merged_line = map(chain.from_iterable, transpose(parallel_lines, fillvalue=()))
-            for tick in merged_line:
-                yield check_time(check_tempo(tick))
+            yield from map(check_time, map(check_tempo, merged_line))
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[_Note]]:
         with self.local_transform(src) as self:
@@ -399,9 +493,18 @@ class _Note:
     def division(self):
         return self.position[0]
 
+    @division.setter
+    def division(self, value: P_Division):
+        assert self.level is not None
+        self.position = (value, self.level)
+
     @property
     def level(self):
         return self.position[1]
+
+    @level.setter
+    def level(self, value: P_Level):
+        self.position = (self.division, value)
 
     def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
         if self.noteblock is None or dynamic == 0:
@@ -413,109 +516,6 @@ class _Note:
 
     def __repr__(self):
         return f"{self.voice}{self.index}"
-
-
-class _ChordFactory:
-    def __new__(cls, src: Iterator[_Note]) -> P_Chord:
-        notes = list(src)
-        cls.check_index(notes)
-        tempo = cls.check_tempo(notes)
-        time = cls.check_time(notes)
-        note_type = cls.check_position(notes)
-
-        if note_type == "single":
-            return P_SingleChord(
-                notes,  # pyright: ignore[reportGeneralTypeIssues]
-                tempo=tempo,
-                time=time,
-            )
-        if note_type == "double":
-            return P_DoubleChord(
-                notes,  # pyright: ignore[reportGeneralTypeIssues]
-                tempo=tempo,
-                time=time,
-            )
-        return P_Rest(tempo=tempo, time=time)
-
-    @classmethod
-    def check_index(cls, notes: list[_Note]):
-        first = notes[0]  # every chord is guaranteed to have at least one note (see _Note.__mul__)
-        for note in notes[1:]:
-            if first.index != note.index:
-                raise ValueError(f"inconsistent placements: {first} & {note}")
-
-    @classmethod
-    def check_position(cls, notes: list[_Note]):
-        def clear_empty_notes():
-            for i, note in enumerate(notes):
-                if note.position is None:
-                    notes.pop(i)
-
-        clear_empty_notes()
-        if not notes:
-            return None
-        if all(note.division is None for note in notes):
-            return "single"
-        for note in notes[:]:
-            division, level = note.position
-            if division is None:
-                assert level is not None  # because of clear_empty_notes()
-                copy = shallowcopy(note)
-                note.position = (0, level)
-                copy.position = (1, level)
-                notes.append(copy)
-        return "double"
-
-    @classmethod
-    def check_tempo(cls, notes: list[_Note]) -> T_TickRate:  # TODO: horrible algorithm
-        # Error if different voices conflict,
-        # EXCEPT if there are more than two voices, and exactly one voice goes against all others,
-        # then that voice's value triumphs.
-        # ....
-        # The idea is that the lone conflicting voice will be interpreted as the lead voice.
-        # This makes it easier to change tempo
-        # (only have to change one voice rather than all of them, which would be a huge pain).
-
-        notes_by_tempo = MultiSet(notes, lambda note: note.tempo)
-        if len(notes_by_tempo) < 2:
-            return next(iter(notes_by_tempo))
-        if len(notes_by_tempo) > 2 or len(notes) == 2:
-            raise _tempo_error(notes_by_tempo)
-        notes_by_tempo_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_tempo.items()}
-        result = min(notes_by_tempo_by_voice, key=lambda tempo: len(notes_by_tempo_by_voice[tempo]))
-        if len(notes_by_tempo[result]) != 1:
-            raise _tempo_error(notes_by_tempo)
-        return result
-
-    @classmethod
-    def check_time(cls, notes: list[_Note]) -> int:
-        # TODO: horrible algorithm
-        # TODO: 95% duplicate code with tempo
-
-        notes_by_time = MultiSet(notes, lambda note: note.time)
-        if len(notes_by_time) < 2:
-            return next(iter(notes_by_time))
-        if len(notes_by_time) > 2 or len(notes) == 2:
-            raise _time_error(notes_by_time)
-        notes_by_time_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_time.items()}
-        result = min(notes_by_time_by_voice, key=lambda time: len(notes_by_time_by_voice[time]))
-        if len(notes_by_time[result]) != 1:
-            raise _time_error(notes_by_time)
-        return result
-
-
-def _tempo_error(notes_by_tempo: MultiSet[T_TickRate, _Note]):
-    it = iter(notes_by_tempo.items())
-    t1, note1 = next(it)
-    t2, note2 = next(it)
-    return ValueError(f"inconsistent tempi: {note1}(tempo={t1}) & {note2}(tempo={t2})")
-
-
-def _time_error(notes_by_time: MultiSet[int, _Note]):
-    it = iter(notes_by_time.items())
-    t1, note1 = next(it)
-    t2, note2 = next(it)
-    return ValueError(f"inconsistent times: {note1}(tempo={t1}) & {note2}(tempo={t2})")
 
 
 class P_SingleChord(list["P_SingleNote"]):
@@ -542,41 +542,23 @@ P_Chord = P_Rest | P_SingleChord | P_DoubleChord
 
 
 class _P_BaseNote(Protocol):
-    @property
-    def tempo(self) -> T_TickRate: ...
-
-    @property
-    def time(self) -> int: ...
+    tempo: T_TickRate
+    time: int
 
 
 class P_SingleNote(_P_BaseNote, Protocol):
-    @property
-    def noteblock(self) -> NoteBlock: ...
-
-    @property
-    def division(self) -> None: ...
-
-    @property
-    def level(self) -> P_Level: ...
+    noteblock: NoteBlock
+    division: None
+    level: P_Level
 
 
 class P_DoubleNote(_P_BaseNote, Protocol):
-    @property
-    def noteblock(self) -> NoteBlock: ...
-
-    @property
-    def division(self) -> Literal[0, 1]: ...
-
-    @property
-    def level(self) -> P_Level: ...
+    noteblock: NoteBlock
+    division: Literal[0, 1]
+    level: P_Level
 
 
 class P_RestNote(_P_BaseNote, Protocol):
-    @property
-    def noteblock(self) -> None: ...
-
-    @property
-    def division(self) -> None: ...
-
-    @property
-    def level(self) -> None: ...
+    noteblock: None
+    division: None
+    level: None
