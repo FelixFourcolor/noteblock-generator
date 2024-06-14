@@ -183,13 +183,13 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 
         if note_type == "single":
             return P_SingleChord(
-                notes,  # pyright: ignore[reportGeneralTypeIssues]
+                notes,  # type: ignore
                 tempo=tempo,
                 time=time,
             )
         if note_type == "double":
             return P_DoubleChord(
-                notes,  # pyright: ignore[reportGeneralTypeIssues]
+                notes,  # type: ignore
                 tempo=tempo,
                 time=time,
             )
@@ -206,7 +206,7 @@ class P_Section(_Environment, Iterable["P_Chord"]):
         if not notes:
             return None
         for note in notes:
-            note.level = min(0, max(note.level, self.min_level))  # pyright: ignore[reportGeneralTypeIssues]
+            note.level = min(0, max(note.level, self.min_level))  # type: ignore
             # TODO: emit warning if value changes
         if all(note.division is None for note in notes):
             return "single"

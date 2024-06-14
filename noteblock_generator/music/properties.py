@@ -231,7 +231,7 @@ class _PositionalProperty(
                 working_modifier = chain(inbound_modifiers, outbound_modifiers)
 
         # no idea why pyright complains
-        return T_MultiValue(working_modifier)  # pyright: ignore[reportGeneralTypeIssues]
+        return T_MultiValue(working_modifier)  # type: ignore
 
     @final
     @cache

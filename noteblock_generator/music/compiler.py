@@ -203,7 +203,7 @@ class _Compiler:
 
     @property
     def z_i(self) -> Literal[1, -1]:
-        return self.z_dir[1]  # pyright: ignore[reportGeneralTypeIssues]
+        return self.z_dir[1]  # type: ignore
 
     @z_i.setter
     def z_i(self, value: Literal[1, -1]):
