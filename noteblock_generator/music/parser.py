@@ -5,7 +5,7 @@ from collections import deque
 from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
-from itertools import chain, repeat, zip_longest
+from itertools import chain, repeat
 from typing import Iterable, Iterator, Literal, Protocol
 
 from .properties import (
@@ -24,7 +24,15 @@ from .properties import (
     Transpose,
     TrillStyle,
 )
-from .utils import MultiSet, is_typeform, multivalue_map, parse_duration, split_timedvalue, strip_split, transpose
+from .utils import (
+    MultiSet,
+    is_typeform,
+    multivalue_map,
+    parse_duration,
+    split_timedvalue,
+    strip_split,
+    transpose,
+)
 from .validator import (
     T_BarDelimiter,
     T_Composition,
@@ -161,8 +169,7 @@ class P_Section(_Environment, Iterable["P_Chord"]):
         self._voices = get_voices()
 
     def __iter__(self) -> Iterator[P_Chord]:
-        # voices are not necesarily of equal length, pad them with empty notes
-        merged_voice = map(chain.from_iterable, zip_longest(*self._voices, fillvalue=()))
+        merged_voice = map(chain.from_iterable, transpose(self._voices, fillvalue=()))
         yield from map(_ChordFactory, merged_voice)
 
 
@@ -235,8 +242,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
 
         with self.local_transform(src) as self:
             parallel_lines = map(resolve_core, src.note)
-            # TODO: error handling: fail if parallel lines written by the user are not of the same length
-            merged_line = map(chain.from_iterable, transpose(parallel_lines))
+            merged_line = map(chain.from_iterable, transpose(parallel_lines, fillvalue=()))
             for tick in merged_line:
                 yield check_time(check_tempo(tick))
 
@@ -369,6 +375,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
 
         parallel_lines = multivalue_map(transform, *noteblocks, dynamic=dynamic, position=position)
         if type(parallel_lines) is T_MultiValue:
+            # no fillvalue needed, by design this transposition should never fail
             merged_line = map(chain.from_iterable, transpose(parallel_lines))
             return deque(merged_line)
         return deque(parallel_lines)

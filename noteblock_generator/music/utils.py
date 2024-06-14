@@ -3,7 +3,7 @@ from __future__ import annotations
 import functools
 import re
 from contextlib import suppress
-from itertools import repeat
+from itertools import repeat, zip_longest
 from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
 
 from pydantic import TypeAdapter, ValidationError
@@ -100,8 +100,10 @@ def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T
 strict_zip = functools.partial(zip, strict=True)
 
 
-def transpose(double_iterable: Iterable[Iterable[T]]) -> Iterable[Iterable[T]]:
-    return strict_zip(*double_iterable)
+def transpose(double_iterable: Iterable[Iterable[T]], fillvalue: Iterable[T] = None) -> Iterable[Iterable[T]]:
+    if fillvalue is None:
+        return strict_zip(*double_iterable)
+    return zip_longest(*double_iterable, fillvalue=fillvalue)
 
 
 class MultiSet(dict[S, list[T]]):
