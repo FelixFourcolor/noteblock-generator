@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat
-from typing import Iterable, Iterator, Protocol
+from typing import Iterable, Iterator, Protocol, cast
 
 from .properties import (
     Beat,
@@ -239,13 +239,21 @@ def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
         yield (left_unit, right_unit)
 
 
-class P_Unit(list[NoteBlock]):
+class P_Unit(Iterable[NoteBlock]):
     def __init__(self, notes: Iterable[_Note], *, tempo: T_TickRate, time: int):
+        non_empty_notes = [note for note in notes if note.noteblock is not None]
+        if len(non_empty_notes) > Dynamic.MAX:
+            level = non_empty_notes[0].level
+            raise ValueError(f"Slot overflow at level {level}: {non_empty_notes}")
         self.tempo = tempo
         self.time = time
-        self.extend(filter(None, (note.noteblock for note in notes)))
-        if len(self) > Dynamic.MAX:
-            raise ValueError(f"Slot overflowed: {self}")
+        self._noteblocks = cast(list[NoteBlock], [note.noteblock for note in non_empty_notes])
+
+    def __iter__(self) -> Iterator[NoteBlock]:
+        yield from self._noteblocks
+
+    def __bool__(self):
+        return bool(self._noteblocks)
 
 
 P_SingleChord = Iterable[P_Unit]
