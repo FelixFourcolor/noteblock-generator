@@ -392,7 +392,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         tokens = split_timedvalue(src)
         note_name = tokens[0].lower()
         note_duration = parse_duration(*tokens[1:], beat=self.beat.resolve())
-        note = self.instrument.resolve(note_name=note_name, transpose=self.transpose.resolve())  # TODO: error handling
+        note = self.instrument.resolve(note_name=note_name, transpose=self.transpose.resolve())
         return note, note_duration
 
     def _create_noteblocks(self, src: T_NoteName | T_Rest) -> Iterable[T_Positional[NoteBlock | None]]:
