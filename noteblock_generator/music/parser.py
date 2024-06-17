@@ -219,21 +219,23 @@ def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
     tempo = _check_tempo(notes)
     time = _check_time(notes)
     notes_by_level = MultiSet(notes, lambda note: note.level)
+
     # single division
     if all(note.division is None for note in notes):
         for level in range(0, min(notes_by_level) - 1, -1):
             notes = notes_by_level.get(level, ())
             yield P_Unit(notes, tempo=tempo, time=time)
         return
+
     # double division
     for level in range(0, min(notes_by_level) - 1, -1):
-        notes = notes_by_level.get(level, ())
-        notes_by_division = MultiSet(notes, lambda note: note.division)
-        # ---
-        bothsides_notes = notes_by_division.get(None, ())
-        left_notes = chain(notes_by_division.get(0, ()), bothsides_notes)
-        right_notes = chain(notes_by_division.get(1, ()), bothsides_notes)
-        # ---
+        level_notes = notes_by_level.get(level, ())
+        level_notes_by_division = MultiSet(level_notes, lambda note: note.division)
+
+        bothsides_notes = level_notes_by_division.get(None, ())
+        left_notes = chain(level_notes_by_division.get(0, ()), bothsides_notes)
+        right_notes = chain(level_notes_by_division.get(1, ()), bothsides_notes)
+
         left_unit = P_Unit(left_notes, tempo=tempo, time=time)
         right_unit = P_Unit(right_notes, tempo=tempo, time=time)
         yield (left_unit, right_unit)
