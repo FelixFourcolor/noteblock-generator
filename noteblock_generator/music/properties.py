@@ -13,6 +13,7 @@ from typing import Generic, Hashable, Iterable, Literal, Protocol, TypeVar, cast
 from .data import INSTRUMENT_RANGE, NOTE_VALUE
 from .utils import (
     cache,
+    extend,
     is_typeform,
     multivalue_flatten,
     multivalue_map,
@@ -261,17 +262,17 @@ class _PositionalProperty(
 
 P_Level = int
 P_Division = Literal[0, 1]
-P_Position = tuple[P_Division | None, P_Level] | tuple[None, P_Level | None]
+P_Position = tuple[P_Division | None, P_Level]
 
 # temp position is to handle "LR" (bothsides) division
-# it's internally stored as a magic value (Literal["bothsides"]), then resolve() converts it to the proper format
-_P_TempDivision = P_Division | Literal[None, "bothsides"]
-_P_TempPosition = P_Position | tuple[_P_TempDivision, P_Level]
+# it's internally stored as a magic value (`Literal["bothsides"]`), then resolve() converts it to the proper format
+_P_TempDivision = P_Division | None | Literal["bothsides"]
+_P_TempPosition = tuple[_P_TempDivision, P_Level]
 
 
 class Position(_PositionalProperty[T_Position, Iterable[P_Position]]):
     _DEFAULT: Tuple[T_StaticAbsoluteLevel] = ()
-    _NULL_VALUE: Iterable[tuple[None, None]] = repeat((None, None))
+    _NULL_VALUE: Iterable[tuple[None, Literal[0]]] = repeat((None, 0))
 
     def _resolve_core(
         self,
@@ -383,7 +384,7 @@ class Position(_PositionalProperty[T_Position, Iterable[P_Position]]):
 
         transformations = transpose(map(parse_to_static, data))
         result = map(transform, transformations)
-        return islice(chain(result, self._NULL_VALUE), note_duration)
+        return islice(extend(result), note_duration)
 
     @cache
     def resolve(
@@ -536,8 +537,7 @@ class Dynamic(_PositionalProperty[T_Dynamic, Iterable[T_StaticAbsoluteDynamic]])
 
         transformations = transpose(map(parse, data))
         result = map(transform, transformations)
-        # 0 is arbitrary, dynamic doesn't matter for notes outside of sustain duration
-        out = islice(chain(result, repeat(0)), note_duration)
+        out = islice(extend(result), note_duration)
         return deque(out)  # must exhaust the iterator to cache the result
 
     @cache

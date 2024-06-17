@@ -117,3 +117,14 @@ class MultiSet(dict[S, list[T]]):
     def flatten(self) -> Iterator[T]:
         for key in self.keys():
             yield from self[key]
+
+
+def extend(iterator: Iterator[T]) -> Iterator[T]:
+    try:
+        yield (item := next(iterator))
+    except StopIteration:
+        return
+    for item in iterator:
+        yield item
+    while True:
+        yield item

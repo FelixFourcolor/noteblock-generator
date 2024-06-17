@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import operator
 from collections import deque
 from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat
-from typing import Iterable, Iterator, Literal, Protocol
+from typing import Iterable, Iterator, Protocol
 
 from .properties import (
     Beat,
@@ -14,8 +13,6 @@ from .properties import (
     Instrument,
     Name,
     NoteBlock,
-    P_Division,
-    P_Level,
     P_Named,
     P_Position,
     Position,
@@ -58,6 +55,7 @@ from .validator import (
     T_TrilledNote,
     T_TrillStyle,
     T_Voice,
+    Tuple,
 )
 
 
@@ -158,7 +156,6 @@ class P_Movement(Iterable["P_Chord"]):
 class P_Section(_Environment, Iterable["P_Chord"]):
     def __init__(self, index: int | tuple[int, int], src: T_Section, env: P_Composition):
         super().__init__(index, src, env)
-        self.min_level = -len(src.voices) + 1
 
         def get_voices() -> Iterator[_Voice]:
             for i, sub_src in enumerate(src):
@@ -172,52 +169,17 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 
     def __iter__(self) -> Iterator[P_Chord]:
         merged_voice = map(chain.from_iterable, transpose(self._voices, fillvalue=()))
-        yield from map(self._create_chord, merged_voice)
+        yield from map(_ChordFactory, merged_voice)
 
-    def _create_chord(self, src: Iterator[_Note]) -> P_Chord:
-        notes = list(src)
-        self._check_index(notes)
-        tempo = self._check_tempo(notes)
-        time = self._check_time(notes)
-        note_type = self._check_position(notes)
 
-        if note_type == "single":
-            return P_SingleChord(
-                notes,  # type: ignore
-                tempo=tempo,
-                time=time,
-            )
-        if note_type == "double":
-            return P_DoubleChord(
-                notes,  # type: ignore
-                tempo=tempo,
-                time=time,
-            )
-        return P_Rest(tempo=tempo, time=time)
-
-    def _check_index(self, notes: list[_Note]) -> None:
-        first = notes[0]  # every chord is guaranteed to have at least one note (see _Note.__mul__)
+def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
+    def _check_index(notes: Tuple[_Note]) -> None:
+        first = notes[0]
         for note in notes[1:]:
             if first.index != note.index:
                 raise ValueError(f"inconsistent placements: {first} & {note}")
 
-    def _check_position(self, notes: list[_Note]) -> Literal["single", "double", None]:
-        notes[:] = (note for note in notes if note.level is not None)
-        if not notes:
-            return None
-        for note in notes:
-            note.level = min(0, max(note.level, self.min_level))  # type: ignore
-            # TODO: emit warning if value changes
-        if all(note.division is None for note in notes):
-            return "single"
-        for note in notes[:]:
-            if note.division is None:
-                notes.append(copy := shallowcopy(note))
-                note.division = 0
-                copy.division = 1
-        return "double"
-
-    def _check_tempo(self, notes: list[_Note]) -> T_TickRate:  # TODO: horrible algorithm
+    def _check_tempo(notes: Tuple[_Note]) -> T_TickRate:  # TODO: horrible algorithm
         # Error if different voices conflict,
         # EXCEPT if there are more than two voices, and exactly one voice goes against all others,
         # then that voice's value triumphs.
@@ -233,11 +195,11 @@ class P_Section(_Environment, Iterable["P_Chord"]):
             raise _tempo_error(notes_by_tempo)
         notes_by_tempo_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_tempo.items()}
         result = min(notes_by_tempo_by_voice, key=lambda tempo: len(notes_by_tempo_by_voice[tempo]))
-        if len(notes_by_tempo[result]) != 1:
+        if len(notes_by_tempo_by_voice[result]) != 1:
             raise _tempo_error(notes_by_tempo)
         return result
 
-    def _check_time(self, notes: list[_Note]) -> int:
+    def _check_time(notes: Tuple[_Note]) -> int:
         # TODO: horrible algorithm
         # TODO: 95% duplicate code with tempo
 
@@ -248,9 +210,47 @@ class P_Section(_Environment, Iterable["P_Chord"]):
             raise _time_error(notes_by_time)
         notes_by_time_by_voice = {k: MultiSet(v, lambda note: note.voice) for k, v in notes_by_time.items()}
         result = min(notes_by_time_by_voice, key=lambda time: len(notes_by_time_by_voice[time]))
-        if len(notes_by_time[result]) != 1:
+        if len(notes_by_time_by_voice[result]) != 1:
             raise _time_error(notes_by_time)
         return result
+
+    notes = tuple(src)
+    _check_index(notes)
+    tempo = _check_tempo(notes)
+    time = _check_time(notes)
+    notes_by_level = MultiSet(notes, lambda note: note.level)
+    # single division
+    if all(note.division is None for note in notes):
+        for level in range(0, min(notes_by_level) - 1, -1):
+            notes = notes_by_level.get(level, ())
+            yield P_Unit(notes, tempo=tempo, time=time)
+        return
+    # double division
+    for level in range(0, min(notes_by_level) - 1, -1):
+        notes = notes_by_level.get(level, ())
+        notes_by_division = MultiSet(notes, lambda note: note.division)
+        # ---
+        bothsides_notes = notes_by_division.get(None, ())
+        left_notes = chain(notes_by_division.get(0, ()), bothsides_notes)
+        right_notes = chain(notes_by_division.get(1, ()), bothsides_notes)
+        # ---
+        left_unit = P_Unit(left_notes, tempo=tempo, time=time)
+        right_unit = P_Unit(right_notes, tempo=tempo, time=time)
+        yield (left_unit, right_unit)
+
+
+class P_Unit(list[NoteBlock]):
+    def __init__(self, notes: Iterable[_Note], *, tempo: T_TickRate, time: int):
+        self.tempo = tempo
+        self.time = time
+        self.extend(filter(None, (note.noteblock for note in notes)))
+        if len(self) > Dynamic.MAX:
+            raise ValueError(f"Slot overflowed: {self}")
+
+
+P_SingleChord = Iterable[P_Unit]
+P_DoubleChord = Iterable[tuple[P_Unit, P_Unit]]
+P_Chord = P_SingleChord | P_DoubleChord
 
 
 def _tempo_error(notes_by_tempo: MultiSet[T_TickRate, _Note]):
@@ -462,7 +462,15 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
                         self.i_bar += 1
 
             def apply_dynamic(notes: Iterable[_Note]) -> Iterable[Iterable[_Note]]:
-                return map(operator.mul, notes, dynamic)
+                def apply_core(note: _Note, dynamic: T_StaticAbsoluteDynamic) -> Iterable[_Note]:
+                    if note.noteblock is None:
+                        return (note,)
+                    if dynamic == 0:
+                        note.noteblock = None
+                        return (note,)
+                    return repeat(note, dynamic)
+
+                return map(apply_core, notes, dynamic)
 
             self.i_bar, self.i_tick = i_bar, i_tick
             return apply_dynamic(apply_position(noteblocks))
@@ -493,72 +501,9 @@ class _Note:
     def division(self):
         return self.position[0]
 
-    @division.setter
-    def division(self, value: P_Division):
-        assert self.level is not None
-        self.position = (value, self.level)
-
     @property
     def level(self):
         return self.position[1]
 
-    @level.setter
-    def level(self, value: P_Level):
-        self.position = (self.division, value)
-
-    def __mul__(self, dynamic: T_StaticAbsoluteDynamic):
-        if self.noteblock is None or dynamic == 0:
-            dynamic = 1
-            # no need to copy, we only __mul__ a freshly-created note
-            self.noteblock = None
-            self.position = None, None
-        return repeat(self, dynamic)
-
     def __repr__(self):
         return f"{self.voice}{self.index}"
-
-
-class P_SingleChord(list["P_SingleNote"]):
-    def __init__(self, notes: Iterable[P_SingleNote], *, tempo: T_TickRate, time: int):
-        self.extend(notes)
-        self.tempo = tempo
-        self.time = time
-
-
-class P_DoubleChord(list["P_DoubleNote"]):
-    def __init__(self, notes: Iterable[P_DoubleNote], *, tempo: T_TickRate, time: int):
-        self.extend(notes)
-        self.tempo = tempo
-        self.time = time
-
-
-class P_Rest(list["P_RestNote"]):
-    def __init__(self, tempo: T_TickRate, time: int):
-        self.tempo = tempo
-        self.time = time
-
-
-P_Chord = P_Rest | P_SingleChord | P_DoubleChord
-
-
-class _P_BaseNote(Protocol):
-    tempo: T_TickRate
-    time: int
-
-
-class P_SingleNote(_P_BaseNote, Protocol):
-    noteblock: NoteBlock
-    division: None
-    level: P_Level
-
-
-class P_DoubleNote(_P_BaseNote, Protocol):
-    noteblock: NoteBlock
-    division: Literal[0, 1]
-    level: P_Level
-
-
-class P_RestNote(_P_BaseNote, Protocol):
-    noteblock: None
-    division: None
-    level: None
