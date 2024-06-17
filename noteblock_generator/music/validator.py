@@ -40,7 +40,6 @@ T_Delete = Literal["$del"]
 T_PositionalProperty = T_Positional[T_StaticProperty[T] | T_Delete]
 Tuple = tuple[T, ...]
 T_Duration = int
-T_NoteValue = int
 T_Name = str
 T_Time = (
     PositiveInt

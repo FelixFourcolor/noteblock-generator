@@ -34,7 +34,6 @@ from .validator import (
     T_MultiValue,
     T_Name,
     T_NamedEnvironment,
-    T_NoteValue,
     T_Position,
     T_Positional,
     T_PositionalProperty,
@@ -421,7 +420,7 @@ class Position(_PositionalProperty[T_Position, Iterable[P_Position]]):
 
 @dataclass(kw_only=True, slots=True, frozen=True)
 class NoteBlock:
-    note: T_NoteValue
+    note: int
     instrument: str
 
 
