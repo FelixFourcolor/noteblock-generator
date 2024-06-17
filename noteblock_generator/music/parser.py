@@ -135,7 +135,7 @@ class P_Composition(_Environment, Iterable["P_Movement"]):
         self._movements = get_movements()
 
     def __iter__(self) -> Iterator[P_Movement]:
-        yield from self._movements
+        return self._movements
 
 
 class P_Movement(Iterable["P_Chord"]):
@@ -143,14 +143,14 @@ class P_Movement(Iterable["P_Chord"]):
         def get_chords() -> Iterator[P_Chord]:
             if isinstance(src, T_Section):
                 yield from P_Section(index, src, env)
-            else:
-                for i, subsection in enumerate(src):
-                    yield from P_Section((index, i), subsection, env)
+                return
+            for i, subsection in enumerate(src):
+                yield from P_Section((index, i), subsection, env)
 
         self._chords = get_chords()
 
     def __iter__(self) -> Iterator[P_Chord]:
-        yield from self._chords
+        return self._chords
 
 
 class P_Section(_Environment, Iterable["P_Chord"]):
@@ -169,7 +169,7 @@ class P_Section(_Environment, Iterable["P_Chord"]):
 
     def __iter__(self) -> Iterator[P_Chord]:
         merged_voice = map(chain.from_iterable, transpose(self._voices, fillvalue=()))
-        yield from map(_ChordFactory, merged_voice)
+        return map(_ChordFactory, merged_voice)
 
 
 def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
@@ -288,7 +288,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         self._notes = self._resolve_sequential_notes(src)
 
     def __iter__(self) -> Iterator[Iterable[_Note]]:
-        yield from self._notes
+        return self._notes
 
     @contextmanager
     def local_transform(self, src: T_NoteMeta):
@@ -300,7 +300,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
             self.i_bar = self_copy.i_bar
             self.i_tick = self_copy.i_tick
 
-    def _resolve_sequential_notes(self, src: T_SequentialNotes) -> Iterable[Iterable[_Note]]:
+    def _resolve_sequential_notes(self, src: T_SequentialNotes) -> Iterator[Iterable[_Note]]:
         def _resolve_core(note: T_SingleNote | T_ParallelNotes | T_NotesModifier) -> Iterable[Iterable[_Note]]:
             if isinstance(note, T_SingleNote):
                 return self._resolve_single_note(note)
@@ -338,7 +338,7 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
         with self.local_transform(src) as self:
             parallel_lines = map(resolve_core, src.note)
             merged_line = map(chain.from_iterable, transpose(parallel_lines, fillvalue=()))
-            yield from map(check_time, map(check_tempo, merged_line))
+            return map(check_time, map(check_tempo, merged_line))
 
     def _resolve_single_note(self, src: T_SingleNote) -> Iterable[Iterable[_Note]]:
         with self.local_transform(src) as self:
