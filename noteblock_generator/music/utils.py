@@ -4,7 +4,7 @@ import functools
 import re
 from contextlib import suppress
 from itertools import repeat, zip_longest
-from typing import TYPE_CHECKING, Any, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
+from typing import TYPE_CHECKING, Callable, Hashable, Iterable, Iterator, TypeGuard, TypeVar
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -80,7 +80,7 @@ def strip_split(string: str, delimiter: str):
     return filter(None, map(str.strip, string.split(delimiter)))
 
 
-def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T_Positional[Any]) -> T_Positional[T]:
+def multivalue_map(func: Callable[..., T], *args: T_Positional, **kwargs: T_Positional) -> T_Positional[T]:
     single_kwargs = {k: v for k, v in kwargs.items() if type(v) is not T_MultiValue}
     multi_kwargs = {k: v for k, v in kwargs.items() if k not in single_kwargs}
     zipped_kwargs = map(dict, map(functools.partial(strict_zip, multi_kwargs.keys()), transpose(multi_kwargs.values())))
@@ -100,8 +100,14 @@ def multivalue_map(func: Callable[..., T], *args: T_Positional[Any], **kwargs: T
 strict_zip = functools.partial(zip, strict=True)
 
 
-def transpose(double_iterable: Iterable[Iterable[T]], fillvalue: Iterable[T] = None) -> Iterable[Iterable[T]]:
-    if fillvalue is None:
+class _SENTINEL: ...
+
+
+def transpose(
+    double_iterable: Iterable[Iterable[T]],
+    fillvalue: T | type[_SENTINEL] = _SENTINEL,
+) -> Iterable[Iterable[T]]:
+    if fillvalue is _SENTINEL:
         return strict_zip(*double_iterable)
     return zip_longest(*double_iterable, fillvalue=fillvalue)
 

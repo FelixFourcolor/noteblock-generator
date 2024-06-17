@@ -413,9 +413,7 @@ class Position(_PositionalProperty[T_Position, Iterable[P_Position]]):
             return handle_temp_position(out)
         if not out:
             return self._NULL_VALUE
-        return multivalue_flatten(map(handle_temp_position, out))
-        # idk why pyright complains, it looks right to me
-        # not suppressing the error just in case I'm wrong
+        return multivalue_flatten(map(handle_temp_position, out))  # type: ignore  # no idea why pyright complains
 
 
 @dataclass(kw_only=True, slots=True, frozen=True)
