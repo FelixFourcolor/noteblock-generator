@@ -230,11 +230,9 @@ class _PositionalProperty(
                 outbound_modifiers = replace(working_modifier[original_len:], "$reset", "$del")
                 working_modifier = chain(inbound_modifiers, outbound_modifiers)
 
-        # no idea why pyright complains
-        return T_MultiValue(working_modifier)  # type: ignore
+        return T_MultiValue(working_modifier)  # type: ignore  # no idea why pyright complains
 
     @final
-    @cache
     def transform(self, modifier: T_PositionalProperty[U]):
         self = shallowcopy(self)
         modifier = self._prepare_modifier(modifier)
