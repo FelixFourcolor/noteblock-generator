@@ -246,7 +246,7 @@ class P_Unit(Iterable[NoteBlock]):
         non_empty_notes = [note for note in notes if note.noteblock is not None]
         if len(non_empty_notes) > Dynamic.MAX:
             level = non_empty_notes[0].level
-            raise ValueError(f"Slot overflow at level {level}: {non_empty_notes}")
+            raise ValueError(f"Slot overflow at {level}: {non_empty_notes}")
         self.tempo = tempo
         self.time = time
         self._noteblocks = cast(list[NoteBlock], [note.noteblock for note in non_empty_notes])
