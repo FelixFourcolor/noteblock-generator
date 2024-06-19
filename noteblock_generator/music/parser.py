@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from copy import copy as shallowcopy
 from dataclasses import dataclass
 from itertools import chain, repeat
-from typing import Iterable, Iterator, Protocol, cast
+from typing import Iterable, Iterator, Protocol, TypeVar
 
 from .properties import (
     Beat,
@@ -13,6 +13,8 @@ from .properties import (
     Instrument,
     Name,
     NoteBlock,
+    P_Division,
+    P_Level,
     P_Named,
     P_Position,
     Position,
@@ -55,7 +57,6 @@ from .validator import (
     T_TrilledNote,
     T_TrillStyle,
     T_Voice,
-    Tuple,
 )
 
 
@@ -172,14 +173,24 @@ class P_Section(_Environment, Iterable["P_Chord"]):
         return map(_ChordFactory, merged_voice)
 
 
+class _P_NonRestNote(Protocol):
+    noteblock: NoteBlock
+    tempo: T_TickRate
+    time: int
+    division: P_Division | None
+    level: P_Level
+    index: tuple[T_Bar, T_Tick]
+
+
 def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
-    def _check_index(notes: Tuple[_Note]) -> None:
-        first = notes[0]
-        for note in notes[1:]:
+    def _check_index() -> Iterator[_Note]:
+        yield (first := next(src))
+        for note in src:
             if first.index != note.index:
                 raise ValueError(f"inconsistent placements: {first} & {note}")
+            yield note
 
-    def _check_tempo(notes: Tuple[_Note]) -> T_TickRate:  # TODO: horrible algorithm
+    def _check_tempo() -> T_TickRate:  # TODO: horrible algorithm
         # Error if different voices conflict,
         # EXCEPT if there are more than two voices, and exactly one voice goes against all others,
         # then that voice's value triumphs.
@@ -199,7 +210,7 @@ def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
             raise _tempo_error(notes_by_tempo)
         return result
 
-    def _check_time(notes: Tuple[_Note]) -> int:
+    def _check_time() -> int:
         # TODO: horrible algorithm
         # TODO: 95% duplicate code with tempo
 
@@ -214,42 +225,53 @@ def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
             raise _time_error(notes_by_time)
         return result
 
-    notes = tuple(src)
-    _check_index(notes)
-    tempo = _check_tempo(notes)
-    time = _check_time(notes)
-    notes_by_level = MultiSet(notes, lambda note: note.level)
+    def _remove_rests() -> Iterator[_P_NonRestNote]:
+        for note in notes:
+            if note.noteblock is not None:
+                yield note  # type: ignore
 
-    # single division
-    if all(note.division is None for note in notes):
-        for level in range(0, min(notes_by_level) - 1, -1):
-            notes = notes_by_level.get(level, ())
-            yield P_Unit(notes, tempo=tempo, time=time)
-        return
+    notes = tuple(_check_index())
+    tempo = _check_tempo()
+    time = _check_time()
 
-    # double division
-    for level in range(0, min(notes_by_level) - 1, -1):
-        level_notes = notes_by_level.get(level, ())
-        level_notes_by_division = MultiSet(level_notes, lambda note: note.division)
+    non_rest_notes = tuple(_remove_rests())
+    notes_by_level = MultiSet(non_rest_notes, lambda note: note.level)
 
-        bothsides_notes = level_notes_by_division.get(None, ())
-        left_notes = chain(level_notes_by_division.get(0, ()), bothsides_notes)
-        right_notes = chain(level_notes_by_division.get(1, ()), bothsides_notes)
+    def _single_division():
+        for level in range(0, min(notes_by_level, default=0) - 1, -1):
+            level_notes = notes_by_level.get(level, ())
+            yield P_Unit(level_notes, tempo=tempo, time=time)
 
-        left_unit = P_Unit(left_notes, tempo=tempo, time=time)
-        right_unit = P_Unit(right_notes, tempo=tempo, time=time)
-        yield (left_unit, right_unit)
+    def _double_division():
+        for level in range(0, min(notes_by_level, default=0) - 1, -1):
+            level_notes = notes_by_level.get(level, ())
+            level_notes_by_division = MultiSet(level_notes, lambda note: note.division)
+
+            bothsides_notes = level_notes_by_division.get(None, ())
+            left_notes = chain(level_notes_by_division.get(0, ()), bothsides_notes)
+            right_notes = chain(level_notes_by_division.get(1, ()), bothsides_notes)
+
+            left_unit = P_Unit(left_notes, tempo=tempo, time=time)
+            right_unit = P_Unit(right_notes, tempo=tempo, time=time)
+            yield (left_unit, right_unit)
+
+    if all(note.division is None for note in (non_rest_notes or notes)):
+        return P_SingleChord(_single_division())
+    return P_DoubleChord(_double_division())
 
 
 class P_Unit(Iterable[NoteBlock]):
-    def __init__(self, notes: Iterable[_Note], *, tempo: T_TickRate, time: int):
-        non_empty_notes = [note for note in notes if note.noteblock is not None]
-        if len(non_empty_notes) > Dynamic.MAX:
-            level = non_empty_notes[0].level
-            raise ValueError(f"Slot overflow at {level}: {non_empty_notes}")
+    def __init__(self, notes: Iterable[_P_NonRestNote], *, tempo: T_TickRate, time: int):
+        # these notes may have inconsistent tempi and times, so additional arguments are necessary to define them
+        # see _ChordFactory._check{tempo, time}
+
+        notes = tuple(notes)
+        if len(notes) > Dynamic.MAX:
+            level = notes[0].level
+            raise ValueError(f"slot overflow at {level}: {notes}")
         self.tempo = tempo
         self.time = time
-        self._noteblocks = cast(list[NoteBlock], [note.noteblock for note in non_empty_notes])
+        self._noteblocks = tuple(note.noteblock for note in notes)
 
     def __iter__(self) -> Iterator[NoteBlock]:
         yield from self._noteblocks
@@ -258,8 +280,23 @@ class P_Unit(Iterable[NoteBlock]):
         return bool(self._noteblocks)
 
 
-P_SingleChord = Iterable[P_Unit]
-P_DoubleChord = Iterable[tuple[P_Unit, P_Unit]]
+T = TypeVar("T")
+
+
+class _P_Chord(Iterable[T]):
+    def __init__(self, values: Iterator[T], /):
+        self._values = values
+
+    def __iter__(self):
+        return self._values
+
+
+class P_SingleChord(_P_Chord[P_Unit]): ...
+
+
+class P_DoubleChord(_P_Chord[tuple[P_Unit, P_Unit]]): ...
+
+
 P_Chord = P_SingleChord | P_DoubleChord
 
 
