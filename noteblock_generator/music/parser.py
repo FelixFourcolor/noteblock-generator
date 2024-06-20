@@ -179,14 +179,13 @@ class _P_NonRestNote(Protocol):
     time: int
     division: P_Division | None
     level: P_Level
-    index: tuple[T_Bar, T_Tick]
 
 
 def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
     def _check_index() -> Iterator[_Note]:
         yield (first := next(src))
         for note in src:
-            if first.index != note.index:
+            if (first.bar, first.tick) != (note.bar, note.tick):
                 raise ValueError(f"inconsistent placements: {first} & {note}")
             yield note
 
@@ -235,7 +234,7 @@ def _ChordFactory(src: Iterator[_Note]) -> P_Chord:
     time = _check_time()
 
     non_rest_notes = tuple(_remove_rests())
-    notes_by_level = MultiSet(non_rest_notes, lambda note: note.level)
+    notes_by_level = MultiSet(non_rest_notes, lambda note: min(note.level, 0))
 
     def _single_division():
         for level in range(0, min(notes_by_level, default=0) - 1, -1):
@@ -283,7 +282,7 @@ class P_Unit(Iterable[NoteBlock]):
 T = TypeVar("T")
 
 
-class _P_Chord(Iterable[T]):
+class _P_BaseChord(Iterable[T]):
     def __init__(self, values: Iterator[T], /):
         self._values = values
 
@@ -291,10 +290,10 @@ class _P_Chord(Iterable[T]):
         return self._values
 
 
-class P_SingleChord(_P_Chord[P_Unit]): ...
+class P_SingleChord(_P_BaseChord[P_Unit]): ...
 
 
-class P_DoubleChord(_P_Chord[tuple[P_Unit, P_Unit]]): ...
+class P_DoubleChord(_P_BaseChord[tuple[P_Unit, P_Unit]]): ...
 
 
 P_Chord = P_SingleChord | P_DoubleChord
@@ -491,7 +490,8 @@ class _Voice(_Environment, Iterable[Iterable["_Note"]]):
                 time=time,
                 position=position,
                 voice=self,
-                index=(self.i_bar, self.i_tick),
+                bar=self.i_bar,
+                tick=self.i_tick,
             )
 
         def transform(
@@ -535,14 +535,13 @@ T_Bar = T_Tick = int
 
 @dataclass(kw_only=True, slots=True)
 class _Note:
-    # run-time-significant attributes
     noteblock: NoteBlock | None
     tempo: T_TickRate
     time: int
     position: P_Position
-    # for error checking only
     voice: _Voice
-    index: tuple[T_Bar, T_Tick]
+    bar: T_Bar
+    tick: T_Tick
 
     @property
     def division(self):
@@ -553,4 +552,4 @@ class _Note:
         return self.position[1]
 
     def __repr__(self):
-        return f"{self.voice}{self.index}"
+        return f"{self.voice}({self.bar}, {self.tick})"
