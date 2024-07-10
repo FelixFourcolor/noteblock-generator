@@ -279,6 +279,8 @@ class P_Unit(Iterable[NoteBlock]):
         return bool(self._noteblocks)
 
 
+P_DoubleUnit = tuple[P_Unit, P_Unit]
+
 T = TypeVar("T")
 
 
@@ -293,7 +295,7 @@ class _P_BaseChord(Iterable[T]):
 class P_SingleChord(_P_BaseChord[P_Unit]): ...
 
 
-class P_DoubleChord(_P_BaseChord[tuple[P_Unit, P_Unit]]): ...
+class P_DoubleChord(_P_BaseChord[P_DoubleUnit]): ...
 
 
 P_Chord = P_SingleChord | P_DoubleChord
