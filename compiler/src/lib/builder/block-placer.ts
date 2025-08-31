@@ -1,0 +1,49 @@
+import { Block } from "./block.js";
+import { Cursor } from "./cursor.js";
+import type { BlockMap, BlockType } from "./types.js";
+import { Wire } from "./wire.js";
+
+export type Coord = [number, number, number];
+
+export class BlockPlacer {
+	private readonly blocks: Map<string, BlockType> = new Map();
+	protected cursor = new Cursor();
+
+	protected exportBlocks(): BlockMap {
+		return Object.fromEntries(this.blocks.entries());
+	}
+
+	protected Repeater(delay: number) {
+		return Block.Repeater({ delay, direction: this.cursor.direction });
+	}
+
+	protected set([x, y, z]: Coord, value: BlockType) {
+		this.blocks.set(`${x} ${y} ${z}`, value);
+	}
+
+	protected setOffset([dx, dy, dz]: Coord, value: BlockType) {
+		this.set(this.cursor.getOffset({ dx, dy, dz }), value);
+	}
+
+	protected useWireOffset<T>(callback: (wire: Wire) => T): T {
+		const setter = this.setOffset.bind(this);
+		return new Wire(setter).build(callback);
+	}
+
+	protected withCursor<T>(cursor: Cursor, callback: (self: this) => T): T {
+		const originalCursor = this.cursor;
+		this.cursor = cursor;
+		try {
+			return callback(this);
+		} finally {
+			this.cursor = originalCursor;
+		}
+	}
+
+	protected at<T = void>(
+		coords: { x?: number; y?: number; z?: number },
+		callback: (self: this) => T,
+	): T {
+		return this.withCursor(this.cursor.at(coords), callback);
+	}
+}
