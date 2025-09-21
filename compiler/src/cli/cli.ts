@@ -20,14 +20,9 @@ export class CLI {
 				throw error;
 			})
 			.then(async (src) => {
-				const { compile } = await import("#lib/compile.js");
+				const { compile } = await import("#core/compile.js");
 				return compile(src);
 			});
-	});
-
-	private schemaHandler = withOutput(async () => {
-		const { generateSchema } = await import("#lib/schema/generator/@");
-		return generateSchema();
 	});
 
 	private buildArgs() {
@@ -49,7 +44,6 @@ export class CLI {
 				describe: "Write output in human-readable format",
 			})
 			.help()
-			.command({ command: "$0", handler: this.compileHandler })
-			.command({ command: "__schema", handler: this.schemaHandler });
+			.command({ command: "$0", handler: this.compileHandler });
 	}
 }

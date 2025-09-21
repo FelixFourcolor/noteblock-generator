@@ -1,4 +1,4 @@
-"""Transpiled from TypeScript; do not edit directly."""
+"""Transpiled from TypeScript."""
 
 from typing_extensions import Any, Dict, TypedDict, Union
 

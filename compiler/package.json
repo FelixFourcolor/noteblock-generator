@@ -3,7 +3,8 @@
     "version": "0.2.99",
     "license": "MIT",
     "bin": {
-        "nbc": "./dist/main.js"
+        "nbc": "./dist/main.js",
+        "nbc-schema": "./dist/schema-generator/main.js"
     },
     "type": "module",
     "imports": {
@@ -27,15 +28,10 @@
         "typescript": "^5.9.2",
         "typescript2python": "^2.0.8"
     },
-    "files": [
-        "dist",
-        "!dist/schema/types"
-    ],
+    "files": [ "dist" ],
     "scripts": {
         "prepare": "ts-patch install",
         "build": "rm -fr dist; tsc",
-        "build:watch": "rm -fr dist; tsc --watch",
-        "export:jsonschema": "nbc __schema",
-        "export:pythontypes": "typescript2python src/lib/builder/types.ts --strict | { echo '\"\"\"Transpiled from TypeScript; do not edit directly.\"\"\"\n'; cat; }"
+        "build:watch": "rm -fr dist; tsc --watch"
     }
 }

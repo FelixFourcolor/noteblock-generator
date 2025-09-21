@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import type { ArgumentsCamelCase } from "yargs";
-import type { FileRef, JsonData } from "#lib/schema/types/@";
+import type { FileRef, JsonData } from "#core/types/@";
 import { handleError, UserError } from "./error.js";
 
 type Args = {
