@@ -3,19 +3,38 @@ import type { IJsonSchemaUnit } from "typia";
 
 type Json = any;
 
-export function toJsonSchema({
-	schema,
-	components: { schemas },
-}: IJsonSchemaUnit.IV3_1<unknown>): Json {
+export function toJsonSchema(typiaSchema: IJsonSchemaUnit.IV3_1<unknown>) {
 	return {
 		$schema: "https://json-schema.org/draft-07/schema",
-		$defs: transform(schemas),
-		...transform(schema),
+		$defs: transform(typiaSchema.components.schemas),
+		...transform(typiaSchema.schema),
 	};
 }
 
 function transform(node: Json): Json {
-	return convert_OneOf_to_AnyOf(translateRefsFormat(node));
+	const chain = <T>(value: T) => ({
+		pipe: <U>(fn: (_: T) => U) => chain(fn(value)),
+		get: () => value,
+	});
+
+	return chain(node)
+		.pipe(translateRefsFormat)
+		.pipe(convert_OneOf_to_AnyOf)
+		.pipe(noAdditionalProperties)
+		.get();
+}
+
+function noAdditionalProperties(obj: Json): Json {
+	if (Array.isArray(obj)) {
+		return obj.map(noAdditionalProperties);
+	}
+	if (obj && typeof obj === "object") {
+		obj = mapValues(obj, noAdditionalProperties);
+		if (obj.type === "object" || obj.properties) {
+			return { ...obj, additionalProperties: false };
+		}
+	}
+	return obj;
 }
 
 function convert_OneOf_to_AnyOf(node: Json): Json {
