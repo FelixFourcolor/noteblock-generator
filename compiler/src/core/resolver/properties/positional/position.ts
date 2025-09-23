@@ -56,7 +56,7 @@ export class Position {
 		args: { beat: number },
 	) {
 		const { level, division } = positionalSplit(
-			assert<Positional<T_Position> | undefined>(modifier),
+			modifier as Positional<T_Position> | undefined,
 		);
 		const forkedLevel = this.level.fork(level, args);
 		const forkedDivision = this.division.fork(division, args);

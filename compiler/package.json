@@ -2,10 +2,7 @@
     "name": "noteblock-compiler",
     "version": "0.2.99",
     "license": "MIT",
-    "bin": {
-        "nbc": "./dist/main.js",
-        "nbc-schema": "./dist/schema-generator/main.js"
-    },
+    "bin": { "nbc": "./dist/main.js" },
     "type": "module",
     "imports": {
         "#*/@": "./dist/*/index.js",

@@ -85,10 +85,9 @@ export class Properties {
 		if (modifier.position !== undefined) {
 			forked.position = this.position.fork(modifier.position, { beat });
 		} else {
-			forked.position = new Position({
-				level: this.level.fork(modifier.level, { beat }),
-				division: this.division.fork(modifier.division, { beat }),
-			});
+			const level = this.level.fork(modifier.level, { beat });
+			const division = this.division.fork(modifier.division, { beat });
+			forked.position = new Position({ level, division });
 		}
 		forked.dynamic = this.dynamic.fork(modifier.dynamic, { beat });
 		forked.sustain = this.sustain.fork(modifier.sustain, { beat });
@@ -103,7 +102,7 @@ export class Properties {
 		trill: T_Trill;
 	};
 
-	// @ts-expect-error (no idea what this error is, but it works at runtime)
+	// @ts-ignore
 	resolve(_: { noteDuration: number }): {
 		position: ReturnType<Position["resolve"]>;
 		sustain: ResolvedType<typeof Sustain>;
@@ -112,21 +111,6 @@ export class Properties {
 
 	resolve(_: { pitch: Pitch; trill: T_Trill.Value | undefined }): {
 		instrument: ResolvedType<typeof Instrument>;
-	};
-
-	resolve(_: {
-		pitch: Pitch;
-		trill: T_Trill.Value | undefined;
-		noteDuration: number;
-	}): {
-		beat: T_Beat;
-		delay: T_Delay;
-		time: T_Time;
-		trill: T_Trill;
-		instrument: ResolvedType<typeof Instrument>;
-		position: ReturnType<Position["resolve"]>;
-		sustain: ResolvedType<typeof Sustain>;
-		dynamic: ResolvedType<typeof Dynamic>;
 	};
 
 	resolve({

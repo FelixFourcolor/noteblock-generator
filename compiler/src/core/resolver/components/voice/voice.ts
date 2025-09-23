@@ -47,14 +47,17 @@ export async function resolveVoice(
 			} else if (is<BarLine>(item)) {
 				yield* resolveBarLine(item, context);
 			} else {
-				yield* resolveNoteWithSource(item, context);
+				yield* resolveNoteWithVoice(item, context);
 			}
 	}
 
 	return { type, ticks: generator() };
 }
 
-function* resolveNoteWithSource(note: Note, context: MutableContext) {
+function* resolveNoteWithVoice(
+	note: Note,
+	context: MutableContext,
+): Generator<Tick> {
 	for (const tick of resolveNote(note, context)) {
 		if (context.tick === 1) {
 			// The barline yields a tick to indicate success/failure.
@@ -68,7 +71,10 @@ function* resolveNoteWithSource(note: Note, context: MutableContext) {
 	}
 }
 
-function* resolveBarLine(barline: BarLine, context: MutableContext) {
+function* resolveBarLine(
+	barline: BarLine,
+	context: MutableContext,
+): Generator<Tick> {
 	const numberMatch = barline.match(/\d+/);
 	const barNumber = numberMatch ? Number.parseInt(numberMatch[0]) : undefined;
 	const restEntireBar = barline.split("|").length > 2;
@@ -100,7 +106,14 @@ function* resolveBarLine(barline: BarLine, context: MutableContext) {
 	if (restEntireBar) {
 		const { delay, time } = context.resolve();
 		for (let i = time; i--; ) {
-			yield [{ delay, voice: context.name, measure: context.measure }];
+			yield [
+				{
+					delay,
+					noteblock: undefined,
+					voice: context.name,
+					measure: context.measure,
+				},
+			];
 			context.transform({ noteDuration: 1 });
 		}
 	}

@@ -23,44 +23,37 @@ export function* applyPhrasing({
 	const noteDuration = eventsArray.length;
 	const { sustain, dynamic, position } = context.resolve({ noteDuration });
 
-	function bindProps(note: TickEvent<"note">): OneOrMany<{
-		noteblock: NoteBlock | undefined;
-		delay: number;
-		position: { level: number; division: "L" | "R" | "LR" }[];
-		dynamic: number[];
-	}> {
+	function attachProps(event: OneOrMany<TickEvent>) {
+		const note = multiMap(getNote, { event });
+		const args = { note, noteDuration, sustain, dynamic, position };
 		return multiMap(
 			({
 				noteDuration,
 				sustain = Sustain.default({ noteDuration }),
 				dynamic = Dynamic.default({ noteDuration, sustainDuration: sustain }),
-				position = Position.default({
-					noteDuration,
-					sustainDuration: sustain,
-				}),
-				...note
+				position = Position.default({ noteDuration, sustainDuration: sustain }),
+				note,
 			}) => ({ ...note, position, dynamic }),
-			{ ...note, noteDuration, sustain, dynamic, position },
+			args,
 		);
 	}
 
-	function apply(args: {
-		event: OneOrMany<TickEvent> | undefined;
-		index: number;
-	}): TickEvent.Phrased[] {
-		const { event, index } = args;
-		return match(event)
-			.with(undefined, () => [])
-			.with(P.when(isMulti), () => multiMap(apply, args).flat())
-			.with({ noteblock: P.nonNullable }, (note) =>
-				applyProps(bindProps(note), index),
-			)
-			.otherwise((nonNote) => [nonNote]);
-	}
-
 	for (const [index, event] of eventsArray.entries()) {
-		yield apply({ event, index });
+		if (!event) {
+			yield [];
+			continue;
+		}
+		yield applyProps(attachProps(event), index);
 	}
+}
+
+function getNote({ event }: { event: TickEvent }) {
+	return match(event)
+		.with({ error: P._ }, () => ({
+			delay: 1, // delay doesn't matter when error
+			noteblock: undefined,
+		}))
+		.otherwise((note) => note);
 }
 
 function applyProps(
@@ -94,14 +87,18 @@ function createPhrasedEvents(args: {
 	position: { level: number; division: "L" | "R" | "LR" };
 }): TickEvent.Phrased[] {
 	return match(args)
-		.with({ dynamic: 0 }, ({ delay }) => [{ delay }])
+		.with({ dynamic: 0 }, ({ delay }) => [{ delay, noteblock: undefined }])
 		.with({ position: { division: "LR" } }, ({ dynamic, position, ...note }) =>
 			times(dynamic).flatMap(() => [
-				{ ...note, ...position, division: "L" },
-				{ ...note, ...position, division: "R" },
+				{ ...note, ...position, division: "L" as const },
+				{ ...note, ...position, division: "R" as const },
 			]),
 		)
-		.otherwise(({ dynamic, position, ...note }) =>
-			times(dynamic, () => ({ ...note, ...position })),
+		.otherwise(({ dynamic, position: { level, division }, ...note }) =>
+			times(dynamic, () => ({
+				...note,
+				level,
+				division: division as "L" | "R", // ts-pattern's narrowing not working
+			})),
 		);
 }

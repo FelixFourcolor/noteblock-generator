@@ -51,7 +51,7 @@ export function* resolveNoteblocks(args: {
 function* rest(args: { noteDuration: number; delay: number }) {
 	const { noteDuration, delay } = args;
 	for (let i = 0; i < noteDuration; i++) {
-		yield { delay };
+		yield { delay, noteblock: undefined };
 	}
 }
 
