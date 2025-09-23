@@ -1,7 +1,7 @@
 import { partition } from "lodash";
 import { match, P } from "ts-pattern";
 import type { SongResolution } from "#core/resolver/@";
-import type { BoundTracker } from "./bound-tracker.js";
+import type { BoundsTracker } from "./bounds-tracker.js";
 import type { ErrorTracker } from "./error-tracker.js";
 import { LevelMapper } from "./level-mapper.js";
 import type { LevelMap } from "./types.js";
@@ -9,7 +9,7 @@ import { validateConsistency } from "./validation.js";
 
 type SongProcessingContext = {
 	song: SongResolution;
-	boundTracker: BoundTracker;
+	boundTracker: BoundsTracker;
 	errorTracker: ErrorTracker;
 };
 

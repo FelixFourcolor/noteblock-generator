@@ -2,7 +2,7 @@ import { times, zipWith } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
 import { resolveVariableValue } from "#core/resolver/duration.js";
-import type { Dynamic as T_Dynamic } from "#core/types/@";
+import type { Dynamic as T_Dynamic } from "#types/schema/@";
 import { Positional } from "../positional.js";
 import {
 	parseNumericValue,

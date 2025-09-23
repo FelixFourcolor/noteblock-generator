@@ -19,7 +19,7 @@ import type {
 	Time as T_Time,
 	Transpose as T_Transpose,
 	Trill as T_Trill,
-} from "#core/types/@";
+} from "#types/schema/@";
 import type { ResolvedType } from "./positional.js";
 
 export class Properties {

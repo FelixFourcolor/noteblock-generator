@@ -1,7 +1,11 @@
 import { mapValues, times } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs, is } from "typia";
-import type { Delete, Reset, Positional as T_Positional } from "#core/types/@";
+import type {
+	Delete,
+	Reset,
+	Positional as T_Positional,
+} from "#types/schema/@";
 
 export type Multi<T = unknown> = T[] & { __multi: true };
 

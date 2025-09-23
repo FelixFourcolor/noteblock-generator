@@ -1,2 +1,2 @@
-export * from "./song.js";
-export type * from "./voice.js";
+export * from "./song/song.js";
+export type * from "./types.js";

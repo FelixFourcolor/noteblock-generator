@@ -1,7 +1,7 @@
-import type { NoteBlock, SourcedEvent } from "#core/resolver/@";
-import type { Delay, TPosition } from "#core/types/@";
+import type { NoteBlock, TickEvent } from "#core/resolver/@";
+import type { Delay, TPosition } from "#types/schema/@";
 
-export type NoteEvent = SourcedEvent<"note">;
+export type NoteEvent = TickEvent.Voiced<"note">;
 
 export type NoteCluster = NoteBlock[];
 

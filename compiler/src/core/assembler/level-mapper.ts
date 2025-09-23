@@ -1,7 +1,7 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
 import type { Measure } from "#core/resolver/@";
-import type { TPosition } from "#core/types/@";
+import type { TPosition } from "#types/schema/@";
 import type { ErrorTracker } from "./error-tracker.js";
 import type { LevelEntry, LevelMap, NoteEvent } from "./types.js";
 import { checkOverflow } from "./validation.js";

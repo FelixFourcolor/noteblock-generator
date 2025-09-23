@@ -5,7 +5,7 @@ import type {
 	Song,
 	SongModifier,
 	Voices,
-} from "#core/types/components/@";
+} from "#types/schema/components/@";
 import { type ValidateError, validate } from "./validate.js";
 
 type Validated = {

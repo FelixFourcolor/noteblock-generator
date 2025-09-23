@@ -1,5 +1,5 @@
 import type { NoteBlock } from "#core/resolver/@";
-import type { Delay } from "#core/types/@";
+import type { Delay } from "#types/schema/@";
 import { Direction } from "./direction.js";
 import type { BlockType } from "./types.js";
 

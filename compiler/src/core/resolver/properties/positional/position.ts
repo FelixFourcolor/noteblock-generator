@@ -8,7 +8,7 @@ import type {
 	Division as T_Division,
 	Level as T_Level,
 	Position as T_Position,
-} from "#core/types/@";
+} from "#types/schema/@";
 import { multiMap, type OneOrMany } from "../positional.js";
 import { Division } from "./division.js";
 import { Level } from "./level.js";

@@ -1,7 +1,7 @@
 import { Properties } from "#core/resolver/properties/@";
-import type { IProperties, Name } from "#core/types/@";
-import type { AtMostOneOf } from "#core/types/utils/@";
-import type { Measure } from "./voice.js";
+import type { IProperties, Name } from "#types/schema/@";
+import type { AtMostOneOf } from "#types/utils/@";
+import type { Measure } from "./types.js";
 
 class ContextClass extends Properties {
 	readonly name: Name;

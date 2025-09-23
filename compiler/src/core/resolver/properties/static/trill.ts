@@ -1,4 +1,4 @@
-import type { IStatic, Trill as T_Trill } from "#core/types/@";
+import type { IStatic, Trill as T_Trill } from "#types/schema/@";
 import { Static } from "../static.js";
 
 const Style = Static<T_Trill["style"]>({ Default: "normal" });

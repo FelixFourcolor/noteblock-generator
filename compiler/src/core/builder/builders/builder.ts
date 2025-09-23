@@ -1,6 +1,6 @@
 import type { Slice, SongLayout } from "#core/assembler/@";
 import type { NoteBlock } from "#core/resolver/@";
-import type { TPosition } from "#core/types/@";
+import type { TPosition } from "#types/schema/@";
 import { Block } from "../block.js";
 import { BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";

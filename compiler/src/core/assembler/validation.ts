@@ -1,11 +1,11 @@
-import type { SourcedEvent } from "#core/resolver/@";
-import type { Name } from "#core/types/@";
+import type { TickEvent } from "#core/resolver/@";
+import type { Name } from "#types/schema/@";
 import type { NoteEvent } from "./types.js";
 
 type ValidateResult<T> = { value: T } | { error: string };
 
 export function validateConsistency<
-	E extends SourcedEvent,
+	E extends TickEvent.Voiced,
 	P extends string & keyof E,
 >(events: E[], property: P): ValidateResult<E[P]> {
 	const propertyByVoice = new Map<string, { value: E[P]; voice: Name }>();

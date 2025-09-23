@@ -7,7 +7,7 @@ import type {
 	TPosition,
 	Voice,
 	VoiceModifier,
-} from "#core/types/@";
+} from "#types/schema/@";
 import { type ValidateError, validate } from "./validate.js";
 
 type ValidateContext = {

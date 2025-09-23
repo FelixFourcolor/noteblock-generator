@@ -1,6 +1,6 @@
 import { assert, is } from "typia";
-import type { Beat, Duration } from "#core/types/@";
-import type { Int } from "#core/types/utils/@";
+import type { Beat, Duration } from "#types/schema/@";
+import type { Int } from "#types/utils/@";
 
 export function parseDuration(
 	duration: Duration.determinate,
