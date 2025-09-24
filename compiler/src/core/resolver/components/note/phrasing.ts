@@ -49,9 +49,10 @@ export function* applyPhrasing({
 
 function getNote({ event }: { event: TickEvent }) {
 	return match(event)
-		.with({ error: P._ }, () => ({
+		.with({ error: P._ }, ({ error }) => ({
 			delay: 1, // delay doesn't matter when error
 			noteblock: undefined,
+			error,
 		}))
 		.otherwise((note) => note);
 }

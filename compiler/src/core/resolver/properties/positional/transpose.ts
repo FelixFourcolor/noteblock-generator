@@ -8,9 +8,13 @@ const Value = Positional({
 	transform: (current, modifier: T_Transpose.Value) => {
 		return match(modifier)
 			.with(P.number, (modifier) => modifier)
-			.otherwise((modifier) => current + parseNumericValue(modifier).value);
+			.otherwise((modifier) => {
+				const { value } = parseNumericValue(modifier);
+				return current + value;
+			});
 	},
 });
+
 const Auto = Positional({ Default: false });
 
 export class Transpose {

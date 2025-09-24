@@ -1,5 +1,6 @@
 import { match, P } from "ts-pattern";
 import { is } from "typia";
+import { UserError } from "#cli/error.js";
 import type {
 	Instrument,
 	NoteBlock,
@@ -67,7 +68,10 @@ function resolveInstrument(args: {
 	try {
 		instrument = context.resolve({ pitch, trill: trillValue }).instrument;
 	} catch (e) {
-		return { error: (e as Error).message };
+		if (e instanceof UserError) {
+			return { error: e.message };
+		}
+		throw e;
 	}
 	return isMulti(instrument)
 		? {

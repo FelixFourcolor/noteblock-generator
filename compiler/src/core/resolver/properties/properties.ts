@@ -45,6 +45,7 @@ export class Properties {
 		this.delay.transform(modifier.delay);
 		this.time.transform(modifier.time);
 		this.trill.transform(modifier.trill);
+		this.instrument.transform(modifier.instrument);
 
 		const beat = this.beat.resolve();
 
@@ -53,7 +54,7 @@ export class Properties {
 		this.position.transform(modifier.position, { beat });
 		this.dynamic.transform(modifier.dynamic, { beat });
 		this.sustain.transform(modifier.sustain, { beat });
-		this.instrument.transform(modifier.instrument);
+
 		if (modifier.transpose !== undefined) {
 			if (is<Positional<T_Transpose.Value>>(modifier.transpose)) {
 				this.transpose.transform({ value: modifier.transpose });
@@ -82,6 +83,9 @@ export class Properties {
 
 		const beat = this.beat.resolve();
 
+		forked.dynamic = this.dynamic.fork(modifier.dynamic, { beat });
+		forked.sustain = this.sustain.fork(modifier.sustain, { beat });
+
 		if (modifier.position !== undefined) {
 			forked.position = this.position.fork(modifier.position, { beat });
 		} else {
@@ -89,8 +93,6 @@ export class Properties {
 			const division = this.division.fork(modifier.division, { beat });
 			forked.position = new Position({ level, division });
 		}
-		forked.dynamic = this.dynamic.fork(modifier.dynamic, { beat });
-		forked.sustain = this.sustain.fork(modifier.sustain, { beat });
 
 		return forked;
 	}
