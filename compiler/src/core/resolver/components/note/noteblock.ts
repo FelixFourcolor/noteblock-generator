@@ -61,7 +61,10 @@ function resolveInstrument(args: {
 	trillValue: Trill.Value | undefined;
 	context: Context;
 }):
-	| { main: OneOrMany<NoteBlock>; trill: OneOrMany<NoteBlock> }
+	| {
+			main: OneOrMany<NoteBlock | undefined>;
+			trill: OneOrMany<NoteBlock | undefined>;
+	  }
 	| { error: string } {
 	const { pitch, trillValue, context } = args;
 	let instrument: ResolvedType<typeof Instrument>;

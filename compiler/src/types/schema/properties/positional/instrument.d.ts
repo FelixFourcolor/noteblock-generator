@@ -22,4 +22,5 @@ type InstrumentName =
 	| "xylophone"
 	| "basedrum"
 	| "hat"
-	| "snare";
+	| "snare"
+	| "null";

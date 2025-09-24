@@ -19,10 +19,13 @@ export type NoteBlock = {
 };
 
 function createNoteBlock(value: number, instrumentName: instrument.Name) {
+	if (instrumentName === "null") {
+		return undefined;
+	}
 	return {
 		instrument: instrumentName,
 		note: instrument.toNoteValue(value, instrumentName),
-	} satisfies NoteBlock;
+	} satisfies NoteBlock | undefined;
 }
 
 export const Instrument = Positional({
@@ -41,11 +44,14 @@ export const Instrument = Positional({
 			transpose: T_Transpose.absolute | undefined;
 			autoTranspose: T_Transpose.Auto | undefined;
 		},
-	): { main: NoteBlock; trill: NoteBlock } => {
+	): { main: NoteBlock | undefined; trill: NoteBlock | undefined } => {
 		const instrumentChoices = assert<instrument.Name[]>(
 			current.split("|").map((s) => s.trim()),
 		);
 		const defaultInstrument = assert<instrument.Name>(instrumentChoices[0]);
+		if (defaultInstrument === "null") {
+			return { main: undefined, trill: undefined };
+		}
 		const defaultOctave = instrument.octaves[defaultInstrument];
 		const resolvedPitch = resolvePitch(pitch, defaultOctave);
 		if (!resolvedPitch) {
@@ -207,7 +213,7 @@ namespace pitches {
 }
 
 namespace instrument {
-	export type Name = keyof typeof octaves;
+	export type Name = keyof typeof octaves | "null";
 	export type NoteValue = Int<0, 24>;
 
 	export const octaves = {
@@ -242,6 +248,9 @@ namespace instrument {
 	})();
 
 	export function isInRange(value: number, instrumentName: Name): boolean {
+		if (instrumentName === "null") {
+			return true;
+		}
 		const range = ranges[instrumentName];
 		return value >= range.min && value <= range.max;
 	}
