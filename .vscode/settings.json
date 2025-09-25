@@ -9,5 +9,5 @@
         "compiler/dist": true,
     },
     "biome.lsp.bin": "compiler/node_modules/.bin/biome",
-    "biome.configurationPath": "compiler/biome.jsonc"
+    "biome.configurationPath": "compiler/biome.jsonc",
 }
