@@ -5,7 +5,6 @@ import {
 	Dynamic,
 	isMulti,
 	multiMap,
-	type NoteBlock,
 	Position,
 	Sustain,
 } from "#core/resolver/properties/@";
@@ -24,53 +23,44 @@ export function* applyPhrasing({
 	const { sustain, dynamic, position } = context.resolve({ noteDuration });
 
 	function attachProps(event: OneOrMany<TickEvent>) {
-		const note = multiMap(getNote, { event });
-		const args = { note, noteDuration, sustain, dynamic, position };
 		return multiMap(
 			({
 				noteDuration,
 				sustain = Sustain.default({ noteDuration }),
 				dynamic = Dynamic.default({ noteDuration, sustainDuration: sustain }),
 				position = Position.default({ noteDuration, sustainDuration: sustain }),
-				note,
-			}) => ({ ...note, position, dynamic }),
-			args,
+				event,
+			}) => ({ ...event, position, dynamic }),
+			{ event, noteDuration, sustain, dynamic, position },
 		);
 	}
 
 	for (const [index, event] of eventsArray.entries()) {
-		if (!event) {
+		if (event) {
+			yield applyProps(attachProps(event), index);
+		} else {
 			yield [];
-			continue;
 		}
-		yield applyProps(attachProps(event), index);
 	}
 }
 
-function getNote({ event }: { event: TickEvent }) {
-	return match(event)
-		.with({ error: P._ }, ({ error }) => ({
-			delay: 1, // delay doesn't matter when error
-			noteblock: undefined,
-			error,
-		}))
-		.otherwise((note) => note);
-}
+type Phrasing = {
+	position: { level: number; division: "L" | "R" | "LR" }[];
+	dynamic: number[];
+};
+
+type EventPhrasing = { [K in keyof Phrasing]: Phrasing[K][number] };
 
 function applyProps(
-	props: OneOrMany<{
-		noteblock: NoteBlock | undefined;
-		delay: number;
-		position: { level: number; division: "L" | "R" | "LR" }[];
-		dynamic: number[];
-	}>,
+	props: OneOrMany<TickEvent & Phrasing>,
 	index: number,
 ): TickEvent.Phrased[] {
 	return match(props)
 		.with(P.when(isMulti), (multiProps) =>
 			multiProps.flatMap((prop) => applyProps(prop, index)),
 		)
-		.with({ noteblock: P.nullish }, (rest) => [rest])
+		.with({ error: P._ }, (error) => [error])
+		.with({ noteblock: P.nullish }, ({ delay }) => rest(delay))
 		.with({ noteblock: P.nonNullable }, ({ position, dynamic, ...note }) =>
 			createPhrasedEvents({
 				...note,
@@ -81,25 +71,24 @@ function applyProps(
 		.exhaustive();
 }
 
-function createPhrasedEvents(args: {
-	noteblock: NoteBlock;
-	delay: number;
-	dynamic: number;
-	position: { level: number; division: "L" | "R" | "LR" };
-}): TickEvent.Phrased[] {
-	return match(args)
-		.with({ dynamic: 0 }, ({ delay }) => [{ delay, noteblock: undefined }])
-		.with({ position: { division: "LR" } }, ({ dynamic, position, ...note }) =>
-			times(dynamic).flatMap(() => [
-				{ ...note, ...position, division: "L" as const },
-				{ ...note, ...position, division: "R" as const },
-			]),
-		)
-		.otherwise(({ dynamic, position: { level, division }, ...note }) =>
-			times(dynamic, () => ({
-				...note,
-				level,
-				division: division as "L" | "R", // ts-pattern's narrowing not working
-			})),
-		);
+function createPhrasedEvents({
+	noteblock,
+	delay,
+	dynamic,
+	position: { level, division },
+}: TickEvent<"note"> & EventPhrasing): TickEvent.Phrased[] {
+	if (dynamic === 0) {
+		return rest(delay);
+	}
+	if (division === "LR") {
+		return times(dynamic).flatMap(() => [
+			{ delay, noteblock, level, division: "L" },
+			{ delay, noteblock, level, division: "R" },
+		]);
+	}
+	return times(dynamic, () => ({ delay, noteblock, level, division }));
+}
+
+function rest(delay: number): TickEvent.Phrased[] {
+	return [{ delay, noteblock: undefined }];
 }
