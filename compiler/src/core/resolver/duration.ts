@@ -95,6 +95,6 @@ export function resolveVariableValue(
 ): { value: string; duration: number | undefined }[] {
 	return splitVariableValue(variableValue).map(({ value, duration }) => ({
 		value,
-		duration: duration ? parseDuration(duration, beat) : beat,
+		duration: duration ? parseDuration(duration, beat) : 1,
 	}));
 }
