@@ -20,7 +20,9 @@ export function* applyPhrasing({
 }): Generator<TickEvent.Phrased[]> {
 	const eventsArray = Array.from(events);
 	const noteDuration = eventsArray.length;
-	const { sustain, dynamic, position } = context.resolve({ noteDuration });
+	const { sustain, dynamic, position } = context.resolvePhrasing({
+		noteDuration,
+	});
 
 	function attachProps(event: OneOrMany<TickEvent>) {
 		return multiMap(

@@ -19,7 +19,7 @@ export function* resolveNoteblocks(args: {
 	context: Context;
 }): Generator<OneOrMany<TickEvent> | undefined> {
 	const { noteValue, trillValue, context } = args;
-	const { beat, time, delay } = context.resolve();
+	const { beat, time, delay } = context.resolveStatic();
 	const { value: pitch, duration } = resolveTimedValue(noteValue, beat);
 	const noteDuration = duration ?? time - context.tick + 1;
 
@@ -69,7 +69,7 @@ function resolveInstrument(args: {
 	const { pitch, trillValue, context } = args;
 	let instrument: ResolvedType<typeof Instrument>;
 	try {
-		instrument = context.resolve({ pitch, trill: trillValue }).instrument;
+		instrument = context.resolveInstrument({ pitch, trill: trillValue });
 	} catch (e) {
 		if (e instanceof UserError) {
 			return { error: e.message };
@@ -94,7 +94,7 @@ function* error(args: { noteDuration: number; error: string }) {
 
 function resolveTrill(args: { noteDuration: number; context: Context }) {
 	const { noteDuration, context } = args;
-	const { beat, trill } = context.resolve();
+	const { beat, trill } = context.resolveStatic();
 	return {
 		start: resolveDuration(trill.start, { beat, noteDuration }),
 		end: resolveDuration(trill.end, { beat, noteDuration }),

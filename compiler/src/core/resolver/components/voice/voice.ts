@@ -102,7 +102,7 @@ function* resolveBarLine(
 	});
 
 	if (restEntireBar) {
-		const { delay, time } = context.resolve();
+		const { delay, time } = context.resolveStatic();
 		for (let i = time; i--; ) {
 			yield [
 				{

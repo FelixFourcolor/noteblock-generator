@@ -14,13 +14,9 @@ import type {
 	IProperties,
 	Pitch,
 	Positional,
-	Beat as T_Beat,
-	Delay as T_Delay,
-	Time as T_Time,
 	Transpose as T_Transpose,
 	Trill as T_Trill,
 } from "#types/schema/@";
-import type { ResolvedType } from "./positional.js";
 
 export class Properties {
 	beat = new Beat();
@@ -97,59 +93,28 @@ export class Properties {
 		return forked;
 	}
 
-	resolve(_?: Record<any, never>): {
-		beat: T_Beat;
-		delay: T_Delay;
-		time: T_Time;
-		trill: T_Trill;
-	};
-
-	// @ts-ignore
-	resolve(_: { noteDuration: number }): {
-		position: ReturnType<Position["resolve"]>;
-		sustain: ResolvedType<typeof Sustain>;
-		dynamic: ResolvedType<typeof Dynamic>;
-	};
-
-	resolve(_: { pitch: Pitch; trill: T_Trill.Value | undefined }): {
-		instrument: ResolvedType<typeof Instrument>;
-	};
-
-	resolve({
-		pitch,
-		trill,
-		noteDuration,
-	}: {
-		pitch?: Pitch;
-		trill?: T_Trill.Value | undefined;
-		noteDuration?: number;
-	} = {}) {
-		const instrument = pitch
-			? this.instrument.resolve({
-					pitch,
-					trill,
-					...this.transpose.resolve(),
-				})
-			: undefined;
-		const sustain = noteDuration
-			? this.sustain.resolve({ noteDuration })
-			: undefined;
-		const position = noteDuration
-			? this.position.resolve({ noteDuration, sustainDuration: sustain })
-			: undefined;
-		const dynamic = noteDuration
-			? this.dynamic.resolve({ noteDuration, sustainDuration: sustain })
-			: undefined;
-
+	resolveStatic() {
 		return {
 			beat: this.beat.resolve(),
 			delay: this.delay.resolve(),
 			time: this.time.resolve(),
 			trill: this.trill.resolve(),
-			instrument,
+		};
+	}
+
+	resolvePhrasing({ noteDuration }: { noteDuration: number }) {
+		const sustainDuration = this.sustain.resolve({ noteDuration });
+		const position = this.position.resolve({ noteDuration, sustainDuration });
+		const dynamic = this.dynamic.resolve({ noteDuration, sustainDuration });
+		return {
+			sustain: sustainDuration,
 			position,
-			sustain,
 			dynamic,
 		};
+	}
+
+	resolveInstrument(args: { pitch: Pitch; trill: T_Trill.Value | undefined }) {
+		const transpose = this.transpose.resolve();
+		return this.instrument.resolve({ ...args, ...transpose });
 	}
 }

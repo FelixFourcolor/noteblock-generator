@@ -8,8 +8,7 @@
                 "noNonNullAssertion": "off"
             },
             "suspicious": {
-                "noExplicitAny": "off",
-                "noTsIgnore": "off"
+                "noExplicitAny": "off"
             },
             "correctness": {
                 "useParseIntRadix": "off"
