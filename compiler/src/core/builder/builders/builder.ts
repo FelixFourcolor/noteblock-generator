@@ -105,15 +105,15 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private buildNotes(notes: NoteBlock[]) {
 		const notePlacements: [number, number][] = [
-			[1, 1],
 			[-1, 1],
-			[2, 1],
+			[1, 1],
 			[-2, 1],
+			[2, 1],
 		];
 		if (this.isEndOfRow && this.hasNext) {
 			notePlacements.push([3, 1], [5, 1]);
 		} else {
-			notePlacements.push([1, 2], [-1, 2]);
+			notePlacements.push([-1, 2], [1, 2]);
 		}
 
 		notes.forEach((note, i) => {
