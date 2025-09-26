@@ -12,7 +12,7 @@ type ValidateContext<T extends object> = {
 	cwd?: string;
 };
 
-type Validated<T> = {
+export type Validated<T> = {
 	data: T;
 	cwd: string;
 	filename?: string;
