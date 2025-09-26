@@ -1,12 +1,6 @@
 import { equals, is } from "typia";
 import { validateVoice } from "#core/validator/@";
-import type {
-	BarLine,
-	Deferred,
-	FutureModifier,
-	Note,
-	Voice,
-} from "#types/schema/@";
+import type { BarLine, Deferred, FutureModifier, Voice } from "#types/schema/@";
 import { Context, type MutableContext } from "../context.js";
 import { resolveNote } from "../note/note.js";
 import type { Resolution, Tick, VoiceContext } from "../types.js";
@@ -41,34 +35,38 @@ export async function resolveVoice(
 	// This function is synchronous, but it's wrapped in async
 	// so that the API is identical to the threaded version.
 	async function* generator(): AsyncGenerator<Tick> {
-		for (const item of notes)
+		let hasBarLine = false;
+
+		for (const item of notes) {
+			// must check "equals" instead of "is" because modifier is a subtype of note
 			if (equals<FutureModifier>(item)) {
 				context.transform(item);
-			} else if (is<BarLine>(item)) {
-				yield* resolveBarLine(item, context);
-			} else {
-				yield* resolveNoteWithVoice(item, context);
+				continue;
 			}
+
+			if (is<BarLine>(item)) {
+				yield* resolveBarLine(item, context);
+				hasBarLine = true;
+				continue;
+			}
+
+			for (const tick of resolveNote(item, context)) {
+				// The barline yields a tick to indicate success/failure.
+				// If no barline is placed at the start of the bar,
+				// we must also yield a tick for synchronization.
+				if (context.tick === 1 && !hasBarLine) {
+					yield [];
+				}
+				hasBarLine = false;
+
+				const { name, measure } = context;
+				yield tick.map((event) => ({ ...event, voice: name, measure }));
+				context.transform({ noteDuration: 1 });
+			}
+		}
 	}
 
 	return { type, ticks: generator() };
-}
-
-function* resolveNoteWithVoice(
-	note: Note,
-	context: MutableContext,
-): Generator<Tick> {
-	for (const tick of resolveNote(note, context)) {
-		if (context.tick === 1) {
-			// The barline yields a tick to indicate success/failure.
-			// If no barline is placed at the start of the bar,
-			// we must also yield a tick for synchronization.
-			yield [];
-		}
-		const { name, measure } = context;
-		yield tick.map((event) => ({ ...event, voice: name, measure }));
-		context.transform({ noteDuration: 1 });
-	}
 }
 
 function* resolveBarLine(
