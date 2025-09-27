@@ -21,15 +21,9 @@ export class Transpose {
 	private readonly value: InstanceType<typeof Value>;
 	private readonly auto: InstanceType<typeof Auto>;
 
-	constructor({
-		value = new Value(),
-		auto = new Auto(),
-	}: {
-		value?: InstanceType<typeof Value>;
-		auto?: InstanceType<typeof Auto>;
-	} = {}) {
-		this.value = value;
-		this.auto = auto;
+	constructor(args = { value: new Value(), auto: new Auto() }) {
+		this.value = args.value;
+		this.auto = args.auto;
 	}
 
 	fork(modifier: IPositional<T_Transpose> | undefined) {

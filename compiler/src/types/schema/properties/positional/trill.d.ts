@@ -1,6 +1,6 @@
 import type { Duration, Pitch } from "#types/schema/note/@";
 import type { Int, Modified } from "#types/utils/@";
-import type { IStatic, Static } from "../meta.ts";
+import type { IPositional, Positional } from "../meta.js";
 
 export namespace Trill {
 	export type Value = boolean | Int<-12, 12> | Pitch;
@@ -8,18 +8,19 @@ export namespace Trill {
 }
 
 export type Trill = {
+	enabled: boolean;
 	style: Trill.Style;
 	start: Duration.determinate | Int;
 	end: Duration | Int;
 };
 
 export interface ITrill {
-	trill: IStatic<Trill>;
+	trill: IPositional<Trill>;
 }
 
 export interface INoteTrill {
 	trill?: Modified<
 		{ value: Trill.Value },
-		{ [K in keyof Trill]?: Static<Trill[K]> }
+		{ [K in keyof Trill]?: Positional<Trill[K]> }
 	>;
 }

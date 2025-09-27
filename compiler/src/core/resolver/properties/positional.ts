@@ -9,11 +9,13 @@ import type {
 
 export type Multi<T = unknown> = T[] & { __multi: true };
 
-type IMulti<T> = {
-	[K in keyof T]: OneOrMany<T[K]>;
-};
+type IMulti<T> = { [K in keyof T]: OneOrMany<T[K]> };
 
 export type OneOrMany<T> = T | Multi<T>;
+
+export type OneOfMulti<T> = T extends OneOrMany<infer U>
+	? U | undefined
+	: never;
 
 export function multi<T>(array: T[]): Multi<T> {
 	return Object.assign(array, { __multi: true as const });

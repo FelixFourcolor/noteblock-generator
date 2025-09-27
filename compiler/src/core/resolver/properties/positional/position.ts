@@ -28,15 +28,9 @@ export class Position {
 		});
 	}
 
-	constructor({
-		level = new Level(),
-		division = new Division(),
-	}: {
-		level?: InstanceType<typeof Level>;
-		division?: InstanceType<typeof Division>;
-	} = {}) {
-		this.level = level;
-		this.division = division;
+	constructor(args = { level: new Level(), division: new Division() }) {
+		this.level = args.level;
+		this.division = args.division;
 	}
 
 	transform(

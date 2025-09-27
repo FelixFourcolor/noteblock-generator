@@ -10,4 +10,4 @@ export * from "./properties.js";
 export * from "./static/beat.js";
 export * from "./static/delay.js";
 export * from "./static/time.js";
-export * from "./static/trill.js";
+export * from "./positional/trill.js";
