@@ -1,3 +1,4 @@
+import { match, P } from "ts-pattern";
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
 import type { OneOfMulti, OneOrMany } from "#core/resolver/@";
@@ -36,9 +37,9 @@ export function* resolveNoteblocks({
 
 	const trill = context.resolveTrill({ noteDuration });
 
-	for (let index = 0; index < noteDuration; ++index) {
+	for (let i = 0; i < noteDuration; ++i) {
 		yield multiMap(getNoteBlock, {
-			index,
+			tick: i,
 			delay,
 			noteDuration,
 			instrument,
@@ -61,14 +62,14 @@ function* error(args: { error: Error; noteDuration: number }) {
 }
 
 function getNoteBlock(args: {
-	index: number;
+	tick: number;
 	delay: number;
 	noteDuration: number;
 	instrument: OneOfMulti<ReturnType<Context["resolveInstrument"]>>;
 	trill: OneOfMulti<ReturnType<Context["resolveTrill"]>>;
 }) {
 	const {
-		index,
+		tick,
 		delay,
 		noteDuration,
 		instrument,
@@ -79,16 +80,15 @@ function getNoteBlock(args: {
 		return { delay, noteblock: undefined };
 	}
 
-	const { mainBlock, trillBlock } = instrument;
+	// normal = start trill on the main note
+	// alt = start trill on the trill note
+	const styles = ["normal", "alt"] as const;
+	const trillIndex = styles.indexOf(trill.style);
 
-	let noteblock = mainBlock;
-	if (trill.enabled) {
-		if (index >= trill.start && index < trill.end) {
-			if (index % 2 === ["alt", "normal"].indexOf(trill.style)) {
-				noteblock = trillBlock;
-			}
-		}
-	}
+	const noteblock = match(tick)
+		.with(P.number.gte(trill.start + trill.length), () => instrument[0])
+		.with(P.number.lte(trill.start), () => instrument[trillIndex])
+		.otherwise(() => instrument[(tick - trill.start + trillIndex) % 2]);
 
 	return { delay, noteblock };
 }

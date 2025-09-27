@@ -39,7 +39,7 @@ export function* applyPhrasing({
 
 	for (const [index, event] of eventsArray.entries()) {
 		if (event) {
-			yield applyProps(attachProps(event), index);
+			yield applyProps(index, attachProps(event));
 		} else {
 			yield [];
 		}
@@ -54,41 +54,39 @@ type Phrasing = {
 type EventPhrasing = { [K in keyof Phrasing]: Phrasing[K][number] };
 
 function applyProps(
-	props: OneOrMany<TickEvent & Phrasing>,
 	index: number,
+	props: OneOrMany<TickEvent & Phrasing>,
 ): TickEvent.Phrased[] {
 	return match(props)
 		.with(P.when(isMulti), (multiProps) =>
-			multiProps.flatMap((prop) => applyProps(prop, index)),
+			multiProps.flatMap((prop) => applyProps(index, prop)),
 		)
 		.with({ error: P._ }, (error) => [error])
 		.with({ noteblock: P.nullish }, ({ delay }) => rest(delay))
-		.with({ noteblock: P.nonNullable }, ({ position, dynamic, ...note }) =>
+		.otherwise(({ position, dynamic, ...note }) =>
 			createPhrasedEvents({
 				...note,
 				position: position[index]!,
 				dynamic: dynamic[index]!,
 			}),
-		)
-		.exhaustive();
+		);
 }
 
 function createPhrasedEvents({
-	noteblock,
-	delay,
 	dynamic,
 	position: { level, division },
+	...note
 }: TickEvent<"note"> & EventPhrasing): TickEvent.Phrased[] {
 	if (dynamic === 0) {
-		return rest(delay);
+		return rest(note.delay);
 	}
 	if (division === "LR") {
 		return times(dynamic).flatMap(() => [
-			{ delay, noteblock, level, division: "L" },
-			{ delay, noteblock, level, division: "R" },
+			{ ...note, level, division: "L" },
+			{ ...note, level, division: "R" },
 		]);
 	}
-	return times(dynamic, () => ({ delay, noteblock, level, division }));
+	return times(dynamic, () => ({ ...note, level, division }));
 }
 
 function rest(delay: number): TickEvent.Phrased[] {

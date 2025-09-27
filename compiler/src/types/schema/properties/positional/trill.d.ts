@@ -8,10 +8,9 @@ export namespace Trill {
 }
 
 export type Trill = {
-	enabled: boolean;
 	style: Trill.Style;
 	start: Duration.determinate | Int;
-	end: Duration | Int;
+	length: Duration | Int;
 };
 
 export interface ITrill {
