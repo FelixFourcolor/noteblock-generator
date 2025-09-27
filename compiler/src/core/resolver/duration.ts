@@ -1,3 +1,4 @@
+import { match, P } from "ts-pattern";
 import { assert, is } from "typia";
 import type { Beat, Duration } from "#types/schema/@";
 import type { Int } from "#types/utils/@";
@@ -50,6 +51,19 @@ export function parseDuration(duration: Duration, beat: Beat) {
 	}
 
 	return Math.max(Math.floor(totalDuration), 0);
+}
+
+export function resolveDuration(
+	value: number | Duration,
+	{ beat, noteDuration }: { beat: number; noteDuration: number },
+) {
+	return match(value)
+		.with(P.string, (value) => {
+			const parsedValue = parseDuration(value, beat) ?? noteDuration;
+			return Math.min(noteDuration, parsedValue);
+		})
+		.with(P.number.negative(), (value) => Math.max(0, noteDuration + value))
+		.otherwise((value) => Math.min(noteDuration, value));
 }
 
 export function splitTimedValue(timedValue: string): {

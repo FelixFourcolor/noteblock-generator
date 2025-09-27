@@ -1,6 +1,6 @@
 import type { Duration, Pitch } from "#types/schema/note/@";
 import type { Int, Modified } from "#types/utils/@";
-import type { IStatic } from "../meta.ts";
+import type { IStatic, Static } from "../meta.ts";
 
 export namespace Trill {
 	export type Value = boolean | Int<-12, 12> | Pitch;
@@ -17,11 +17,9 @@ export interface ITrill {
 	trill: IStatic<Trill>;
 }
 
-export type TrillNote = Modified<
-	{ trill: Trill.Value },
-	Partial<IStatic<Trill>>
->;
-
 export interface INoteTrill {
-	trill?: TrillNote;
+	trill?: Modified<
+		{ value: Trill.Value },
+		{ [K in keyof Trill]?: Static<Trill[K]> }
+	>;
 }

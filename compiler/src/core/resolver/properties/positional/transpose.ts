@@ -21,24 +21,26 @@ export class Transpose {
 	private readonly value: InstanceType<typeof Value>;
 	private readonly auto: InstanceType<typeof Auto>;
 
-	constructor(
-		value?: InstanceType<typeof Value>,
-		auto?: InstanceType<typeof Auto>,
-	) {
-		this.value = value ?? new Value();
-		this.auto = auto ?? new Auto();
+	constructor({
+		value = new Value(),
+		auto = new Auto(),
+	}: {
+		value?: InstanceType<typeof Value>;
+		auto?: InstanceType<typeof Auto>;
+	} = {}) {
+		this.value = value;
+		this.auto = auto;
 	}
 
 	fork(modifier: IPositional<T_Transpose> | undefined) {
 		const ctor = this.constructor as new (
-			value?: InstanceType<typeof Value>,
-			auto?: InstanceType<typeof Auto>,
+			...args: ConstructorParameters<typeof Transpose>
 		) => this;
 
-		return new ctor(
-			this.value.fork(modifier?.value),
-			this.auto.fork(modifier?.auto),
-		);
+		return new ctor({
+			value: this.value.fork(modifier?.value),
+			auto: this.auto.fork(modifier?.auto),
+		});
 	}
 
 	transform(modifier: IPositional<T_Transpose> | undefined) {

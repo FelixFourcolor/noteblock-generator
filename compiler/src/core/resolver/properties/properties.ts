@@ -1,9 +1,12 @@
+import { match, P } from "ts-pattern";
 import { is } from "typia";
 import {
 	Beat,
 	Delay,
 	Dynamic,
 	Instrument,
+	isMulti,
+	multi,
 	Position,
 	Sustain,
 	Time,
@@ -98,8 +101,11 @@ export class Properties {
 			beat: this.beat.resolve(),
 			delay: this.delay.resolve(),
 			time: this.time.resolve(),
-			trill: this.trill.resolve(),
 		};
+	}
+
+	resolveTrill({ noteDuration }: { noteDuration: number }) {
+		return this.trill.resolve({ noteDuration, beat: this.beat.resolve() });
 	}
 
 	resolvePhrasing({ noteDuration }: { noteDuration: number }) {
@@ -113,8 +119,16 @@ export class Properties {
 		};
 	}
 
-	resolveInstrument(args: { pitch: Pitch; trill: T_Trill.Value | undefined }) {
+	resolveInstrument(args: {
+		pitch: Pitch;
+		trillValue: T_Trill.Value | undefined;
+	}) {
 		const transpose = this.transpose.resolve();
-		return this.instrument.resolve({ ...args, ...transpose });
+		return match(this.instrument.resolve({ ...args, ...transpose }))
+			.with(P.when(isMulti), (instruments) => ({
+				mainBlock: multi(instruments.map(({ mainBlock }) => mainBlock)),
+				trillBlock: multi(instruments.map(({ trillBlock }) => trillBlock)),
+			}))
+			.otherwise((instrument) => instrument);
 	}
 }

@@ -52,7 +52,7 @@ export function normalize(note: Note): Normalized<Note> {
 		return simple(value, noteModifier, trill);
 	}
 
-	const { trill: trillValue, ...trillModifier } = trill;
+	const { value: trillValue, ...trillModifier } = trill;
 	if (isEmpty(trillModifier)) {
 		return simple(value, noteModifier, trillValue);
 	}

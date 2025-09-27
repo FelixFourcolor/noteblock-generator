@@ -1,3 +1,4 @@
+import { resolveDuration } from "#core/resolver/duration.js";
 import type { IStatic, Trill as T_Trill } from "#types/schema/@";
 import { Static } from "../static.js";
 
@@ -16,27 +17,29 @@ export class Trill {
 	private readonly start: InstanceType<typeof Start>;
 	private readonly end: InstanceType<typeof End>;
 
-	constructor(
-		style?: InstanceType<typeof Style>,
-		start?: InstanceType<typeof Start>,
-		end?: InstanceType<typeof End>,
-	) {
-		this.style = style ?? new Style();
-		this.start = start ?? new Start();
-		this.end = end ?? new End();
+	constructor({
+		style = new Style(),
+		start = new Start(),
+		end = new End(),
+	}: {
+		style?: InstanceType<typeof Style>;
+		start?: InstanceType<typeof Start>;
+		end?: InstanceType<typeof End>;
+	} = {}) {
+		this.style = style;
+		this.start = start;
+		this.end = end;
 	}
 
 	fork(modifier: IStatic<T_Trill> | undefined) {
 		const ctor = this.constructor as new (
-			style?: InstanceType<typeof Style>,
-			start?: InstanceType<typeof Start>,
-			end?: InstanceType<typeof End>,
+			...args: ConstructorParameters<typeof Trill>
 		) => this;
-		return new ctor(
-			this.style.fork(modifier?.style),
-			this.start.fork(modifier?.start),
-			this.end.fork(modifier?.end),
-		);
+		return new ctor({
+			style: this.style.fork(modifier?.style),
+			start: this.start.fork(modifier?.start),
+			end: this.end.fork(modifier?.end),
+		});
 	}
 
 	transform(modifier: IStatic<T_Trill> | undefined) {
@@ -46,11 +49,15 @@ export class Trill {
 		return this;
 	}
 
-	resolve(): T_Trill {
+	resolve({ beat, noteDuration }: { beat: number; noteDuration: number }) {
+		const style = this.style.resolve();
+		const start = this.start.resolve();
+		const end = this.end.resolve();
+
 		return {
-			style: this.style.resolve(),
-			start: this.start.resolve(),
-			end: this.end.resolve(),
+			trillStyle: style,
+			trillStart: resolveDuration(start, { beat, noteDuration }),
+			trillEnd: resolveDuration(end, { beat, noteDuration }),
 		};
 	}
 }

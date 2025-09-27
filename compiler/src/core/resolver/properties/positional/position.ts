@@ -61,10 +61,9 @@ export class Position {
 		const forkedLevel = this.level.fork(level, args);
 		const forkedDivision = this.division.fork(division, args);
 
-		const ctor = this.constructor as new (_: {
-			level: InstanceType<typeof Level>;
-			division: InstanceType<typeof Division>;
-		}) => this;
+		const ctor = this.constructor as new (
+			...args: ConstructorParameters<typeof Position>
+		) => this;
 		return new ctor({ level: forkedLevel, division: forkedDivision });
 	}
 

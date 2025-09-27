@@ -35,22 +35,22 @@ export const Instrument = Positional({
 		current,
 		{
 			pitch,
-			trill = pitch,
+			trillValue: trill = pitch,
 			transpose = Transpose.default().transpose,
 			autoTranspose = Transpose.default().autoTranspose,
 		}: {
 			pitch: Pitch;
-			trill: Trill.Value | undefined;
+			trillValue: Trill.Value | undefined;
 			transpose: T_Transpose.absolute | undefined;
 			autoTranspose: T_Transpose.Auto | undefined;
 		},
-	): { main: NoteBlock | undefined; trill: NoteBlock | undefined } => {
+	) => {
 		const instrumentChoices = assert<instrument.Name[]>(
 			current.split("|").map((s) => s.trim()),
 		);
 		const defaultInstrument = assert<instrument.Name>(instrumentChoices[0]);
 		if (defaultInstrument === "null") {
-			return { main: undefined, trill: undefined };
+			return { mainBlock: undefined, trillBlock: undefined };
 		}
 		const defaultOctave = instrument.octaves[defaultInstrument];
 		const resolvedPitch = resolvePitch(pitch, defaultOctave);
@@ -101,8 +101,8 @@ export const Instrument = Positional({
 		}
 
 		return {
-			main: createNoteBlock(mainValue, mainInstrument),
-			trill: createNoteBlock(trillValue, trillInstrument),
+			mainBlock: createNoteBlock(mainValue, mainInstrument),
+			trillBlock: createNoteBlock(trillValue, trillInstrument),
 		};
 	},
 });
@@ -161,8 +161,8 @@ function findAutoTranspose(
 	const transposedTrillValue = trillValue + 12 * bestTranspose;
 
 	return {
-		main: createNoteBlock(transposedMainValue, instrumentName),
-		trill: createNoteBlock(transposedTrillValue, instrumentName),
+		mainBlock: createNoteBlock(transposedMainValue, instrumentName),
+		trillBlock: createNoteBlock(transposedTrillValue, instrumentName),
 	};
 }
 
