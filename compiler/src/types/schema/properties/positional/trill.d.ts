@@ -1,4 +1,5 @@
-import type { Duration, Pitch } from "#types/schema/note/@";
+import type { Duration } from "#types/schema/duration.js";
+import type { Pitch } from "#types/schema/note/@";
 import type { Int, Modified } from "#types/utils/@";
 import type { IPositional, Positional } from "../meta.js";
 

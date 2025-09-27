@@ -5,6 +5,13 @@ export type VariableTransformation<
 	duration: number | undefined;
 }[];
 
+export function parseNumber(value: string | number) {
+	if (typeof value === "number") {
+		return value;
+	}
+	return Number.parseInt(value);
+}
+
 export function parseNumericValue(value: string): {
 	value: number;
 	type: "relative" | "absolute";
@@ -15,12 +22,12 @@ export function parseNumericValue(value: string): {
 		const unsigned = trimmed.slice(1).trim();
 		return {
 			value: sign * Number.parseInt(unsigned),
-			type: "relative" as const,
+			type: "relative",
 		};
 	}
 	return {
 		value: Number.parseInt(trimmed),
-		type: "absolute" as const,
+		type: "absolute",
 	};
 }
 

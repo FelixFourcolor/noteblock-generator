@@ -1,10 +1,8 @@
 import type {
 	IBeat,
 	IDelay,
-	IDivision,
 	IDynamic,
 	IInstrument,
-	ILevel,
 	IName,
 	IPosition,
 	ISustain,
@@ -14,27 +12,14 @@ import type {
 	IWidth,
 	TPosition,
 } from "#types/schema/properties/@";
-import type { Cover } from "#types/utils/@";
 
-interface BaseProperties
-	extends IName,
-		IWidth,
-		ITime,
-		IDelay,
-		IBeat,
-		IInstrument,
-		IDynamic,
-		ISustain,
-		ITranspose,
-		ITrill {}
+export type IStaticProperties = Partial<ITime & IDelay & IBeat>;
 
-type IPositionProperties<T> = Cover<
-	T extends "single"
-		? IPosition<"single"> | ILevel
-		: IPosition<"double"> | (ILevel & IDivision),
-	"division" | "level" | "position"
->;
+export type IPositionalProperties<T extends TPosition = TPosition> =
+	IStaticProperties &
+		Partial<
+			IInstrument & IDynamic & ISustain & ITranspose & ITrill & IPosition<T>
+		>;
 
-export type IProperties<T = TPosition> = Partial<
-	BaseProperties & IPositionProperties<T>
->;
+export type IProperties<T extends TPosition = TPosition> =
+	IPositionalProperties<T> & Partial<IName & IWidth>;

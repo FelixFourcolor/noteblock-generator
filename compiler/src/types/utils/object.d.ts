@@ -15,7 +15,7 @@ export type Override<A extends object, B extends object> = A extends A
 	? Omit<A, keyof B> & B
 	: never;
 
-export type DistributeOmit<T extends object, K extends keyof T> = T extends T
+export type DistributiveOmit<T extends object, K extends keyof T> = T extends T
 	? Omit<T, K>
 	: never;
 

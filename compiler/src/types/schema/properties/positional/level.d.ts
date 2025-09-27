@@ -1,8 +1,8 @@
+import type { Variable } from "#types/schema/duration.ts";
 import type { Int, Re, Token } from "#types/utils/@";
 import type { Positional } from "../meta.ts";
-import type { Variable } from "../variable.ts";
 
-export type Level = Level.uniform | Level.variable;
+export type Level = Int<0> | Level.variable;
 
 export namespace Level {
 	export type uniform = uniform.absolute | uniform.relative;

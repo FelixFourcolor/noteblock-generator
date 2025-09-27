@@ -1,7 +1,7 @@
+import type { Variable } from "#types/schema/duration.ts";
 import type { Positional } from "../meta.ts";
-import type { Variable } from "../variable.ts";
 
-export type Division = Division.uniform | Division.variable;
+export type Division = Division.variable;
 
 export namespace Division {
 	export type uniform = uniform.absolute | uniform.relative;

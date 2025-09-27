@@ -15,10 +15,10 @@ export type Token<
 export type Repeat<
 	Pattern extends string,
 	options extends {
+		separator: string;
 		atLeast?: number;
-		separator?: string;
 		wrapper?: string | [string, string];
-	} = object,
+	},
 > = Re<
 	// open wrapper
 	Token<
@@ -31,10 +31,7 @@ export type Repeat<
 	// head
 	Pattern,
 	// tail
-	Re<
-		Token<options["separator"] extends string ? options["separator"] : ",">,
-		Pattern
-	>,
+	Re<Token<options["separator"]>, Pattern>,
 	// repeat tail (atLeast - 1) times
 	options["atLeast"] extends number
 		? `{${Subtract<options["atLeast"], 1>},}`

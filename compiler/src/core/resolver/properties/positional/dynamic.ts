@@ -5,6 +5,7 @@ import { resolveVariableValue } from "#core/resolver/duration.js";
 import type { Dynamic as T_Dynamic } from "#types/schema/@";
 import { Positional } from "../positional.js";
 import {
+	parseNumber,
 	parseNumericValue,
 	uniformAbsolute,
 	uniformRelative,
@@ -16,7 +17,7 @@ export const Dynamic = Positional({
 	transform: (current, modifier: T_Dynamic, { beat }: { beat: number }) => {
 		return match(modifier)
 			.with(P.when(createIs<T_Dynamic.uniform.absolute>()), (modifier) => [
-				uniformAbsolute(Number.parseInt(modifier)),
+				uniformAbsolute(parseNumber(modifier)),
 			])
 			.with(P.when(createIs<T_Dynamic.uniform.relative>()), (modifier) => [
 				...current,

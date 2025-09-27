@@ -2,19 +2,20 @@ import type { tags } from "typia";
 import type { NoteValue } from "#types/schema/note/@";
 import type {
 	INoteTrill,
-	IProperties,
+	IPositionalProperties,
+	IStaticProperties,
 	TPosition,
 } from "#types/schema/properties/@";
-import type { DistributeOmit, Modified } from "#types/utils/@";
+import type { DistributiveOmit, Modified } from "#types/utils/@";
 
-type RestModifier<T extends TPosition> = Pick<IProperties<T>, "delay" | "beat">;
+type RestModifier = Omit<IStaticProperties, "time">;
+
+type MultiNoteModifier<T extends TPosition> = DistributiveOmit<
+	IPositionalProperties<T>,
+	"time" | "trill"
+>;
 
 type NoteModifier<T extends TPosition> = INoteTrill & MultiNoteModifier<T>;
-
-type MultiNoteModifier<T extends TPosition> = DistributeOmit<
-	IProperties<T>,
-	"trill" | "width" | "name" | "time"
->;
 
 export type Note<T extends TPosition = TPosition> =
 	| Note.Simple<T>
@@ -22,17 +23,14 @@ export type Note<T extends TPosition = TPosition> =
 	| Note.Chord<T>;
 
 export namespace Note {
-	export type Rest<T extends TPosition = TPosition> = Modified<
-		{ note: NoteValue.Rest },
-		RestModifier<T>
-	>;
+	export type Rest = Modified<{ note: NoteValue.Rest }, RestModifier>;
 
 	export type Single<T extends TPosition = TPosition> = Modified<
 		{ note: NoteValue.Note },
 		NoteModifier<T>
 	>;
 
-	export type Simple<T extends TPosition = TPosition> = Rest<T> | Single<T>;
+	export type Simple<T extends TPosition = TPosition> = Rest | Single<T>;
 
 	export type Compound<T extends TPosition = TPosition> = Modified<
 		{ notes: NoteValue[] & tags.MinItems<2> },

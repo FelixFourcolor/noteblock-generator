@@ -1,8 +1,8 @@
+import type { Variable } from "#types/schema/duration.ts";
 import type { Int, Re, Token } from "#types/utils/@";
 import type { Positional } from "../meta.ts";
-import type { Variable } from "../variable.ts";
 
-export type Dynamic = Dynamic.uniform | Dynamic.variable;
+export type Dynamic = Int<0, 6> | Dynamic.variable;
 
 export namespace Dynamic {
 	export type uniform = uniform.absolute | uniform.relative;

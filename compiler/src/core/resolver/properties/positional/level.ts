@@ -5,6 +5,7 @@ import { resolveVariableValue } from "#core/resolver/duration.js";
 import type { Level as T_Level } from "#types/schema/@";
 import { Positional } from "../positional.js";
 import {
+	parseNumber,
 	parseNumericValue,
 	uniformAbsolute,
 	uniformRelative,
@@ -17,7 +18,7 @@ export const Level = Positional({
 	transform: (current, modifier: T_Level, { beat }: { beat: number }) => {
 		return match(modifier)
 			.with(P.when(createIs<T_Level.uniform.absolute>()), (modifier) => [
-				uniformAbsolute(parseInt(modifier)),
+				uniformAbsolute(parseNumber(modifier)),
 			])
 			.with(P.when(createIs<T_Level.uniform.relative>()), (modifier) => [
 				...current,

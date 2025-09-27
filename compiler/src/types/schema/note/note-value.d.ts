@@ -1,4 +1,4 @@
-import type { Timed } from "./duration.ts";
+import type { Timed } from "#types/schema/duration.ts";
 import type { Pitch } from "./pitch.ts";
 
 export type NoteValue = NoteValue.Rest | NoteValue.Note;

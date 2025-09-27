@@ -1,4 +1,4 @@
-import type { Duration } from "#types/schema/note/@";
+import type { Duration } from "#types/schema/duration.ts";
 import type { Int, Re, Token } from "#types/utils/@";
 import type { Positional } from "../meta.ts";
 

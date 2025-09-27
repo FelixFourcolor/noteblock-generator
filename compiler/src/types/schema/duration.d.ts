@@ -1,11 +1,7 @@
-import type { Re, Token } from "#types/utils/@"; // Removed KeyOf
+import type { Re, Repeat, Token } from "#types/utils/@";
 
-export type Timed<
-	Value,
-	Type extends "optional" | "required" = "optional",
-> = Type extends "optional"
-	? Re<Value, Duration.optional>
-	: Re<Value, Token<":">, Duration.required>;
+export type Timed<Value> = Re<Value, Duration.optional>;
+export type Variable<T> = Repeat<Timed<T>, { separator: ";" }>;
 
 export type Duration = Duration.required;
 
