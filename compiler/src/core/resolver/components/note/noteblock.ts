@@ -6,7 +6,7 @@ import { resolveTimedValue } from "#core/resolver/duration.js";
 import { multiMap, Trill } from "#core/resolver/properties/@";
 import type { NoteValue, Trill as T_Trill } from "#types/schema/@";
 import type { Context } from "../context.js";
-import type { TickEvent } from "../types.js";
+import type { TickEvent } from "../tick.js";
 
 export function* resolveNoteblocks({
 	noteValue,

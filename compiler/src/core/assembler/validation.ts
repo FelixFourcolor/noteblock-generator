@@ -1,5 +1,4 @@
 import type { TickEvent } from "#core/resolver/@";
-import type { Name } from "#types/schema/@";
 import type { NoteEvent } from "./types.js";
 
 type ValidateResult<T> = { value: T } | { error: string };
@@ -8,7 +7,7 @@ export function validateConsistency<
 	E extends TickEvent.Voiced,
 	P extends string & keyof E,
 >(events: E[], property: P): ValidateResult<E[P]> {
-	const propertyByVoice = new Map<string, { value: E[P]; voice: Name }>();
+	const propertyByVoice = new Map<string, { value: E[P]; voice: string }>();
 	events.forEach((event) => {
 		const { voice } = event;
 		const value = event[property];
@@ -33,7 +32,7 @@ export function checkOverflow({
 	onError,
 }: {
 	noteGroups: Record<string, NoteEvent[]>;
-	onError: (_: { groupKey: string; voices: Name[]; count: number }) => void;
+	onError: (_: { groupKey: string; voices: string[]; count: number }) => void;
 }) {
 	for (const [groupKey, notes] of Object.entries(noteGroups)) {
 		const count = notes.length;

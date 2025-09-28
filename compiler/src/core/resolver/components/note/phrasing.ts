@@ -9,7 +9,7 @@ import {
 	Sustain,
 } from "#core/resolver/properties/@";
 import type { Context } from "../context.js";
-import type { TickEvent } from "../types.js";
+import type { TickEvent } from "../tick.js";
 
 export function* applyPhrasing({
 	events,

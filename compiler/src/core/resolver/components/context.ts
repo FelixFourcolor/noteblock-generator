@@ -1,26 +1,27 @@
 import { Properties } from "#core/resolver/properties/@";
-import type { IGlobalProperties, IPositionalProperties } from "#types/schema/@";
+import type { IProperties } from "#types/schema/@";
 import type { DistributiveOmit } from "#types/utils/@";
 import { Measure, type MeasureModifier } from "./measure.js";
 
 type TransformModifier =
 	| DistributiveOmit<MeasureModifier, "time">
-	| IPositionalProperties;
+	| IProperties;
 
 class ContextClass extends Properties {
 	private _measure = new Measure();
-
+	get measure() {
+		const { tick, bar } = this._measure;
+		return { tick, bar };
+	}
 	get bar() {
 		return this._measure.bar;
 	}
 	get tick() {
 		return this._measure.tick;
 	}
-	get measure() {
-		return { bar: this.bar, tick: this.tick };
-	}
-	get voice() {
-		return this.name.resolve();
+
+	constructor(public voice: string) {
+		super();
 	}
 
 	override transform(modifier: TransformModifier) {
@@ -33,8 +34,8 @@ class ContextClass extends Properties {
 		return this;
 	}
 
-	override fork(modifier: IGlobalProperties = {}) {
-		const forkedContext = new ContextClass();
+	override fork(modifier: IProperties = {}) {
+		const forkedContext = new ContextClass(this.voice);
 		const forkedProperties = super.fork(modifier);
 		forkedContext._measure = this._measure;
 		Object.assign(forkedContext, forkedProperties);

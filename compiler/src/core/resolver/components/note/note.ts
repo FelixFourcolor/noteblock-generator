@@ -4,7 +4,7 @@ import { normalize } from "#core/validator/@";
 import type { Note, NoteValue } from "#types/schema/@";
 import type { Context } from "../context.js";
 import { chain, zip } from "../generator-utils.js";
-import type { TickEvent } from "../types.js";
+import type { TickEvent } from "../tick.js";
 import { resolveNoteblocks } from "./noteblock.js";
 import { applyPhrasing } from "./phrasing.js";
 

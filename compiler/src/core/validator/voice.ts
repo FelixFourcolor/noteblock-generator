@@ -1,11 +1,10 @@
 import { createEquals, is } from "typia";
 import type {
 	Deferred,
-	Name,
+	IProperties,
 	Notes,
 	TPosition,
 	Voice,
-	VoiceModifier,
 } from "#types/schema/@";
 import { type Validated, type ValidateError, validate } from "./validate.js";
 
@@ -15,9 +14,9 @@ type ValidateContext = {
 	index: number;
 };
 type ValidatedVoice = {
-	name: Name;
+	name: string;
 	type: TPosition;
-	modifier: VoiceModifier;
+	modifier: IProperties;
 	notes: Notes;
 };
 
@@ -51,7 +50,7 @@ export async function validateVoice({
 	const { data: notes, filename } = validatedNotes;
 	const type = resolveType({ notes, modifier });
 	return {
-		name: name ?? filename ?? `Voice ${index + 1}`,
+		name: name ?? filename ?? `Voice ${index}`,
 		type,
 		modifier,
 		notes,
@@ -60,11 +59,11 @@ export async function validateVoice({
 
 function normalize(voice: Validated<Voice>) {
 	const { data, filename } = voice;
-	const { name = filename, notes, ...modifier } = data;
-	return { name, notes, modifier };
+	const { notes, ...modifier } = data;
+	return { name: filename, notes, modifier };
 }
 
-function resolveType(args: { notes: Notes; modifier: VoiceModifier }) {
+function resolveType(args: { notes: Notes; modifier: IProperties }) {
 	const { notes, modifier } = args;
 	return is<Voice<"single">>({ notes, ...modifier })
 		? ("single" as const)

@@ -1,40 +1,29 @@
 import { equals, is } from "typia";
-import { Width } from "#core/resolver/properties/@";
 import { validateVoice } from "#core/validator/@";
 import type { BarLine, Deferred, FutureModifier, Voice } from "#types/schema/@";
-import { Context, type MutableContext } from "../context.js";
+import { Context } from "../context.js";
 import { resolveNote } from "../note/note.js";
-import type { Resolution, Tick, VoiceContext } from "../types.js";
+import type { VoiceContext, VoiceResolution } from "../resolution.js";
+import type { Tick } from "../tick.js";
+import { resolveBarLine } from "./barline.js";
 
 export async function resolveVoice(
 	voice: Deferred<Voice>,
 	ctx: VoiceContext,
-): Promise<Resolution> {
+): Promise<VoiceResolution> {
 	const { songModifier, index } = ctx;
 	const validated = await validateVoice({ ...ctx, voice });
-	if ("error" in validated) {
-		return {
-			width: Width.Default(),
-			type: "single",
-			ticks: (async function* () {
-				yield [
-					{
-						error: validated.error,
-						voice: `Voice ${index + 1}`,
-						measure: { bar: 1, tick: 1 },
-					},
-				];
-			})(),
-		};
-	}
-	const { type, notes, name, modifier: voiceModifier } = validated;
 
-	const context = new Context({ name })
+	if ("error" in validated) {
+		return error({ ...validated, index });
+	}
+
+	const { type, notes, name, modifier } = validated;
+
+	const context = new Context(name)
 		.transform({ level: index })
 		.transform(songModifier)
-		.fork(voiceModifier);
-
-	const { width } = context.resolveGlobals();
+		.fork(modifier);
 
 	// This function is synchronous, but it's wrapped in async
 	// so that the API is identical to the threaded version.
@@ -63,50 +52,25 @@ export async function resolveVoice(
 				}
 				hasBarLine = false;
 
-				const { voice, measure } = context;
-				yield tick.map((event) => ({ ...event, voice, measure }));
+				yield tick.map((event) => ({
+					...event,
+					voice: name,
+					// measure updates each iteration, cannot factor out
+					measure: context.measure,
+				}));
 				context.transform({ noteDuration: 1 });
 			}
 		}
 	}
 
-	return { width, type, ticks: generator() };
+	const { time } = context.resolveStatic();
+	return { time, type, ticks: generator() };
 }
 
-function* resolveBarLine(
-	barline: BarLine,
-	context: MutableContext,
-): Generator<Tick> {
-	const numberMatch = barline.match(/\d+/);
-	const barNumber = numberMatch ? Number.parseInt(numberMatch[0]) : undefined;
-	const restEntireBar = barline.split("|").length > 2;
-
-	const { voice, measure, bar, tick } = context;
-
-	const bypassError = barline.includes("!");
-	if (
-		!bypassError &&
-		((bar !== barNumber && barNumber !== undefined) || tick !== 1)
-	) {
-		yield [{ error: "Incorrect barline placement", voice, measure }];
-	} else {
-		yield [];
-	}
-
-	context.transform({ bar: barNumber || bar + 1, tick: 1 });
-
-	if (restEntireBar) {
-		const { delay, time } = context.resolveStatic();
-		for (let i = time; i--; ) {
-			yield [
-				{
-					noteblock: undefined,
-					delay,
-					voice,
-					measure: context.measure,
-				},
-			];
-			context.transform({ noteDuration: 1 });
-		}
-	}
+function error({ error, index }: { error: string; index: number }) {
+	const type = "single" as const;
+	const ticks = (async function* () {
+		yield [{ error, voice: `Voice ${index}`, measure: { bar: 1, tick: 1 } }];
+	})();
+	return { time: NaN, type, ticks };
 }

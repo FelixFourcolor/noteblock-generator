@@ -1,17 +1,12 @@
 import { match, P } from "ts-pattern";
 import { createEquals } from "typia";
-import type {
-	Deferred,
-	Song,
-	SongModifier,
-	Voices,
-} from "#types/schema/components/@";
+import type { Deferred, IProperties, Song, Voices } from "#types/schema/@";
 import { type ValidateError, validate } from "./validate.js";
 
 type Validated = {
 	cwd: string;
 	voices: Voices;
-	modifier: SongModifier;
+	modifier: IProperties;
 };
 
 export async function validateSong(

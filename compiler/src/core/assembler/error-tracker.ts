@@ -1,5 +1,5 @@
 import { UserError } from "#cli/error.js";
-import type { Measure } from "#core/resolver/@";
+import type { IMeasure } from "#core/resolver/@";
 
 export class ErrorTracker {
 	private readonly errors = new Map<string, Set<string>>();
@@ -8,7 +8,7 @@ export class ErrorTracker {
 		measure,
 		error,
 	}: {
-		measure: Measure;
+		measure: IMeasure;
 		error: string | Error;
 	}) => {
 		const key = JSON.stringify(measure);
@@ -31,7 +31,7 @@ export class ErrorTracker {
 		const lines: string[] = [];
 
 		this.errors.forEach((errorSet, key) => {
-			const { bar, tick } = JSON.parse(key) as Measure;
+			const { bar, tick } = JSON.parse(key) as IMeasure;
 			lines.push(`ERROR @(${bar}, ${tick}):`);
 
 			errorSet.forEach((error) => {

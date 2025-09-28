@@ -1,6 +1,6 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
-import type { Measure } from "#core/resolver/@";
+import type { IMeasure } from "#core/resolver/@";
 import type { TPosition } from "#types/schema/@";
 import type { ErrorTracker } from "./error-tracker.js";
 import type { LevelEntry, LevelMap, NoteEvent } from "./types.js";
@@ -25,7 +25,7 @@ export abstract class LevelMapper<T extends TPosition> {
 
 	protected notes: NoteEvent[];
 	private errorTracker: ErrorTracker;
-	private measure: Measure;
+	private measure: IMeasure;
 
 	constructor({ notes, errorTracker }: MapperContext) {
 		this.notes = notes;

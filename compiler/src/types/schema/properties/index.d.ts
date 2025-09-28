@@ -1,6 +1,3 @@
-export type * from "./global/name.ts";
-export type * from "./global/width.ts";
-
 export type * from "./meta.ts";
 
 export type * from "./positional/division.ts";

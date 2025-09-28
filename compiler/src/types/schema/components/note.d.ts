@@ -2,7 +2,7 @@ import type { tags } from "typia";
 import type { NoteValue } from "#types/schema/note/@";
 import type {
 	INoteTrill,
-	IPositionalProperties,
+	IProperties,
 	IStaticProperties,
 	TPosition,
 } from "#types/schema/properties/@";
@@ -11,7 +11,7 @@ import type { DistributiveOmit, Modified } from "#types/utils/@";
 type RestModifier = Omit<IStaticProperties, "time">;
 
 type MultiNoteModifier<T extends TPosition> = DistributiveOmit<
-	IPositionalProperties<T>,
+	IProperties<T>,
 	"time" | "trill"
 >;
 

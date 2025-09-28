@@ -1,6 +1,3 @@
-export * from "./global/name.js";
-export * from "./global/width.js";
-
 export * from "./multi.js";
 
 export * from "./positional/division.js";

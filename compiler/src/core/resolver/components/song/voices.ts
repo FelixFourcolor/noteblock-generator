@@ -1,26 +1,26 @@
 import { UserError } from "#cli/error.js";
 import type { VoiceEntry } from "#types/schema/@";
 import { zipAsync } from "../generator-utils.js";
-import type { Resolution, SongContext } from "../types.js";
+import type { SongContext, VoiceResolution } from "../resolution.js";
 
 export async function resolveVoices(
 	entries: VoiceEntry[],
 	ctx: SongContext,
-): Promise<Resolution> {
+): Promise<VoiceResolution> {
 	const THRESHOLD_TO_USE_WORKER = 6;
 	const useWorker = entries.flat().length >= THRESHOLD_TO_USE_WORKER;
 	const { resolveVoice } = useWorker
 		? await import("../voice/voice-threaded.js")
 		: await import("../voice/voice.js");
 
-	async function merge(voices: Promise<Resolution>[]) {
-		const resolutions = await Promise.all(voices);
+	async function merge(voices: Promise<VoiceResolution>[]) {
+		const VoiceResolutions = await Promise.all(voices);
 		return {
-			type: resolutions.map(({ type }) => type).includes("double")
+			type: VoiceResolutions.map(({ type }) => type).includes("double")
 				? ("double" as const)
 				: ("single" as const),
-			width: resolutions[0]!.width,
-			ticks: zipAsync(resolutions.map(({ ticks }) => ticks)),
+			time: VoiceResolutions[0]!.time,
+			ticks: zipAsync(VoiceResolutions.map(({ ticks }) => ticks)),
 		};
 	}
 

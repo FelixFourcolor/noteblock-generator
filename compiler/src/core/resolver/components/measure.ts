@@ -1,10 +1,14 @@
 import { match, P } from "ts-pattern";
 import type { Time } from "#types/schema/@";
-import type { Measure as T_Measure } from "./types.js";
 
-export type MeasureModifier = T_Measure | { time: Time; noteDuration: number };
+export interface IMeasure {
+	bar: number;
+	tick: number;
+}
 
-export class Measure implements T_Measure {
+export type MeasureModifier = IMeasure | { time: Time; noteDuration: number };
+
+export class Measure implements IMeasure {
 	private measure = { bar: 1, tick: 1 };
 
 	get bar() {

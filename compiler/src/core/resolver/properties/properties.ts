@@ -4,18 +4,14 @@ import {
 	Delay,
 	Dynamic,
 	Instrument,
-	Name,
 	Position,
 	Sustain,
 	Time,
 	Transpose,
 	Trill,
-	Width,
 } from "#core/resolver/properties/@";
 import type {
-	IGlobalProperties,
-	IName,
-	IPositionalProperties,
+	IProperties,
 	Pitch,
 	Positional,
 	Transpose as T_Transpose,
@@ -38,8 +34,6 @@ export type ResolveType<T> = T extends StaticClass<infer U>
 			: never;
 
 export class Properties {
-	protected name: Name;
-	protected width = new Width();
 	protected beat = new Beat();
 	protected delay = new Delay();
 	protected time = new Time();
@@ -57,11 +51,7 @@ export class Properties {
 		return this.position.division;
 	}
 
-	constructor({ name }: IName = {}) {
-		this.name = new Name(name);
-	}
-
-	transform(modifier: IPositionalProperties): this {
+	transform(modifier: IProperties): this {
 		this.beat.transform(modifier.beat);
 		this.delay.transform(modifier.delay);
 		this.time.transform(modifier.time);
@@ -87,7 +77,7 @@ export class Properties {
 		return this;
 	}
 
-	fork(modifier: IGlobalProperties): Properties {
+	fork(modifier: IProperties): Properties {
 		const forked = new Properties();
 
 		forked.beat = this.beat.fork(modifier.beat);
@@ -95,9 +85,6 @@ export class Properties {
 		forked.time = this.time.fork(modifier.time);
 		forked.trill = this.trill.fork(modifier.trill);
 		forked.instrument = this.instrument.fork(modifier.instrument);
-
-		forked.name = this.name.fork(modifier.name);
-		forked.width = this.width.fork({ time: forked.time.resolve() });
 
 		if (is<Positional<T_Transpose.Value>>(modifier.transpose)) {
 			forked.transpose = this.transpose.fork({ value: modifier.transpose });
@@ -126,13 +113,6 @@ export class Properties {
 			beat: this.beat.resolve(),
 			delay: this.delay.resolve(),
 			time: this.time.resolve(),
-		};
-	}
-
-	resolveGlobals() {
-		return {
-			name: this.name.resolve(),
-			width: this.width.resolve(),
 		};
 	}
 

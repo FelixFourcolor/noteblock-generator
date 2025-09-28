@@ -1,7 +1,7 @@
 import { on } from "node:events";
 import { parentPort, Worker, workerData } from "node:worker_threads";
 import type { VoiceEntry } from "#types/schema/@";
-import type { Resolution, VoiceContext } from "../types.js";
+import type { VoiceContext, VoiceResolution } from "../resolution.js";
 
 if (parentPort) {
 	const { resolveVoice } = await import("./voice.js");
@@ -9,7 +9,7 @@ if (parentPort) {
 	const port = parentPort;
 	const args = workerData as Parameters<typeof resolveVoice>;
 
-	resolveVoice(...args).then(async ({ width, type, ticks }) => {
+	resolveVoice(...args).then(async ({ time: width, type, ticks }) => {
 		port.postMessage({ width, type });
 		for await (const tick of ticks) {
 			port.postMessage(tick);
@@ -21,7 +21,7 @@ if (parentPort) {
 export async function resolveVoice(
 	voice: VoiceEntry,
 	ctx: VoiceContext,
-): Promise<Resolution> {
+): Promise<VoiceResolution> {
 	const workerURL = new URL(import.meta.url);
 	const worker = new Worker(workerURL, { workerData: [voice, ctx] });
 
@@ -38,7 +38,7 @@ export async function resolveVoice(
 		}
 	})();
 
-	const { width, type } = (await messages.next()).value;
+	const { time, type } = (await messages.next()).value;
 
-	return { width, type, ticks: messages };
+	return { time, type, ticks: messages };
 }
