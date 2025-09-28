@@ -9,7 +9,7 @@ import type {
 	Level as T_Level,
 	Position as T_Position,
 } from "#schema/@";
-import { multiMap } from "../multi.js";
+import { multiMap, type OneOrMany } from "../multi.js";
 import type { ResolveType } from "../properties.js";
 import { Division } from "./division.js";
 import { Level } from "./level.js";
@@ -61,10 +61,7 @@ export class Position {
 		});
 	}
 
-	resolve(duration: {
-		noteDuration: number;
-		sustain: ReturnType<InstanceType<typeof Sustain>["resolve"]>;
-	}) {
+	resolve(duration: { noteDuration: number; sustain: OneOrMany<number> }) {
 		return multiMap(combine, {
 			level: this.level.resolve(duration),
 			division: this.division.resolve(duration),

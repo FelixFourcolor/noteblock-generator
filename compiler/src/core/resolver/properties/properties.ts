@@ -125,20 +125,10 @@ export class Properties {
 	}
 
 	resolvePhrasing({ noteDuration }: { noteDuration: number }) {
-		const sustainDuration = this.sustain.resolve({ noteDuration });
-		const position = this.position.resolve({
-			noteDuration,
-			sustain: sustainDuration,
-		});
-		const dynamic = this.dynamic.resolve({
-			noteDuration,
-			sustain: sustainDuration,
-		});
-		return {
-			sustain: sustainDuration,
-			position,
-			dynamic,
-		};
+		const sustain = this.sustain.resolve({ noteDuration });
+		const position = this.position.resolve({ noteDuration, sustain });
+		const dynamic = this.dynamic.resolve({ noteDuration, sustain });
+		return { sustain, position, dynamic };
 	}
 
 	resolveInstrument(args: {

@@ -35,10 +35,7 @@ export const Dynamic = Positional({
 
 	resolve: (
 		current,
-		duration: {
-			noteDuration: number;
-			sustain: ResolveType<typeof Sustain>;
-		},
+		duration: { noteDuration: number; sustain: ResolveType<typeof Sustain> },
 	): number[] => {
 		const { noteDuration, sustain = Sustain.default({ noteDuration }) } =
 			duration;

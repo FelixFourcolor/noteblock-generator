@@ -29,8 +29,8 @@ export function* applyPhrasing({
 			({
 				noteDuration,
 				sustain = Sustain.default({ noteDuration }),
-				dynamic = Dynamic.default({ noteDuration, sustain: sustain }),
-				position = Position.default({ noteDuration, sustain: sustain }),
+				dynamic = Dynamic.default({ noteDuration, sustain }),
+				position = Position.default({ noteDuration, sustain }),
 				event,
 			}) => ({ ...event, position, dynamic }),
 			{ event, noteDuration, sustain, dynamic, position },
@@ -61,15 +61,16 @@ function applyProps(
 		.with(P.when(isMulti), (multiProps) =>
 			multiProps.flatMap((prop) => applyProps(index, prop)),
 		)
-		.with({ error: P._ }, (error) => [error])
-		.with({ noteblock: P.nullish }, ({ delay }) => rest(delay))
-		.otherwise(({ position, dynamic, ...note }) =>
+		.with({ noteblock: P.nonNullable }, ({ position, dynamic, ...note }) =>
 			createPhrasedEvents({
 				...note,
 				position: position[index]!,
 				dynamic: dynamic[index]!,
 			}),
-		);
+		)
+		.with({ error: P._ }, (error) => [error])
+		.with({ delay: P.select() }, (delay) => rest(delay))
+		.otherwise(() => []);
 }
 
 function createPhrasedEvents({

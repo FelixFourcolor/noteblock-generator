@@ -35,10 +35,7 @@ export const Division = Positional({
 
 	resolve: (
 		current,
-		duration: {
-			noteDuration: number;
-			sustain: ResolveType<typeof Sustain>;
-		},
+		duration: { noteDuration: number; sustain: ResolveType<typeof Sustain> },
 	): T_Division.uniform.absolute[] => {
 		const { noteDuration, sustain = Sustain.default({ noteDuration }) } =
 			duration;
