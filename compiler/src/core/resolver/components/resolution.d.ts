@@ -1,4 +1,4 @@
-import type { IProperties, Time, TPosition } from "#types/schema/@";
+import type { IProperties, Time, TPosition } from "#schema/@";
 import type { Tick } from "./tick.js";
 
 export type SongContext = { songModifier: IProperties; cwd: string };

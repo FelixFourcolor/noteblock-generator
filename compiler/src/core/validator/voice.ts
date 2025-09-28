@@ -1,11 +1,5 @@
 import { createEquals, is } from "typia";
-import type {
-	Deferred,
-	IProperties,
-	Notes,
-	TPosition,
-	Voice,
-} from "#types/schema/@";
+import type { Deferred, IProperties, Notes, TPosition, Voice } from "#schema/@";
 import { type Validated, type ValidateError, validate } from "./validate.js";
 
 type ValidateContext = {

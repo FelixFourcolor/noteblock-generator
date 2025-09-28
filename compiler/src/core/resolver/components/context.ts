@@ -1,6 +1,6 @@
 import { Properties } from "#core/resolver/properties/@";
-import type { IProperties } from "#types/schema/@";
-import type { DistributiveOmit } from "#types/utils/@";
+import type { IProperties } from "#schema/@";
+import type { DistributiveOmit } from "#utils/@";
 import { Measure, type MeasureModifier } from "./measure.js";
 
 type TransformModifier =

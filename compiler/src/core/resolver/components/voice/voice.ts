@@ -1,6 +1,6 @@
 import { equals, is } from "typia";
 import { validateVoice } from "#core/validator/@";
-import type { BarLine, Deferred, FutureModifier, Voice } from "#types/schema/@";
+import type { BarLine, Deferred, FutureModifier, Voice } from "#schema/@";
 import { Context } from "../context.js";
 import { resolveNote } from "../note/note.js";
 import type { VoiceContext, VoiceResolution } from "../resolution.js";

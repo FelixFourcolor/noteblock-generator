@@ -16,7 +16,7 @@ import type {
 	Positional,
 	Transpose as T_Transpose,
 	Trill as T_Trill,
-} from "#types/schema/@";
+} from "#schema/@";
 import type { OneOrMany } from "./multi.js";
 import type { PositionalClass } from "./positional.js";
 import type { StaticClass } from "./static.js";

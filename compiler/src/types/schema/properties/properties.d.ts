@@ -9,7 +9,7 @@ import type {
 	ITranspose,
 	ITrill,
 	TPosition,
-} from "#types/schema/properties/@";
+} from "#schema/properties/@";
 
 export type IStaticProperties = ITime & IDelay & IBeat;
 

@@ -1,13 +1,7 @@
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
 import { validateSong } from "#core/validator/@";
-import type {
-	Deferred,
-	IProperties,
-	Song,
-	Time,
-	TPosition,
-} from "#types/schema/@";
+import type { Deferred, IProperties, Song, Time, TPosition } from "#schema/@";
 import type { SongResolution } from "../resolution.js";
 import { resolveVoices } from "./voices.js";
 

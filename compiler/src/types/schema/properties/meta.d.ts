@@ -1,11 +1,10 @@
 import type { tags } from "typia";
-import type { AtLeastOneOf } from "#types/utils/@";
+import type { AtLeastOneOf } from "#utils/@";
 
 export type Reset = "$reset";
 export type Delete = "$delete";
 
 export type Static<T> = T | Reset;
-export type IStatic<T> = AtLeastOneOf<{ [K in keyof T]: Static<T[K]> }>;
 
 export type Positional<T> =
 	| (T | Reset)

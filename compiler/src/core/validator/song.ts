@@ -1,6 +1,6 @@
 import { match, P } from "ts-pattern";
 import { createEquals } from "typia";
-import type { Deferred, IProperties, Song, Voices } from "#types/schema/@";
+import type { Deferred, IProperties, Song, Voices } from "#schema/@";
 import { type ValidateError, validate } from "./validate.js";
 
 type Validated = {

@@ -1,5 +1,5 @@
 import { resolveDuration } from "#core/resolver/duration.js";
-import type { IPositional, Trill as T_Trill } from "#types/schema/@";
+import type { IPositional, Trill as T_Trill } from "#schema/@";
 import { multiMap } from "../multi.js";
 import { Positional } from "../positional.js";
 

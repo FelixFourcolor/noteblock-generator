@@ -1,5 +1,5 @@
 import { json } from "typia";
-import type { Song } from "#types/schema/components/@";
+import type { Song } from "#schema/@";
 import { toJsonSchema } from "./transformer.js";
 
 const typiaSchema = json.schema<Song>();

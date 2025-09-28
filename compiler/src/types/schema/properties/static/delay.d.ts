@@ -1,4 +1,4 @@
-import type { Int } from "#types/utils/@";
+import type { Int } from "#utils/@";
 import type { Static } from "../meta.ts";
 
 export type Delay = Int<1, 4>;

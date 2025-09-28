@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve as resolvePath } from "node:path";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
-import type { Deferred, FileRef, JsonData } from "#types/schema/@";
+import type { Deferred, FileRef, JsonData } from "#schema/@";
 
 type Validator<T> = (input: unknown) => input is T;
 

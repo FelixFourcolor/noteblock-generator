@@ -8,7 +8,7 @@ import type {
 	Division as T_Division,
 	Level as T_Level,
 	Position as T_Position,
-} from "#types/schema/@";
+} from "#schema/@";
 import { multiMap } from "../multi.js";
 import type { ResolveType } from "../properties.js";
 import { Division } from "./division.js";

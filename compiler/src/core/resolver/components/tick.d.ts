@@ -1,5 +1,5 @@
 import type { NoteBlock } from "#core/resolver/@";
-import type { Delay } from "#types/schema/@";
+import type { Delay } from "#schema/@";
 import type { IMeasure } from "./measure.ts";
 
 type TEvent = keyof variants;

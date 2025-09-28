@@ -1,5 +1,5 @@
 import type { NoteBlock, TickEvent } from "#core/resolver/@";
-import type { Delay, TPosition } from "#types/schema/@";
+import type { Delay, TPosition } from "#schema/@";
 
 export type NoteEvent = TickEvent.Voiced<"note">;
 

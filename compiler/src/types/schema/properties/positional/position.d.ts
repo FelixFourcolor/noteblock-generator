@@ -1,5 +1,5 @@
-import type { Variable } from "#types/schema/duration.ts";
-import type { Cover, Re, Token } from "#types/utils/@";
+import type { Variable } from "#schema/duration.ts";
+import type { Cover, Re, Token } from "#utils/@";
 import type { Positional } from "../meta.ts";
 import type { Division, IDivision } from "./division.ts";
 import type { ILevel, Level } from "./level.ts";

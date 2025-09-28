@@ -1,4 +1,4 @@
-import type { Repeat } from "#types/utils/@";
+import type { Repeat } from "#utils/@";
 import type { Positional } from "../meta.ts";
 
 export type Instrument = Repeat<InstrumentName, { separator: "\\|" }>;

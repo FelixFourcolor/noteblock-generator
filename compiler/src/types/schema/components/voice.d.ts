@@ -1,7 +1,7 @@
 import type { tags } from "typia";
-import type { BarLine } from "#types/schema/note/@";
-import type { IProperties, TPosition } from "#types/schema/properties/@";
-import type { AtLeastOneOf } from "#types/utils/@";
+import type { BarLine } from "#schema/note/@";
+import type { IProperties, TPosition } from "#schema/properties/@";
+import type { AtLeastOneOf } from "#utils/@";
 import type { Deferred } from "./deferred.ts";
 import type { Note } from "./note.ts";
 

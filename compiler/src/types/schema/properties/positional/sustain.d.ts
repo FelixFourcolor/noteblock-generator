@@ -1,5 +1,5 @@
-import type { Duration } from "#types/schema/duration.ts";
-import type { Int, Re, Token } from "#types/utils/@";
+import type { Duration } from "#schema/duration.ts";
+import type { Int, Re, Token } from "#utils/@";
 import type { Positional } from "../meta.ts";
 
 export type Sustain = Sustain.absolute | Sustain.relative;

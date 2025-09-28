@@ -1,4 +1,4 @@
-import type { Re, Repeat, Token } from "#types/utils/@";
+import type { Re, Repeat, Token } from "#utils/@";
 
 export type Timed<Value> = Re<Value, Duration.optional>;
 export type Variable<T> = Repeat<Timed<T>, { separator: ";" }>;

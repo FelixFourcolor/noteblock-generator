@@ -1,7 +1,7 @@
 import { isEmpty } from "lodash";
 import { match, P } from "ts-pattern";
 import { normalize } from "#core/validator/@";
-import type { Note, NoteValue } from "#types/schema/@";
+import type { Note, NoteValue } from "#schema/@";
 import type { Context } from "../context.js";
 import { chain, zip } from "../generator-utils.js";
 import type { TickEvent } from "../tick.js";

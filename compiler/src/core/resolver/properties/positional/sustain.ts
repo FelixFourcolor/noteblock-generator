@@ -1,7 +1,7 @@
 import { match, P } from "ts-pattern";
 import { assert, createIs } from "typia";
 import { parseDuration } from "#core/resolver/duration.js";
-import type { Beat, Duration, Sustain as T_Sustain } from "#types/schema/@";
+import type { Beat, Duration, Sustain as T_Sustain } from "#schema/@";
 import { Positional } from "../positional.js";
 
 export const Sustain = Positional({

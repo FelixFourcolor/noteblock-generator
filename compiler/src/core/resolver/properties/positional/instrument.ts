@@ -8,8 +8,8 @@ import type {
 	Instrument as T_Instrument,
 	Transpose as T_Transpose,
 	Trill,
-} from "#types/schema/@";
-import type { Int } from "#types/utils/@";
+} from "#schema/@";
+import type { Int } from "#utils/@";
 import { Positional } from "../positional.js";
 import { Transpose } from "./transpose.js";
 

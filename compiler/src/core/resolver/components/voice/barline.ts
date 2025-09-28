@@ -1,4 +1,4 @@
-import type { BarLine } from "#types/schema/@";
+import type { BarLine } from "#schema/@";
 import type { MutableContext } from "../context.js";
 import type { Tick } from "../tick.js";
 

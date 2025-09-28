@@ -1,5 +1,5 @@
 import { UserError } from "#cli/error.js";
-import type { VoiceEntry } from "#types/schema/@";
+import type { VoiceEntry } from "#schema/@";
 import { zipAsync } from "../generator-utils.js";
 import type { SongContext, VoiceResolution } from "../resolution.js";
 

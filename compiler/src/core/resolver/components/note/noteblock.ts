@@ -4,7 +4,7 @@ import { UserError } from "#cli/error.js";
 import type { Instrument, OneOrMany, ResolveType } from "#core/resolver/@";
 import { resolveTimedValue } from "#core/resolver/duration.js";
 import { multiMap, Trill } from "#core/resolver/properties/@";
-import type { NoteValue, Trill as T_Trill } from "#types/schema/@";
+import type { NoteValue, Trill as T_Trill } from "#schema/@";
 import type { Context } from "../context.js";
 import type { TickEvent } from "../tick.js";
 

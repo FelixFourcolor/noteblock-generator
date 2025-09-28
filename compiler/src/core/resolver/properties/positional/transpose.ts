@@ -1,5 +1,5 @@
 import { match, P } from "ts-pattern";
-import type { IPositional, Transpose as T_Transpose } from "#types/schema/@";
+import type { IPositional, Transpose as T_Transpose } from "#schema/@";
 import { Positional } from "../positional.js";
 import { parseNumericValue } from "../variable.js";
 

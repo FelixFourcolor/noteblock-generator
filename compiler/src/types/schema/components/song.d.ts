@@ -1,5 +1,5 @@
 import type { tags } from "typia";
-import type { IProperties, TPosition } from "#types/schema/properties/@";
+import type { IProperties, TPosition } from "#schema/properties/@";
 import type { Deferred } from "./deferred.ts";
 import type { Notes, Voice } from "./voice.ts";
 

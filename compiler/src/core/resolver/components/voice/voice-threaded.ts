@@ -1,6 +1,6 @@
 import { on } from "node:events";
 import { parentPort, Worker, workerData } from "node:worker_threads";
-import type { VoiceEntry } from "#types/schema/@";
+import type { VoiceEntry } from "#schema/@";
 import type { VoiceContext, VoiceResolution } from "../resolution.js";
 
 if (parentPort) {
