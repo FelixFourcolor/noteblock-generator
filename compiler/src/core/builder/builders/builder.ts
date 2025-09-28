@@ -8,7 +8,7 @@ import { getSize, SLICE_SIZE } from "../size.js";
 import type { BuildingDTO, Size } from "../types.js";
 
 export abstract class Builder<T extends TPosition> extends BlockPlacer {
-	protected abstract buildPlayButton(): void;
+	protected abstract buildPlayButton(index: number): void;
 	protected abstract buildSlice(slice: Slice<T>): void;
 
 	protected readonly song: SongLayout<T>;
@@ -32,10 +32,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	protected get isStartOfRow() {
 		const { width } = this.song;
 		return this.stepCounter % width === 0;
-	}
-
-	protected get hasPrevious() {
-		return this.stepCounter > 0;
 	}
 
 	protected get isEndOfRow() {
@@ -83,9 +79,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		let previousDelay = 1;
 
 		this.at({ x: 3, z: 2 }, (self) => {
+			let rowCounter = 0;
 			for (const { delay, levels } of this.song.slices) {
 				if (this.isStartOfRow) {
-					self.buildPlayButton();
+					self.buildPlayButton(rowCounter++);
 				}
 				self.buildSlice({ delay: previousDelay, levels });
 				previousDelay = delay;

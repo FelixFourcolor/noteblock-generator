@@ -44,16 +44,25 @@ export class Wire {
 	}
 
 	private buildRedstones() {
+		let wireLength = 0;
+
 		this.data.forEach(([coords, value], index) => {
-			const inputDir = match(this.data[index - 1])
+			const inDir = match(this.data[index - 1])
 				.with(undefined, () => undefined)
 				.otherwise(([prevCoords]) => this.getDirection(prevCoords, coords));
 
-			const outputDir = match(this.data[index + 1])
+			const outDir = match(this.data[index + 1])
 				.with(undefined, () => undefined)
 				.otherwise(([nextCoords]) => this.getDirection(coords, nextCoords));
 
-			this.placeRedstone(coords, value, { inputDir, outputDir });
+			if (value !== "wire") {
+				wireLength = 0;
+			} else if (++wireLength >= 15) {
+				value = "repeater";
+				wireLength = 0;
+			}
+
+			this.placeRedstone(coords, value, [inDir, outDir]);
 		});
 	}
 
@@ -66,18 +75,15 @@ export class Wire {
 	private placeRedstone = (
 		coords: Coord,
 		value: Value,
-		{
-			inputDir,
-			outputDir,
-		}: { inputDir: Direction | undefined; outputDir: Direction | undefined },
+		[inDir, outDir]: [Direction | undefined, Direction | undefined],
 	) => {
 		if (value === "wire") {
-			const connections = [inputDir, outputDir].filter(
+			const connections = [inDir, outDir].filter(
 				(dir): dir is Direction => dir !== undefined,
 			);
 			this.apply(coords, Block.Redstone(...connections));
 		} else if (value !== null) {
-			const direction = outputDir ?? inputDir;
+			const direction = outDir ?? inDir;
 			if (direction === undefined) {
 				throw new Error("Cannot place repeater without direction");
 			}
