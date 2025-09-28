@@ -47,9 +47,9 @@ class Structure:
         self.bounds = self._get_bounds()
 
     def __iter__(self) -> Iterator[tuple[XYZ, BlockType]]:
-        for x in range(self.length):
-            for y in range(self.height):
-                for z in range(self.width):
+        for x in range(self.length + 1):
+            for y in range(self.height + 1):
+                for z in range(self.width + 1):
                     coords = (x, y, z)
                     yield self.translate_position(coords), self.get_block(coords)
 
