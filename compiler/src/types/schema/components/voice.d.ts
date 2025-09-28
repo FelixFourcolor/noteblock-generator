@@ -1,6 +1,6 @@
 import type { tags } from "typia";
 import type { BarLine } from "#schema/note/@";
-import type { IProperties, TPosition } from "#schema/properties/@";
+import type { IGlobal, IProperties, TPosition } from "#schema/properties/@";
 import type { AtLeastOneOf } from "#utils/@";
 import type { Deferred } from "./deferred.ts";
 import type { Note } from "./note.ts";
@@ -16,6 +16,6 @@ export type Notes<T extends TPosition = TPosition> = (
 )[] &
 	tags.MinItems<1>;
 
-export type Voice<T extends TPosition = TPosition> = IProperties<T> & {
+export type Voice<T extends TPosition = TPosition> = IGlobal<IProperties<T>> & {
 	notes: Deferred<Notes<T>>;
 };

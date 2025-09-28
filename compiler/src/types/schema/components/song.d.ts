@@ -1,5 +1,5 @@
 import type { tags } from "typia";
-import type { IProperties, TPosition } from "#schema/properties/@";
+import type { IGlobal, IProperties, TPosition } from "#schema/properties/@";
 import type { Deferred } from "./deferred.ts";
 import type { Notes, Voice } from "./voice.ts";
 
@@ -15,6 +15,6 @@ export type Voices<T extends TPosition = TPosition> = VoiceEntry<T>[] &
 	tags.MinItems<1>;
 
 export type Song<T extends TPosition = TPosition> =
-	| (IProperties<T> & { voices: Voices<T> })
+	| (IGlobal<IProperties<T>> & { voices: Voices<T> })
 	| Voice<T>
 	| Notes<T>;

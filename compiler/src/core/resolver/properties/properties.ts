@@ -17,6 +17,7 @@ import type {
 	Transpose as T_Transpose,
 	Trill as T_Trill,
 } from "#schema/@";
+import type { Cover } from "#utils/@";
 import type { OneOrMany } from "./multi.js";
 import type { PositionalClass } from "./positional.js";
 import type { StaticClass } from "./static.js";
@@ -32,6 +33,8 @@ export type ResolveType<T> = T extends StaticClass<infer U>
 				? V | undefined
 				: never
 			: never;
+
+type Modifier = Cover<IProperties, "division" | "level" | "position">;
 
 export class Properties {
 	protected beat = new Beat();
@@ -51,7 +54,7 @@ export class Properties {
 		return this.position.division;
 	}
 
-	transform(modifier: IProperties): this {
+	transform(modifier: Modifier): this {
 		this.beat.transform(modifier.beat);
 		this.delay.transform(modifier.delay);
 		this.time.transform(modifier.time);
@@ -77,7 +80,7 @@ export class Properties {
 		return this;
 	}
 
-	fork(modifier: IProperties): Properties {
+	fork(modifier: Modifier): Properties {
 		const forked = new Properties();
 
 		forked.beat = this.beat.fork(modifier.beat);
