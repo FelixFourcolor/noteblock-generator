@@ -1,6 +1,7 @@
 import { resolveDuration } from "#core/resolver/duration.js";
 import type { IPositional, Trill as T_Trill } from "#types/schema/@";
-import { multiMap, Positional } from "../positional.js";
+import { multiMap } from "../multi.js";
+import { Positional } from "../positional.js";
 
 const Style = Positional<T_Trill["style"]>({ Default: "normal" });
 const Start = Positional<T_Trill["start"]>({ Default: 0 });

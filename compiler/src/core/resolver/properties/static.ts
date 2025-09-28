@@ -5,19 +5,22 @@ type ProtoStatic<T> = {
 	readonly Default: T;
 };
 
-export interface Static<T> {
+interface Static<T> {
 	fork(modifier: T_Static<T> | undefined): this;
 	transform(modifier: T_Static<T> | undefined): this;
 	resolve(): T;
 }
+
 export interface StaticClass<T> {
 	new (): Static<T>;
-	readonly default: T;
+	Default(): T;
 }
 
 export function Static<T>({ Default }: ProtoStatic<T>): StaticClass<T> {
-	return class {
-		static readonly default = Default;
+	return class StaticImpl {
+		static Default() {
+			return Default;
+		}
 
 		private current: T;
 		private readonly original: T;
@@ -34,8 +37,7 @@ export function Static<T>({ Default }: ProtoStatic<T>): StaticClass<T> {
 		}
 
 		fork(modifier: T_Static<T> | undefined) {
-			const ctor = this.constructor as new (value: T) => this;
-			return new ctor(this.getTransformedCurrent(modifier));
+			return new StaticImpl(this.getTransformedCurrent(modifier));
 		}
 
 		transform(modifier: T_Static<T> | undefined) {

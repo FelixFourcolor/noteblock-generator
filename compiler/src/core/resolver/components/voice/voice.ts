@@ -1,4 +1,5 @@
 import { equals, is } from "typia";
+import { Width } from "#core/resolver/properties/@";
 import { validateVoice } from "#core/validator/@";
 import type { BarLine, Deferred, FutureModifier, Voice } from "#types/schema/@";
 import { Context, type MutableContext } from "../context.js";
@@ -13,6 +14,7 @@ export async function resolveVoice(
 	const validated = await validateVoice({ ...ctx, voice });
 	if ("error" in validated) {
 		return {
+			width: Width.Default(),
 			type: "single",
 			ticks: (async function* () {
 				yield [
@@ -25,12 +27,14 @@ export async function resolveVoice(
 			})(),
 		};
 	}
-	const { type, notes, name: voiceName, modifier: voiceModifier } = validated;
+	const { type, notes, name, modifier: voiceModifier } = validated;
 
-	const context = new Context(voiceName)
+	const context = new Context({ name })
 		.transform({ level: index })
 		.transform(songModifier)
 		.fork(voiceModifier);
+
+	const { width } = context.resolveGlobals();
 
 	// This function is synchronous, but it's wrapped in async
 	// so that the API is identical to the threaded version.
@@ -59,14 +63,14 @@ export async function resolveVoice(
 				}
 				hasBarLine = false;
 
-				const { name, measure } = context;
-				yield tick.map((event) => ({ ...event, voice: name, measure }));
+				const { voice, measure } = context;
+				yield tick.map((event) => ({ ...event, voice, measure }));
 				context.transform({ noteDuration: 1 });
 			}
 		}
 	}
 
-	return { type, ticks: generator() };
+	return { width, type, ticks: generator() };
 }
 
 function* resolveBarLine(
@@ -77,38 +81,28 @@ function* resolveBarLine(
 	const barNumber = numberMatch ? Number.parseInt(numberMatch[0]) : undefined;
 	const restEntireBar = barline.split("|").length > 2;
 
-	const { bar, tick } = context;
+	const { voice, measure, bar, tick } = context;
+
 	const bypassError = barline.includes("!");
 	if (
 		!bypassError &&
 		((bar !== barNumber && barNumber !== undefined) || tick !== 1)
 	) {
-		yield [
-			{
-				error: "Incorrect barline placement",
-				voice: context.name,
-				measure: context.measure,
-			},
-		];
+		yield [{ error: "Incorrect barline placement", voice, measure }];
 	} else {
 		yield [];
 	}
 
-	context.transform({
-		measure: {
-			bar: barNumber || bar + 1,
-			tick: 1,
-		},
-	});
+	context.transform({ bar: barNumber || bar + 1, tick: 1 });
 
 	if (restEntireBar) {
 		const { delay, time } = context.resolveStatic();
 		for (let i = time; i--; ) {
 			yield [
 				{
-					delay,
 					noteblock: undefined,
-					voice: context.name,
+					delay,
+					voice,
 					measure: context.measure,
 				},
 			];

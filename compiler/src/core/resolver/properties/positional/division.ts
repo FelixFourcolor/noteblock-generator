@@ -4,6 +4,7 @@ import { assert, createIs } from "typia";
 import { resolveVariableValue } from "#core/resolver/duration.js";
 import type { Division as T_Division } from "#types/schema/@";
 import { Positional } from "../positional.js";
+import type { ResolveType } from "../properties.js";
 import type { VariableTransformation } from "../variable.js";
 import { Sustain } from "./sustain.js";
 
@@ -34,23 +35,24 @@ export const Division = Positional({
 
 	resolve: (
 		current,
-		duration: { noteDuration: number; sustainDuration: number | undefined },
+		duration: {
+			noteDuration: number;
+			sustain: ResolveType<typeof Sustain>;
+		},
 	): T_Division.uniform.absolute[] => {
-		const {
-			noteDuration,
-			sustainDuration = Sustain.default({ noteDuration }),
-		} = duration;
+		const { noteDuration, sustain = Sustain.default({ noteDuration }) } =
+			duration;
 
 		const transformationArray = current.map((transformations) => {
 			const undefinedParts = transformations.filter(
 				({ duration }) => duration === undefined,
 			);
 			const totalDefinedDuration = Math.min(
-				sustainDuration,
+				sustain,
 				transformations.reduce((acc, { duration }) => acc + (duration ?? 0), 0),
 			);
 			const impliedDuration = Math.floor(
-				(sustainDuration - totalDefinedDuration) / undefinedParts.length,
+				(sustain - totalDefinedDuration) / undefinedParts.length,
 			);
 			return transformations.map(({ transform, duration }) => ({
 				transform,
@@ -65,12 +67,12 @@ export const Division = Positional({
 				const vectorizedTransformations = transformations.flatMap(
 					({ transform, duration }) => times(duration, () => transform),
 				);
-				if (vectorizedTransformations.length > sustainDuration) {
-					vectorizedTransformations.length = sustainDuration;
-				} else if (vectorizedTransformations.length < sustainDuration) {
+				if (vectorizedTransformations.length > sustain) {
+					vectorizedTransformations.length = sustain;
+				} else if (vectorizedTransformations.length < sustain) {
 					vectorizedTransformations.push(
 						...times(
-							sustainDuration - vectorizedTransformations.length,
+							sustain - vectorizedTransformations.length,
 							() => "~" as const,
 						),
 					);
@@ -91,13 +93,10 @@ export const Division = Positional({
 							),
 				);
 			},
-			times(sustainDuration, () => "LR" as const),
+			times(sustain, () => "LR" as const),
 		);
 
-		const silentPart = times(
-			noteDuration - sustainDuration,
-			() => "LR" as const,
-		);
+		const silentPart = times(noteDuration - sustain, () => "LR" as const);
 
 		return [...sustainedPart, ...silentPart];
 	},

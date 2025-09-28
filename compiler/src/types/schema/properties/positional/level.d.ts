@@ -13,6 +13,4 @@ export namespace Level {
 	export type variable = Variable<uniform | Re<"~">>;
 }
 
-export interface ILevel {
-	level: Positional<Level>;
-}
+export type ILevel = { level?: Positional<Level> };

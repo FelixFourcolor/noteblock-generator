@@ -1,11 +1,11 @@
 import { times } from "lodash";
-import type { SongResolution } from "#core/resolver/@";
+import type { Resolution } from "#core/resolver/@";
 import { BoundsTracker } from "./bounds-tracker.js";
 import { ErrorTracker } from "./error-tracker.js";
 import { processSong } from "./song-processor.js";
 import type { SongLayout } from "./types.js";
 
-export async function assemble(song: SongResolution): Promise<SongLayout> {
+export async function assemble(song: Resolution): Promise<SongLayout> {
 	const errorTracker = new ErrorTracker();
 	const boundTracker = new BoundsTracker();
 

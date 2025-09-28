@@ -14,13 +14,11 @@ export type Trill = {
 	length: Duration | Int;
 };
 
-export interface ITrill {
-	trill: IPositional<Trill>;
-}
+export type ITrill = { trill?: IPositional<Trill> };
 
-export interface INoteTrill {
+export type INoteTrill = {
 	trill?: Modified<
 		{ value: Trill.Value },
 		{ [K in keyof Trill]?: Positional<Trill[K]> }
 	>;
-}
+};

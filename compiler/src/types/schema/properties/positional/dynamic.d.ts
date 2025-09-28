@@ -13,6 +13,4 @@ export namespace Dynamic {
 	export type variable = Variable<uniform | Re<"~">>;
 }
 
-export interface IDynamic {
-	dynamic: Positional<Dynamic>;
-}
+export type IDynamic = { dynamic?: Positional<Dynamic> };

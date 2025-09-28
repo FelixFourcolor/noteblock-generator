@@ -27,11 +27,7 @@ export class Transpose {
 	}
 
 	fork(modifier: IPositional<T_Transpose> | undefined) {
-		const ctor = this.constructor as new (
-			...args: ConstructorParameters<typeof Transpose>
-		) => this;
-
-		return new ctor({
+		return new Transpose({
 			value: this.value.fork(modifier?.value),
 			auto: this.auto.fork(modifier?.auto),
 		});

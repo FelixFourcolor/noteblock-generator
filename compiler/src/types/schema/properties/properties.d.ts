@@ -13,13 +13,16 @@ import type {
 	TPosition,
 } from "#types/schema/properties/@";
 
-export type IStaticProperties = Partial<ITime & IDelay & IBeat>;
+export type IStaticProperties = ITime & IDelay & IBeat;
 
 export type IPositionalProperties<T extends TPosition = TPosition> =
 	IStaticProperties &
-		Partial<
-			IInstrument & IDynamic & ISustain & ITranspose & ITrill & IPosition<T>
-		>;
+		IInstrument &
+		IDynamic &
+		ISustain &
+		ITranspose &
+		ITrill &
+		IPosition<T>;
 
-export type IProperties<T extends TPosition = TPosition> =
-	IPositionalProperties<T> & Partial<IName & IWidth>;
+export type IGlobalProperties<T extends TPosition = TPosition> =
+	IPositionalProperties<T> & IName & IWidth;

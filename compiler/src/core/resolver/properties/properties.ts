@@ -4,31 +4,52 @@ import {
 	Delay,
 	Dynamic,
 	Instrument,
+	Name,
 	Position,
 	Sustain,
 	Time,
 	Transpose,
 	Trill,
+	Width,
 } from "#core/resolver/properties/@";
 import type {
-	IProperties,
+	IGlobalProperties,
+	IName,
+	IPositionalProperties,
 	Pitch,
 	Positional,
 	Transpose as T_Transpose,
 	Trill as T_Trill,
 } from "#types/schema/@";
+import type { OneOrMany } from "./multi.js";
+import type { PositionalClass } from "./positional.js";
+import type { StaticClass } from "./static.js";
+
+export type ResolveType<T> = T extends StaticClass<infer U>
+	? U
+	: T extends PositionalClass<any, any, any, infer U>
+		? U | undefined
+		: T extends new (
+					...args: any
+				) => { resolve: (...args: any) => infer U }
+			? U extends OneOrMany<infer V>
+				? V | undefined
+				: never
+			: never;
 
 export class Properties {
-	beat = new Beat();
-	delay = new Delay();
-	time = new Time();
-	trill = new Trill();
-	dynamic = new Dynamic();
-	sustain = new Sustain();
-	transpose = new Transpose();
-	instrument = new Instrument();
+	protected name: Name;
+	protected width = new Width();
+	protected beat = new Beat();
+	protected delay = new Delay();
+	protected time = new Time();
+	protected trill = new Trill();
+	protected dynamic = new Dynamic();
+	protected sustain = new Sustain();
+	protected transpose = new Transpose();
+	protected instrument = new Instrument();
+	protected position = new Position();
 
-	position = new Position();
 	get level() {
 		return this.position.level;
 	}
@@ -36,7 +57,11 @@ export class Properties {
 		return this.position.division;
 	}
 
-	transform(modifier: Partial<Omit<IProperties, "name" | "width">>): this {
+	constructor({ name }: IName = {}) {
+		this.name = new Name(name);
+	}
+
+	transform(modifier: IPositionalProperties): this {
 		this.beat.transform(modifier.beat);
 		this.delay.transform(modifier.delay);
 		this.time.transform(modifier.time);
@@ -62,7 +87,7 @@ export class Properties {
 		return this;
 	}
 
-	fork(modifier: Partial<Omit<IProperties, "name" | "width">>): Properties {
+	fork(modifier: IGlobalProperties): Properties {
 		const forked = new Properties();
 
 		forked.beat = this.beat.fork(modifier.beat);
@@ -70,6 +95,9 @@ export class Properties {
 		forked.time = this.time.fork(modifier.time);
 		forked.trill = this.trill.fork(modifier.trill);
 		forked.instrument = this.instrument.fork(modifier.instrument);
+
+		forked.name = this.name.fork(modifier.name);
+		forked.width = this.width.fork({ time: forked.time.resolve() });
 
 		if (is<Positional<T_Transpose.Value>>(modifier.transpose)) {
 			forked.transpose = this.transpose.fork({ value: modifier.transpose });
@@ -101,6 +129,13 @@ export class Properties {
 		};
 	}
 
+	resolveGlobals() {
+		return {
+			name: this.name.resolve(),
+			width: this.width.resolve(),
+		};
+	}
+
 	resolveTrill({ noteDuration }: { noteDuration: number }) {
 		const beat = this.beat.resolve();
 		return this.trill.resolve({ noteDuration, beat });
@@ -108,8 +143,14 @@ export class Properties {
 
 	resolvePhrasing({ noteDuration }: { noteDuration: number }) {
 		const sustainDuration = this.sustain.resolve({ noteDuration });
-		const position = this.position.resolve({ noteDuration, sustainDuration });
-		const dynamic = this.dynamic.resolve({ noteDuration, sustainDuration });
+		const position = this.position.resolve({
+			noteDuration,
+			sustain: sustainDuration,
+		});
+		const dynamic = this.dynamic.resolve({
+			noteDuration,
+			sustain: sustainDuration,
+		});
 		return {
 			sustain: sustainDuration,
 			position,

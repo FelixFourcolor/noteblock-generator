@@ -8,7 +8,10 @@ interface variants {
 	error: { error: string };
 }
 
-export type Measure = { bar: number; tick: number };
+export interface Measure {
+	bar: number;
+	tick: number;
+}
 
 export type TickEvent<T extends TEvent = TEvent> = variants[T];
 
@@ -23,8 +26,12 @@ export namespace TickEvent {
 }
 
 export type Tick<T extends TEvent = TEvent> = TickEvent.Voiced<T>[];
-export type Resolution = { type: TPosition; ticks: AsyncGenerator<Tick> };
-export type SongResolution = Resolution & { width: number };
+
+export type Resolution = {
+	width: number;
+	type: TPosition;
+	ticks: AsyncGenerator<Tick>;
+};
 
 export type SongContext = { songModifier: SongModifier; cwd: string };
 export type VoiceContext = SongContext & { index: number };

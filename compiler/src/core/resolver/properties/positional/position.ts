@@ -9,9 +9,11 @@ import type {
 	Level as T_Level,
 	Position as T_Position,
 } from "#types/schema/@";
-import { multiMap, type OneOrMany } from "../positional.js";
+import { multiMap } from "../multi.js";
+import type { ResolveType } from "../properties.js";
 import { Division } from "./division.js";
 import { Level } from "./level.js";
+import type { Sustain } from "./sustain.js";
 
 export class Position {
 	readonly level: InstanceType<typeof Level>;
@@ -19,7 +21,7 @@ export class Position {
 
 	static default(duration: {
 		noteDuration: number;
-		sustainDuration: number | undefined;
+		sustain: number | undefined;
 	}) {
 		return combine({
 			level: Level.default(duration),
@@ -50,20 +52,18 @@ export class Position {
 		args: { beat: number },
 	) {
 		const { level, division } = positionalSplit(
+			// T_level extends T_Position, but TS can't infer that
 			modifier as Positional<T_Position> | undefined,
 		);
-		const forkedLevel = this.level.fork(level, args);
-		const forkedDivision = this.division.fork(division, args);
-
-		const ctor = this.constructor as new (
-			...args: ConstructorParameters<typeof Position>
-		) => this;
-		return new ctor({ level: forkedLevel, division: forkedDivision });
+		return new Position({
+			level: this.level.fork(level, args),
+			division: this.division.fork(division, args),
+		});
 	}
 
 	resolve(duration: {
 		noteDuration: number;
-		sustainDuration: OneOrMany<number> | undefined;
+		sustain: ReturnType<InstanceType<typeof Sustain>["resolve"]>;
 	}) {
 		return multiMap(combine, {
 			level: this.level.resolve(duration),
@@ -75,14 +75,14 @@ export class Position {
 
 function combine({
 	noteDuration,
-	sustainDuration,
-	level = Level.default({ noteDuration, sustainDuration }),
-	division = Division.default({ noteDuration, sustainDuration }),
+	sustain,
+	level = Level.default({ noteDuration, sustain }),
+	division = Division.default({ noteDuration, sustain }),
 }: {
 	noteDuration: number;
-	sustainDuration: number | undefined;
-	level: number[] | undefined;
-	division: T_Division.uniform.absolute[] | undefined;
+	sustain: ResolveType<typeof Sustain>;
+	level: ResolveType<typeof Level>;
+	division: ResolveType<typeof Division>;
 }) {
 	return zipWith(level, division, (level, division) => ({ level, division }));
 }

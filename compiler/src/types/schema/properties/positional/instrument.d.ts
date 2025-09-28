@@ -2,9 +2,8 @@ import type { Repeat } from "#types/utils/@";
 import type { Positional } from "../meta.ts";
 
 export type Instrument = Repeat<InstrumentName, { separator: "\\|" }>;
-export interface IInstrument {
-	instrument: Positional<Instrument>;
-}
+
+export type IInstrument = { instrument?: Positional<Instrument> };
 
 type InstrumentName =
 	| "bass"

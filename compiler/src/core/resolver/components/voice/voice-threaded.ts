@@ -9,8 +9,8 @@ if (parentPort) {
 	const port = parentPort;
 	const args = workerData as Parameters<typeof resolveVoice>;
 
-	resolveVoice(...args).then(async ({ type, ticks }) => {
-		port.postMessage(type);
+	resolveVoice(...args).then(async ({ width, type, ticks }) => {
+		port.postMessage({ width, type });
 		for await (const tick of ticks) {
 			port.postMessage(tick);
 		}
@@ -22,7 +22,8 @@ export async function resolveVoice(
 	voice: VoiceEntry,
 	ctx: VoiceContext,
 ): Promise<Resolution> {
-	const worker = new Worker(import.meta.url, { workerData: [voice, ctx] });
+	const workerURL = new URL(import.meta.url);
+	const worker = new Worker(workerURL, { workerData: [voice, ctx] });
 
 	const messages = (async function* () {
 		try {
@@ -37,8 +38,7 @@ export async function resolveVoice(
 		}
 	})();
 
-	return {
-		type: (await messages.next()).value,
-		ticks: messages,
-	};
+	const { width, type } = (await messages.next()).value;
+
+	return { width, type, ticks: messages };
 }

@@ -12,6 +12,4 @@ export namespace Division {
 	export type variable = Variable<uniform | "~">;
 }
 
-export interface IDivision {
-	division: Positional<Division>;
-}
+export type IDivision = { division?: Positional<Division> };

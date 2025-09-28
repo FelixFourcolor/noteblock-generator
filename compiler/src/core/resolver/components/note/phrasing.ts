@@ -29,8 +29,8 @@ export function* applyPhrasing({
 			({
 				noteDuration,
 				sustain = Sustain.default({ noteDuration }),
-				dynamic = Dynamic.default({ noteDuration, sustainDuration: sustain }),
-				position = Position.default({ noteDuration, sustainDuration: sustain }),
+				dynamic = Dynamic.default({ noteDuration, sustain: sustain }),
+				position = Position.default({ noteDuration, sustain: sustain }),
 				event,
 			}) => ({ ...event, position, dynamic }),
 			{ event, noteDuration, sustain, dynamic, position },

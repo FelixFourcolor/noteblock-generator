@@ -1,7 +1,7 @@
 import { isEmpty } from "lodash";
 import { is } from "typia";
 import type {
-	IProperties,
+	IGlobalProperties,
 	IStatic,
 	Note,
 	NoteValue,
@@ -10,7 +10,7 @@ import type {
 
 type NormalizedModifier = {
 	trillValue?: Trill.Value | undefined;
-	noteModifier: IProperties;
+	noteModifier: IGlobalProperties;
 };
 
 type Normalized<T extends Note> = NormalizedModifier &
@@ -44,7 +44,7 @@ export function normalize(note: Note): Normalized<Note> {
 
 	if (!("trill" in note)) {
 		const { note: value, ...noteModifier } = note;
-		return simple(value, noteModifier as IProperties);
+		return simple(value, noteModifier as IGlobalProperties);
 	}
 
 	const { trill, note: value, ...noteModifier } = note;
@@ -67,7 +67,7 @@ export function normalize(note: Note): Normalized<Note> {
 
 function simple(
 	value: NoteValue,
-	noteModifier: IProperties = {},
+	noteModifier: IGlobalProperties = {},
 	trillValue: Trill.Value | undefined = undefined,
 ): Normalized<Note.Simple> {
 	return { type: "simple", value, noteModifier, trillValue };
@@ -75,14 +75,14 @@ function simple(
 
 function compound(
 	value: NoteValue[],
-	noteModifier: IProperties = {},
+	noteModifier: IGlobalProperties = {},
 ): Normalized<Note.Compound> {
 	return { type: "compound", value, noteModifier };
 }
 
 function chord(
 	value: Note.Chord.Item[],
-	noteModifier: IProperties = {},
+	noteModifier: IGlobalProperties = {},
 ): Normalized<Note.Chord> {
 	return { type: "chord", value, noteModifier };
 }

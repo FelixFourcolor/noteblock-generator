@@ -2,6 +2,5 @@ import type { Int } from "#types/utils/@";
 import type { Static } from "../meta.ts";
 
 export type Beat = Int<1, 8>;
-export interface IBeat {
-	beat: Static<Beat>;
-}
+
+export type IBeat = { beat?: Static<Beat> };

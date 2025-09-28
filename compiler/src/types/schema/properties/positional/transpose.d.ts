@@ -6,10 +6,6 @@ export type Transpose = {
 	auto: Transpose.Auto;
 };
 
-export interface ITranspose {
-	transpose: IPositional<Transpose> | Positional<Transpose.Value>;
-}
-
 export namespace Transpose {
 	export type Value = absolute | relative;
 	export type Auto = boolean;
@@ -17,3 +13,7 @@ export namespace Transpose {
 	export type absolute = Int;
 	export type relative = Re<"[+-]", Token<"\\d+">>;
 }
+
+export type ITranspose = {
+	transpose?: IPositional<Transpose> | Positional<Transpose.Value>;
+};

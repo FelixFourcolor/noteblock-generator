@@ -1,7 +1,7 @@
 import { match, P } from "ts-pattern";
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
-import type { OneOfMulti, OneOrMany } from "#core/resolver/@";
+import type { Instrument, OneOrMany, ResolveType } from "#core/resolver/@";
 import { resolveTimedValue } from "#core/resolver/duration.js";
 import { multiMap, Trill } from "#core/resolver/properties/@";
 import type { NoteValue, Trill as T_Trill } from "#types/schema/@";
@@ -63,10 +63,10 @@ function* error(args: { error: Error; noteDuration: number }) {
 
 function getNoteBlock(args: {
 	tick: number;
-	delay: number;
 	noteDuration: number;
-	instrument: OneOfMulti<ReturnType<Context["resolveInstrument"]>>;
-	trill: OneOfMulti<ReturnType<Context["resolveTrill"]>>;
+	delay: number;
+	instrument: ResolveType<typeof Instrument>;
+	trill: ResolveType<typeof Trill>;
 }) {
 	const {
 		tick,

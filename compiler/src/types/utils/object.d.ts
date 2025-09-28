@@ -15,12 +15,12 @@ export type Override<A extends object, B extends object> = A extends A
 	? Omit<A, keyof B> & B
 	: never;
 
-export type DistributiveOmit<T extends object, K extends keyof T> = T extends T
+export type DistributiveOmit<T extends object, K extends string> = T extends T
 	? Omit<T, K>
 	: never;
 
 export type Cover<T extends object, Keys extends string> = T extends T
-	? T & { [K in Keys]: K extends keyof T ? T[K] : undefined }
+	? T & { [K in Exclude<Keys, keyof T>]?: undefined }
 	: never;
 
 export type Modified<

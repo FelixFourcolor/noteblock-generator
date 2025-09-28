@@ -1,4 +1,4 @@
-import { mapValues, times } from "lodash";
+import { times } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs, is } from "typia";
 import type {
@@ -6,49 +6,14 @@ import type {
 	Reset,
 	Positional as T_Positional,
 } from "#types/schema/@";
-
-export type Multi<T = unknown> = T[] & { __multi: true };
-
-type IMulti<T> = { [K in keyof T]: OneOrMany<T[K]> };
-
-export type OneOrMany<T> = T | Multi<T>;
-
-export type OneOfMulti<T> = T extends OneOrMany<infer U>
-	? U | undefined
-	: never;
-
-export function multi<T>(array: T[]): Multi<T> {
-	return Object.assign(array, { __multi: true as const });
-}
-
-export function isMulti<T>(value: OneOrMany<T>): value is Multi<T> {
-	return Array.isArray(value) && "__multi" in value;
-}
-
-export function multiMap<TArgs extends Record<string, unknown>, TReturn>(
-	fn: (args: TArgs) => TReturn,
-	args: IMulti<TArgs>,
-): OneOrMany<TReturn> {
-	const values = Object.values(args);
-
-	if (!values.some(isMulti)) {
-		return fn(args as TArgs);
-	}
-
-	const maxLength = Math.max(
-		...values.map((value) => (isMulti(value) ? value.length : 0)),
-	);
-
-	return multi(
-		times(maxLength, (i) => {
-			return fn(
-				mapValues(args, (value) =>
-					isMulti(value) ? value[i] : value,
-				) as TArgs,
-			);
-		}),
-	);
-}
+import {
+	type IMulti,
+	isMulti,
+	type Multi,
+	multi,
+	multiMap,
+	type OneOrMany,
+} from "./multi.js";
 
 type ProtoPositional<
 	TInternal,
@@ -65,7 +30,8 @@ type ProtoPositional<
 	) => TInternal;
 	resolve?: (current: TInternal, args: TResolveArgs) => TReturn;
 };
-export interface Positional<
+
+interface Positional<
 	TModifier,
 	TTransformArgs extends Record<string, unknown>,
 	TResolveArgs extends Record<string, unknown>,
@@ -82,28 +48,18 @@ export interface Positional<
 		? () => OneOrMany<TReturn>
 		: (args: IMulti<TResolveArgs>) => OneOrMany<TReturn>;
 }
-interface PositionalCtor<
+
+export interface PositionalClass<
 	TModifier,
 	TTransformArgs extends Record<string, unknown>,
 	TResolveArgs extends Record<string, unknown>,
 	TReturn,
 > {
 	new (): Positional<TModifier, TTransformArgs, TResolveArgs, TReturn>;
-}
-interface PositionalClass<
-	TModifier,
-	TTransformArgs extends Record<string, unknown>,
-	TResolveArgs extends Record<string, unknown>,
-	TReturn,
-> extends PositionalCtor<TModifier, TTransformArgs, TResolveArgs, TReturn> {
 	default: TResolveArgs extends Record<string, never>
 		? () => TReturn
 		: (args: TResolveArgs) => TReturn;
 }
-
-export type ResolvedType<T> = T extends PositionalClass<any, any, any, infer U>
-	? OneOrMany<U>
-	: never;
 
 export function Positional<
 	TInternal,
@@ -170,7 +126,7 @@ export function Positional<
 		return resolve(current, args as unknown as TResolveArgs);
 	}
 
-	return class {
+	return class PositionalImpl {
 		private readonly original: OneOrMany<TInternal>;
 		private current: OneOrMany<TInternal>;
 		private readonly resolveCache = new Map<string, OneOrMany<TReturn>>();
@@ -229,10 +185,7 @@ export function Positional<
 			modifier: T_Positional<TModifier> | undefined,
 			args: IMulti<TTransformArgs> = {} as IMulti<TTransformArgs>,
 		) {
-			const ctor = this.constructor as new (
-				value: OneOrMany<TInternal>,
-			) => this;
-			return new ctor(this.getTransformedCurrent(modifier, args));
+			return new PositionalImpl(this.getTransformedCurrent(modifier, args));
 		}
 
 		resolve(

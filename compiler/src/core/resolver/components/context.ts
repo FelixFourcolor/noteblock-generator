@@ -1,55 +1,42 @@
 import { Properties } from "#core/resolver/properties/@";
-import type { IProperties, Name } from "#types/schema/@";
-import type { AtMostOneOf } from "#types/utils/@";
-import type { Measure } from "./types.js";
+import type { IGlobalProperties, IPositionalProperties } from "#types/schema/@";
+import type { DistributiveOmit } from "#types/utils/@";
+import { Measure, type MeasureModifier } from "./measure.js";
+
+type TransformModifier =
+	| DistributiveOmit<MeasureModifier, "time">
+	| IPositionalProperties;
 
 class ContextClass extends Properties {
-	readonly name: Name;
+	private _measure = new Measure();
 
-	measure: Measure;
 	get bar() {
-		return this.measure.bar;
+		return this._measure.bar;
 	}
 	get tick() {
-		return this.measure.tick;
+		return this._measure.tick;
+	}
+	get measure() {
+		return { bar: this.bar, tick: this.tick };
+	}
+	get voice() {
+		return this.name.resolve();
 	}
 
-	constructor(name: Name, measure: Measure = { bar: 1, tick: 1 }) {
-		super();
-		this.name = name;
-		this.measure = { ...measure };
-	}
-
-	override transform({
-		measure,
-		noteDuration,
-		...propsModifier
-	}: AtMostOneOf<{ noteDuration: number; measure: Measure }> &
-		Partial<Omit<IProperties, "name" | "width">>) {
-		if (measure !== undefined) {
-			this.measure = measure;
-		} else if (noteDuration !== undefined) {
-			let { bar, tick } = this.measure;
+	override transform(modifier: TransformModifier) {
+		if ("bar" in modifier || "noteDuration" in modifier) {
 			const time = this.time.resolve();
-			tick += noteDuration - 1;
-			bar += Math.floor(tick / time);
-			tick = 1 + (tick % time);
-			this.measure = { bar, tick };
+			this._measure.transform({ ...modifier, time });
+		} else {
+			super.transform(modifier);
 		}
-
-		return super.transform(propsModifier);
+		return this;
 	}
 
-	override fork({
-		name,
-		measure,
-		...propsModifier
-	}: Partial<{ measure: Measure } & Omit<IProperties, "width">> = {}) {
-		const forkedContext = new ContextClass(
-			name ? `${this.name} / ${name}` : this.name,
-			measure ?? this.measure,
-		);
-		const forkedProperties = super.fork(propsModifier);
+	override fork(modifier: IGlobalProperties = {}) {
+		const forkedContext = new ContextClass();
+		const forkedProperties = super.fork(modifier);
+		forkedContext._measure = this._measure;
 		Object.assign(forkedContext, forkedProperties);
 		return forkedContext;
 	}
@@ -58,4 +45,6 @@ class ContextClass extends Properties {
 export type MutableContext = ContextClass;
 export type Context = Omit<MutableContext, "transform">;
 
-export const Context: new (name: Name) => MutableContext = ContextClass;
+export const Context: new (
+	...args: ConstructorParameters<typeof ContextClass>
+) => MutableContext = ContextClass;
