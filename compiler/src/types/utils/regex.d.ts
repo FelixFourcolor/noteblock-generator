@@ -1,6 +1,6 @@
 import type { Subtract } from "ts-arithmetic";
 import type { tags } from "typia";
-import type { Tuplify } from "./array.ts";
+import type { Tuplify } from "./array.js";
 
 export type Re<A, B = "", C = "", D = "", E = ""> = [A] extends [string[]]
 	? Regex<ReJoin<[...A, string & B, string & C, string & D, string & E]>>
@@ -79,9 +79,7 @@ type Regex<Pattern extends string> = string &
 		value: `(${Pattern})`;
 		validate: `/^\\s*(${Pattern})\\s*$/i.test($input)`;
 		exclusive: ["format", "pattern"];
-		schema: {
-			pattern: `^(?i)\\s*(${Pattern})\\s*$`;
-		};
+		schema: { pattern: `^\\s*(${Pattern})\\s*$` };
 	}>;
 
 type ReType = {
