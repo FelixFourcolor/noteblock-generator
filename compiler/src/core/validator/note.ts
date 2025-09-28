@@ -1,12 +1,6 @@
 import { isEmpty } from "lodash";
 import { is } from "typia";
-import type {
-	IPositional,
-	IProperties,
-	Note,
-	NoteValue,
-	Trill,
-} from "#schema/@";
+import type { IProperties, Note, NoteValue, Trill } from "#schema/@";
 
 type NormalizedModifier = {
 	trillValue?: Trill.Value | undefined;
@@ -57,11 +51,7 @@ export function normalize(note: Note): Normalized<Note> {
 		return simple(value, noteModifier, trillValue);
 	}
 
-	const noteModifierWithTrill = {
-		...noteModifier,
-		// isEmpty check above => IPositional satisfies here
-		trill: trillModifier as IPositional<Trill>,
-	};
+	const noteModifierWithTrill = { ...noteModifier, trill: trillModifier };
 	return simple(value, noteModifierWithTrill, trillValue);
 }
 
