@@ -1,6 +1,6 @@
 import { equals, is } from "typia";
 import { validateVoice } from "#core/validator/@";
-import type { BarLine, Deferred, FutureModifier, Voice } from "#schema/@";
+import type { BarLine, Deferred, IProperties, Voice } from "#schema/@";
 import { Context } from "../context.js";
 import { resolveNote } from "../note/note.js";
 import type { VoiceContext, VoiceResolution } from "../resolution.js";
@@ -31,8 +31,9 @@ export async function resolveVoice(
 		let hasBarLine = false;
 
 		for (const item of notes) {
-			// must check "equals" instead of "is" because modifier is a subtype of note
-			if (equals<FutureModifier>(item)) {
+			// must check "equals" instead of "is"
+			// because IProperties is a subtype of Note
+			if (equals<IProperties>(item)) {
 				context.transform(item);
 				continue;
 			}
