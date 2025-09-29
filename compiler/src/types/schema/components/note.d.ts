@@ -33,17 +33,13 @@ export namespace Note {
 	export type Simple<T extends TPosition = TPosition> = Rest | Single<T>;
 
 	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ notes: NoteValue[] & tags.MinItems<2> },
+		{ notes: Simple<T>[] & tags.MinItems<2> },
 		MultiNoteModifier<T>
 	>;
 
 	export type Chord<T extends TPosition = TPosition> =
-		| ([NoteValue][] & tags.MinItems<2>)
-		| ({ chord: Chord.Item<T>[] & tags.MinItems<2> } & MultiNoteModifier<T>);
-
-	export namespace Chord {
-		export type Item<T extends TPosition = TPosition> =
-			| Note.Single<T>
-			| Note.Compound<T>;
-	}
+		| [NoteValue[] & tags.MinItems<2>]
+		| ({
+				chord: (Single<T> | Compound<T>)[] & tags.MinItems<2>;
+		  } & MultiNoteModifier<T>);
 }

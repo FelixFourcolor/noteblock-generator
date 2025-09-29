@@ -9,21 +9,22 @@ type NormalizedModifier = {
 
 type Normalized<T extends Note> = NormalizedModifier &
 	(T extends Note.Chord
-		? { type: "chord"; value: Note.Chord.Item[] }
+		? { type: "chord"; value: (Note.Single | Note.Compound)[] }
 		: T extends Note.Compound
-			? { type: "compound"; value: NoteValue[] }
+			? { type: "compound"; value: Note.Simple[] }
 			: { type: "simple"; value: NoteValue });
 
+export function normalize<T extends Note>(note: T): Normalized<T>;
 export function normalize(note: Note): Normalized<Note> {
 	if (typeof note === "string") {
 		return simple(note);
 	}
 
 	if (Array.isArray(note)) {
-		if (is<string[]>(note)) {
-			return compound(note);
+		if (is<[NoteValue[]]>(note)) {
+			return chord(note);
 		}
-		return chord(note);
+		return compound(note);
 	}
 
 	if ("notes" in note) {
@@ -64,14 +65,14 @@ function simple(
 }
 
 function compound(
-	value: NoteValue[],
+	value: Note.Simple[],
 	noteModifier: IProperties = {},
 ): Normalized<Note.Compound> {
 	return { type: "compound", value, noteModifier };
 }
 
 function chord(
-	value: Note.Chord.Item[],
+	value: (Note.Single | Note.Compound)[],
 	noteModifier: IProperties = {},
 ): Normalized<Note.Chord> {
 	return { type: "chord", value, noteModifier };

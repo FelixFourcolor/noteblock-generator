@@ -7,7 +7,7 @@ export async function resolveVoices(
 	entries: VoiceEntry[],
 	ctx: SongContext,
 ): Promise<VoiceResolution> {
-	const THRESHOLD_TO_USE_WORKER = 6;
+	const THRESHOLD_TO_USE_WORKER = 12;
 	const useWorker = entries.flat().length >= THRESHOLD_TO_USE_WORKER;
 	const { resolveVoice } = useWorker
 		? await import("../voice/voice-threaded.js")

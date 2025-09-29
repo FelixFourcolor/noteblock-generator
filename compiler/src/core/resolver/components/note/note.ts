@@ -23,16 +23,21 @@ export function resolveNote(
 		return applyPhrasing({ events, context });
 	}
 
-	function resolveCompound(values: NoteValue[]) {
+	function resolveCompound(values: Note.Simple[]) {
 		const events = chain(
-			values.map((noteValue) =>
-				resolveNoteblocks({ noteValue, trillValue, context }),
-			),
+			values.map((note) => {
+				const { value, trillValue, noteModifier } = normalize(note);
+				return resolveNoteblocks({
+					noteValue: value,
+					trillValue,
+					context: context.fork(noteModifier),
+				});
+			}),
 		);
 		return applyPhrasing({ events, context });
 	}
 
-	function resolveChord(chordItems: Note.Chord.Item[]) {
+	function resolveChord(chordItems: (Note.Single | Note.Compound)[]) {
 		return zip(chordItems.map((note) => resolveNote(note, context)));
 	}
 

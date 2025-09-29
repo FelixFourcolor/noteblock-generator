@@ -26,14 +26,6 @@ export namespace Direction {
 		return coords[dir]!;
 	}
 
-	export function X(dir: Direction) {
-		return get(dir)[0];
-	}
-
-	export function Z(dir: Direction) {
-		return get(dir)[1];
-	}
-
 	export function name(direction: Direction) {
 		return Direction[direction] as "north" | "south" | "east" | "west";
 	}
@@ -49,10 +41,6 @@ export namespace Direction {
 			case Direction.west:
 				return Direction.east;
 		}
-	}
-
-	export function fromCoords<X extends number, Z extends number>(x: X, z: Z) {
-		return _fromCoords(x, z) as DirectionOf<X, Z>;
 	}
 
 	type DirectionOf<X extends number, Z extends number> = X extends 0
@@ -71,7 +59,11 @@ export namespace Direction {
 					: Direction.west | Direction.east
 			: Direction | undefined;
 
-	function _fromCoords(x: number, z: number): Direction | undefined {
+	export function fromCoords<X extends number, Z extends number>(
+		x: X,
+		z: Z,
+	): DirectionOf<X, Z>;
+	export function fromCoords(x: number, z: number): Direction | undefined {
 		if (!x && !z) {
 			return undefined;
 		}
