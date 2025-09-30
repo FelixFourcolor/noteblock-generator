@@ -2,4 +2,4 @@
 
 import { CLI } from "#cli/@";
 
-CLI.run();
+new CLI().run();

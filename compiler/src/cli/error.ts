@@ -6,12 +6,9 @@ export function handleError(error: unknown) {
 			process.stderr.write(`${userError.message}\n`);
 			process.exitCode = 2;
 		})
-		.with(P.instanceOf(Error), (programError) => {
-			process.stderr.write(`${programError.stack}\n`);
-			process.exitCode = 1;
-		})
-		.otherwise((unknownError) => {
-			process.stderr.write(`Error: ${unknownError}\n`);
+		.otherwise((error) => {
+			const details = error instanceof Error ? error.stack : String(error);
+			process.stderr.write(`Unhandled error:\n${details}\n`);
 			process.exitCode = 3;
 		});
 }
