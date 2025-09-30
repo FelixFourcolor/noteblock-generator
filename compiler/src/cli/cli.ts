@@ -11,6 +11,7 @@ export class CLI {
 		.scriptName("nbc")
 		.strict()
 		.hide("version")
+		.hide("help")
 		.usage("Usage: $0 [options]");
 
 	private compileHandler = withOutput(async (args) => {
@@ -39,11 +40,6 @@ export class CLI {
 				describe: "Path to output file",
 				defaultDescription: "write to stdout",
 			})
-			.option("pretty", {
-				type: "boolean",
-				describe: "Write output in human-readable format",
-			})
-			.help()
 			.command({ command: "$0", handler: this.compileHandler });
 	}
 }

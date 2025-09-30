@@ -3,11 +3,7 @@ import type { ArgumentsCamelCase } from "yargs";
 import type { FileRef, JsonData } from "#schema/@";
 import { handleError, UserError } from "./error.js";
 
-type Args = {
-	pretty: boolean | undefined;
-	out: string | undefined;
-	in: string | undefined;
-};
+type Args = Record<"in" | "out", string | undefined>;
 
 export async function getInput(args: Args): Promise<FileRef | JsonData> {
 	if (args.in) {
@@ -27,10 +23,9 @@ export function withOutput<T extends ArgumentsCamelCase<Args>>(
 	handler: (args: T) => Promise<unknown>,
 ) {
 	return (args: T) => {
-		const indent = args.pretty ? 2 : 0;
 		handler(args)
 			.then((data) => {
-				const content = `${JSON.stringify(data, null, indent)}\n`;
+				const content = JSON.stringify(data);
 				if (args.out) {
 					writeFileSync(args.out, content);
 				} else {
