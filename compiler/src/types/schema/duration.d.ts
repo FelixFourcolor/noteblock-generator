@@ -29,10 +29,8 @@ export namespace Duration {
 }
 
 type DurationPattern = Re<
-	[
-		"[1-9]\\d*", // positive number
-		"b?", // optional "b" for beat
-		"\\.?", // optional dotted rhythm
-	]
+	"[1-9]\\d*", // positive number
+	"b?", // optional "b" for beat
+	"\\.?" // optional dotted rhythm
 >;
 type Repeating = Re<Token<"[+-]" | "\\s">, DurationPattern>;

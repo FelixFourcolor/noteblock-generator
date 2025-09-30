@@ -35,7 +35,7 @@ export function* resolveNoteblocks({
 		throw e;
 	}
 
-	const trill = context.resolveTrill({ noteDuration });
+	const trill = context.resolveTrill(noteDuration);
 
 	for (let i = 0; i < noteDuration; ++i) {
 		yield multiMap(getNoteBlock, {

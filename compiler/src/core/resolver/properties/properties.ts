@@ -119,12 +119,12 @@ export class Properties {
 		};
 	}
 
-	resolveTrill({ noteDuration }: { noteDuration: number }) {
+	resolveTrill(noteDuration: number) {
 		const beat = this.beat.resolve();
 		return this.trill.resolve({ noteDuration, beat });
 	}
 
-	resolvePhrasing({ noteDuration }: { noteDuration: number }) {
+	resolvePhrasing(noteDuration: number) {
 		const sustain = this.sustain.resolve({ noteDuration });
 		const position = this.position.resolve({ noteDuration, sustain });
 		const dynamic = this.dynamic.resolve({ noteDuration, sustain });
