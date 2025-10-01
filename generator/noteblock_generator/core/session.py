@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 import shutil
+import signal
 from pathlib import Path
-from signal import SIG_IGN, SIGINT, signal
 
 import typer
 from click import UsageError
@@ -16,12 +16,23 @@ from .world import World
 class UserCancelled(Exception): ...
 
 
-class PreventKeyboardInterrupt:
+_HANDLED_SIGNALS = set(signal.Signals) - {
+    # uncatchable signals
+    signal.SIGKILL,
+    signal.SIGSTOP,
+}
+
+
+class IgnoreInterrupt:
     def __enter__(self):
-        self.handler = signal(SIGINT, SIG_IGN)
+        self._original_handlers = {
+            sig: signal.signal(sig, signal.SIG_IGN) for sig in _HANDLED_SIGNALS
+        }
+        return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        signal(SIGINT, self.handler)
+        for sig, handler in self._original_handlers.items():
+            signal.signal(sig, handler)
 
 
 aborted_message = "Aborted. No changes were made."
@@ -53,20 +64,22 @@ class WorldGeneratingSession:
     def __enter__(self):
         self.world_hash = self._compute_hash()
         self.working_path = self._create_shadow_copy()
+        self._setup_signal_handlers()
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
         self._cleanup(commit=exc_type is None)
-
-        if exc_type is KeyboardInterrupt:
-            # Ctrl+C doesn't create a new line
-            Console.success(f"\n{aborted_message}")
-            self._cleanup(commit=False)
-            os._exit(130)  # a hack to terminate NonBlockingPrompt's thread
-
         if exc_type is UserCancelled:
-            Console.success(aborted_message)
-            return True
+            os._exit(0)
+
+    def _setup_signal_handlers(self):
+        def handle_interrupt(sig, _):
+            Console.newline()
+            self._cleanup(commit=False)
+            os._exit(130 if sig == signal.SIGINT else 143)
+
+        for sig in _HANDLED_SIGNALS:
+            signal.signal(sig, handle_interrupt)
 
     def _compute_hash(self) -> int | None:
         try:
@@ -86,10 +99,13 @@ class WorldGeneratingSession:
     def _cleanup(self, *, commit: bool):
         if not self.working_path:
             return
-
-        if commit:
-            self._commit()
-        shutil.rmtree(self.working_path, ignore_errors=True)
+        try:
+            if commit:
+                self._commit()
+            else:
+                Console.success(aborted_message)
+        finally:
+            shutil.rmtree(self.working_path, ignore_errors=True)
 
     def _detect_external_modifications(self) -> bool:
         try:
@@ -98,9 +114,7 @@ class WorldGeneratingSession:
             return True
 
     def _commit(self):
-        modified = self._detect_external_modifications()
-
-        if modified:
+        if externally_modified := self._detect_external_modifications():
             Console.warn(
                 "The save files have been modified while generating."
                 "\nTo keep this generation, all other changes must be discarded.",
@@ -110,15 +124,18 @@ class WorldGeneratingSession:
                 Console.success(aborted_message)
                 raise typer.Exit()
 
-        with PreventKeyboardInterrupt():
-            if not self.world:
-                return
+        if not self.world:
+            return
+
+        with IgnoreInterrupt():
+            # This section is critical but should be very fast,
+            # no need to handle interrupt signals, just ignore them
             self.world.close()
             if self.working_path:
                 shutil.rmtree(self.original_path, ignore_errors=True)
                 shutil.move(self.working_path, self.original_path)
 
-        if modified:
+        if externally_modified:
             Console.success(
                 "If you are inside the world, exit and re-enter to see the result.",
                 important=True,

@@ -13,6 +13,10 @@ _print = _console.print
 
 class Console:
     @staticmethod
+    def newline():
+        _print()
+
+    @staticmethod
     def confirm(text, *, default: bool | None) -> bool:
         try:
             return typer.confirm(text, default=default)
