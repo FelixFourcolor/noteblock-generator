@@ -17,16 +17,20 @@ export async function getInput(args: CLIOptions) {
 export function withOutput<T extends ArgumentsCamelCase<CLIOptions>>(
 	handler: (args: T) => Promise<unknown>,
 ) {
-	return (args: T) => {
-		handler(args)
-			.then((data) => {
-				const content = `${JSON.stringify(data)}\n`;
-				if (args.out) {
-					writeFileSync(args.out, content);
-				} else {
-					process.stdout.write(content);
-				}
-			})
-			.catch(handleError);
+	return async (args: T) => {
+		const outputData = await handler(args).catch(handleError);
+		if (!outputData) {
+			return;
+		}
+
+		const stringified = args.debug
+			? JSON.stringify(outputData, null, 2)
+			: JSON.stringify(outputData);
+
+		if (args.out) {
+			writeFileSync(args.out, `${stringified}\n`);
+		} else {
+			process.stdout.write(`${stringified}\n`);
+		}
 	};
 }

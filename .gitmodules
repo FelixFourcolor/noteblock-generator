@@ -1,0 +1,4 @@
+[submodule "compiler/test/test-data"]
+	path = compiler/test/test-data
+	url = https://github.com/FelixFourcolor/noteblock-compiler-tests.git
+	branch = main

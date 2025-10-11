@@ -1,4 +1,4 @@
-import Yargs from "yargs";
+import Yargs, { type Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
 import { UserError } from "./error.js";
 import { getInput, withOutput } from "./io.js";
@@ -9,17 +9,35 @@ export type CLIOptions = Awaited<
 
 export class CLI {
 	run() {
-		this.buildOptions()
-			.command({ command: "$0", handler: this.commandHandler })
+		return this.buildOptions()
+			.command({
+				command: "$0",
+				handler: withOutput(async (args) => {
+					const src = await getInput(args);
+					if (!src) {
+						this.yargs.showHelp();
+						throw new UserError(
+							"\nMissing input: Either provide file path with --in, or pipe content to stdin.",
+						);
+					}
+					const { compile } = await import("#core/compile.js");
+					const mode = args.debug === true ? "compile" : args.debug;
+					return compile(src, mode);
+				}),
+			})
 			.parseAsync();
 	}
 
-	private readonly yargs = Yargs(hideBin(process.argv))
-		.scriptName("nbc")
-		.strict()
-		.hide("version")
-		.hide("help")
-		.usage("Usage: $0 [options]");
+	private readonly yargs: Argv;
+
+	constructor(argv = hideBin(process.argv)) {
+		this.yargs = Yargs(argv)
+			.scriptName("nbc")
+			.strict()
+			.hide("version")
+			.hide("help")
+			.usage("Usage: $0 [options]");
+	}
 
 	private buildOptions() {
 		return this.yargs
@@ -34,19 +52,10 @@ export class CLI {
 				type: "string",
 				describe: "Path to output file",
 				defaultDescription: "write to stdout",
+			})
+			.option("debug", {
+				choices: ["resolve", "assemble", "compile", true] as const,
+				hidden: true,
 			});
 	}
-
-	private readonly commandHandler = withOutput(async (args) => {
-		const src = await getInput(args);
-		if (src) {
-			const { compile } = await import("#core/compile.js");
-			return compile(src);
-		}
-
-		this.yargs.showHelp();
-		throw new UserError(
-			"\nMissing input: Either provide file path with --in, or pipe content to stdin.",
-		);
-	});
 }

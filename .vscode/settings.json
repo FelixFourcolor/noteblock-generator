@@ -10,5 +10,4 @@
     },
     "biome.lsp.bin": "compiler/node_modules/.bin/biome",
     "biome.configurationPath": "compiler/biome.jsonc",
-    "yaml.schemas": { "compiler/test/schema.json": "compiler/test/**/*.yaml" }
 }
