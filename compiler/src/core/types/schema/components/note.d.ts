@@ -20,7 +20,8 @@ type NoteModifier<T extends TPosition> = INoteTrill & MultiNoteModifier<T>;
 export type Note<T extends TPosition = TPosition> =
 	| Note.Simple<T>
 	| Note.Compound<T>
-	| Note.Chord<T>;
+	| Note.Chord<T>
+	| Note.Quaver<T>;
 
 export namespace Note {
 	export type Rest = Modified<{ note: NoteValue.Rest }, RestModifier>;
@@ -32,14 +33,18 @@ export namespace Note {
 
 	export type Simple<T extends TPosition = TPosition> = Rest | Single<T>;
 
-	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ notes: Simple<T>[] & tags.MinItems<2> },
+	export type Chord<T extends TPosition = TPosition> = Modified<
+		{ chord: NoteValue.Chord },
 		MultiNoteModifier<T>
 	>;
 
-	export type Chord<T extends TPosition = TPosition> =
-		| [NoteValue[] & tags.MinItems<2>]
-		| ({
-				chord: (Single<T> | Compound<T>)[] & tags.MinItems<2>;
-		  } & MultiNoteModifier<T>);
+	export type Compound<T extends TPosition = TPosition> = Modified<
+		{ notes: (Simple<T> | Chord<T>)[] & tags.MinItems<2> },
+		MultiNoteModifier<T>
+	>;
+
+	export type Quaver<T extends TPosition = TPosition> = Modified<
+		{ notes: NoteValue.Quaver },
+		MultiNoteModifier<T>
+	>;
 }
