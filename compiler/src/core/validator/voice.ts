@@ -1,4 +1,4 @@
-import { createEquals, is } from "typia";
+import { createEquals, equals } from "typia";
 import type { Deferred, IProperties, Notes, TPosition, Voice } from "#schema/@";
 import { type Validated, type ValidateError, validate } from "./validate.js";
 
@@ -59,7 +59,7 @@ function normalize(voice: Validated<Voice>) {
 
 function resolveType(args: { notes: Notes; modifier: IProperties }) {
 	const { notes, modifier } = args;
-	return is<Voice<"single">>({ notes, ...modifier })
+	return equals<Voice<"single">>({ notes, ...modifier })
 		? ("single" as const)
 		: ("double" as const);
 }
