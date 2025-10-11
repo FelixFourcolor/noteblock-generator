@@ -180,8 +180,8 @@ namespace pitches {
 
 	// biome-ignore format: preserve manual formatting
 	const BASE_PITCHES = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
-	const MIN_OCTAVE = 1;
-	const MAX_OCTAVE = 7;
+	const MIN_OCTAVE = 0;
+	const MAX_OCTAVE = 8;
 	function getBasePitches() {
 		return Object.fromEntries(BASE_PITCHES.map((note, value) => [note, value]));
 	}
