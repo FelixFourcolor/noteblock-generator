@@ -8,11 +8,11 @@ type Value = "wire" | "repeater" | null;
 
 export class Wire {
 	private readonly data: [Coord, Value][] = [];
-	private readonly apply: (coord: Coord, value: BlockType) => void;
 
-	constructor(applicator: (coord: Coord, value: BlockType) => void) {
-		this.apply = applicator;
-	}
+	constructor(
+		private apply: (coord: Coord, value: BlockType) => void,
+		private base: BlockType = Block("glass"),
+	) {}
 
 	add(coord: Coord, value: Value = "wire") {
 		this.data.push([coord, value]);
@@ -29,7 +29,7 @@ export class Wire {
 
 	private buildBase() {
 		this.data.forEach(([[x, y, z]], index) => {
-			let base: BlockType = Block("glass");
+			let base = this.base;
 
 			const next = this.data[index + 1];
 			if (next !== undefined) {

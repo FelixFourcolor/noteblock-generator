@@ -25,9 +25,9 @@ export class BlockPlacer {
 		this.set(this.cursor.getOffset({ dx, dy, dz }), value);
 	}
 
-	protected useWireOffset<T>(callback: (wire: Wire) => T): T {
+	protected useWireOffset<T>(callback: (wire: Wire) => T, base?: BlockType): T {
 		const setter = this.setOffset.bind(this);
-		return new Wire(setter).build(callback);
+		return new Wire(setter, base).build(callback);
 	}
 
 	protected withCursor<T>(cursor: Cursor, callback: (self: this) => T): T {

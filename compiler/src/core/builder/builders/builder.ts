@@ -137,7 +137,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			}
 			const [dx, dz] = placements.at(-1)!;
 			wire.add([dx, 1, dz], null);
-		});
+		}, Block.Generic);
 
 		const [dx, dz] = placements.at(-1)!;
 		this.cursor.move({ dx, dz });
