@@ -4,7 +4,9 @@ export default defineConfig({
 	test: {
 		include: ["test/**/*.test.js"],
 		coverage: {
-			include: ["dist"],
+			provider: "v8",
+			include: ["dist/**/*.js"],
+			exclude: ["dist/schema-generator/**"],
 		},
 	},
 });
