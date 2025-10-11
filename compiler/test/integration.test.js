@@ -9,7 +9,7 @@ const COMPILE_MODES = [
 	{ mode: "resolve", outputName: "resolved" },
 	{ mode: "assemble", outputName: "assembled" },
 	{ mode: "compile", outputName: "compiled" },
-] as const;
+];
 
 describe("Integration tests", async () => {
 	const testCases = await readdir(TEST_DATA_DIR);
@@ -29,7 +29,7 @@ describe("Integration tests", async () => {
 						`build/${outputName}.expected.json`,
 					);
 
-					// biome-ignore format: true
+					// biome-ignore format: ...
 					const cli = new CLI([
                         "--in", entryPoint,
                         "--debug", mode,

@@ -18,24 +18,26 @@
         "yargs": "^18.0.0"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.2.4",
+        "@biomejs/biome": "^2.2.5",
         "@types/lodash": "^4.17.20",
-        "@types/node": "^24.5.2",
+        "@types/node": "^24.7.1",
         "@types/yargs": "^17.0.33",
         "@vitest/coverage-v8": "3.2.4",
+        "@vitest/ui": "3.2.4",
         "ts-arithmetic": "^0.1.1",
         "ts-patch": "^3.3.0",
-        "typescript": "^5.9.2",
+        "typescript": "^5.9.3",
         "vitest": "^3.2.4"
     },
     "files": [
-        "dist"
+        "dist",
+        "!dist/**/*.js.map"
     ],
     "scripts": {
         "prepare": "ts-patch install",
         "build": "rm -fr dist; tsc",
         "build:watch": "rm -fr dist; tsc --watch",
-        "test": "rm -fr coverage; vitest run",
-        "test:watch": "rm -fr coverage; vitest --watch"
+        "test": "vitest run",
+        "test:cov": "rm -fr coverage; vitest --coverage --ui"
     }
 }

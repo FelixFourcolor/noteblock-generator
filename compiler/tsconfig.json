@@ -1,29 +1,30 @@
 {
-  "compilerOptions": {
-    "plugins": [ { "transform": "typia/lib/transform" } ],
+	"compilerOptions": {
+		"plugins": [{ "transform": "typia/lib/transform" }],
 
-    "target": "ESNext",
-    "module": "NodeNext",
-    "verbatimModuleSyntax": true,
-    "isolatedModules": true,
-    "skipDefaultLibCheck": true,
+		"target": "ESNext",
+		"module": "NodeNext",
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"skipDefaultLibCheck": true,
+		"sourceMap": true,
 
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true,
-    "exactOptionalPropertyTypes": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"exactOptionalPropertyTypes": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedSideEffectImports": true,
 
-    "paths": {
-      "#utils/@": [ "./src/core/types/utils/index.ts" ],
-      "#schema/@": [ "./src/core/types/schema/index.ts" ],
-      "#schema/*/@": [ "./src/core/types/schema/*/index.ts" ],
-      "#schema/*": [ "./src/core/types/schema/*" ],
-      "#*/@": [ "./src/*/index.ts" ],
-      "#*": [ "./src/*" ]
-    },
-    "outDir": "dist",
-  },
-  "include": [ "src" ]
+		"paths": {
+			"#utils/@": ["./src/core/types/utils/index.ts"],
+			"#schema/@": ["./src/core/types/schema/index.ts"],
+			"#schema/*/@": ["./src/core/types/schema/*/index.ts"],
+			"#schema/*": ["./src/core/types/schema/*"],
+			"#*/@": ["./src/*/index.ts"],
+			"#*": ["./src/*"]
+		},
+		"outDir": "dist"
+	},
+	"include": ["src"]
 }

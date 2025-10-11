@@ -1,17 +1,17 @@
 {
-    "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
-    "linter": {
-        "rules": {
-            "style": {
-                "noParameterAssign": "off",
-                "noNonNullAssertion": "off"
-            },
-            "suspicious": {
-                "noExplicitAny": "off"
-            },
-            "correctness": {
-                "useParseIntRadix": "off"
-            }
-        }
-    }
+	"$schema": "https://biomejs.dev/schemas/2.2.5/schema.json",
+	"linter": {
+		"rules": {
+			"style": {
+				"noParameterAssign": "off",
+				"noNonNullAssertion": "off"
+			},
+			"suspicious": {
+				"noExplicitAny": "off"
+			},
+			"correctness": {
+				"useParseIntRadix": "off"
+			}
+		}
+	}
 }

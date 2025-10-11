@@ -1,13 +1,13 @@
 {
-    "files.exclude": {
-        "compiler/node_modules": true,
-        "compiler/pnpm-lock.yaml": true,
-        "generator/poetry.lock": true,
-        "generator/**/__pycache__": true
-    },
-    "search.exclude": {
-        "compiler/dist": true,
-    },
-    "biome.lsp.bin": "compiler/node_modules/.bin/biome",
-    "biome.configurationPath": "compiler/biome.jsonc",
+	"files.exclude": {
+		"compiler/node_modules": true,
+		"compiler/pnpm-lock.yaml": true,
+		"generator/poetry.lock": true,
+		"generator/**/__pycache__": true
+	},
+	"search.exclude": {
+		"compiler/dist": true
+	},
+	"biome.lsp.bin": "compiler/node_modules/.bin/biome",
+	"biome.configurationPath": "compiler/biome.jsonc"
 }
