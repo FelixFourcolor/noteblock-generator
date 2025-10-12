@@ -6,7 +6,7 @@ import { translateRefs } from "./refs.js";
 
 export function toJsonSchema(typiaSchema: IJsonSchemaUnit.IV3_1<unknown>) {
 	return {
-		$schema: "https://json-schema.org/draft-07/schema",
+		$schema: "http://json-schema.org/draft-07/schema",
 		$defs: transform(typiaSchema.components.schemas),
 		...(transform(typiaSchema.schema) as object),
 	};

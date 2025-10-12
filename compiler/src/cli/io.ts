@@ -18,14 +18,14 @@ export function withOutput<T extends ArgumentsCamelCase<CLIOptions>>(
 	handler: (args: T) => Promise<unknown>,
 ) {
 	return async (args: T) => {
-		const outputData = await handler(args).catch(handleError);
-		if (!outputData) {
+		const result = await handler(args).catch(handleError);
+		if (!result) {
 			return;
 		}
 
 		const stringified = args.debug
-			? JSON.stringify(outputData, null, 2)
-			: JSON.stringify(outputData);
+			? JSON.stringify(result, null, 2)
+			: JSON.stringify(result);
 
 		if (args.out) {
 			writeFileSync(args.out, `${stringified}\n`);

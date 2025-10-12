@@ -8,24 +8,8 @@ export type CLIOptions = Awaited<
 >;
 
 export class CLI {
-	run() {
-		return this.buildOptions()
-			.command({
-				command: "$0",
-				handler: withOutput(async (args) => {
-					const src = await getInput(args);
-					if (!src) {
-						this.yargs.showHelp();
-						throw new UserError(
-							"\nMissing input: Either provide file path with --in, or pipe content to stdin.",
-						);
-					}
-					const { compile } = await import("#core/compile.js");
-					const mode = args.debug === true ? "compile" : args.debug;
-					return compile(src, mode);
-				}),
-			})
-			.parseAsync();
+	static run(argv?: string[]) {
+		return new CLI(argv).execute();
 	}
 
 	private readonly yargs: Argv;
@@ -53,9 +37,37 @@ export class CLI {
 				describe: "Path to output file",
 				defaultDescription: "write to stdout",
 			})
+			.option("schema", {
+				type: "boolean",
+				describe: "Generate schema for music source",
+			})
 			.option("debug", {
 				choices: ["resolve", "assemble", "compile", true] as const,
 				hidden: true,
 			});
+	}
+
+	private handler = withOutput(async (args) => {
+		if (args.schema) {
+			const { generate } = await import("#schema-generator/generate.js");
+			return generate();
+		}
+
+		const src = await getInput(args);
+		if (!src) {
+			this.yargs.showHelp();
+			throw new UserError(
+				"\nMissing input: Either provide file path with --in, or pipe content to stdin.",
+			);
+		}
+		const { compile } = await import("#core/compile.js");
+		const mode = args.debug === true ? "compile" : args.debug;
+		return compile(src, mode);
+	});
+
+	private async execute() {
+		await this.buildOptions()
+			.command({ command: "$0", handler: this.handler })
+			.parseAsync();
 	}
 }

@@ -1,4 +1,6 @@
-[submodule "compiler/test/test-data"]
-	path = compiler/test/test-data
-	url = https://github.com/FelixFourcolor/noteblock-compiler-tests.git
-	branch = main
+[submodule "compiler/test/data/bwv-1062"]
+	path = compiler/test/data/bwv-1062
+	url = git@github.com:FelixFourcolor/BWV-1062
+[submodule "compiler/test/data/and-he-shall-purify"]
+	path = compiler/test/data/and-he-shall-purify
+	url = git@github.com:FelixFourcolor/And-He-shall-purify

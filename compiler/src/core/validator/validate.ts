@@ -50,13 +50,11 @@ function filename(path: string) {
 }
 
 async function loadValidate<T>(path: string, validator: Validator<T>) {
-	let fileContent: string;
-	try {
-		fileContent = await readFile(path, "utf-8");
-	} catch {
+	const content = await readFile(path, "utf-8").catch(() => null);
+	if (!content) {
 		return { error: `Unable to read file at "${path}".` };
 	}
-	return parseValidate(fileContent, validator);
+	return parseValidate(content, validator);
 }
 
 function parseValidate<T>(input: string, validator: Validator<T>) {

@@ -4,6 +4,5 @@ import { toJsonSchema } from "./transformer/transform.js";
 
 export function generate() {
 	const typiaSchema = json.schema<Song>();
-	const jsonSchema = toJsonSchema(typiaSchema);
-	process.stdout.write(`${JSON.stringify(jsonSchema)}\n`);
+	return toJsonSchema(typiaSchema);
 }
