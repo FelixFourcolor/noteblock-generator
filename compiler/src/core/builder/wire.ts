@@ -28,7 +28,11 @@ export class Wire {
 	}
 
 	private buildBase() {
-		this.data.forEach(([[x, y, z]], index) => {
+		this.data.forEach(([[x, y, z], value], index) => {
+			if (!value) {
+				return;
+			}
+
 			let base = this.base;
 
 			const next = this.data[index + 1];
@@ -78,10 +82,8 @@ export class Wire {
 		[inDir, outDir]: [Direction | undefined, Direction | undefined],
 	) => {
 		if (value === "wire") {
-			const connections = [inDir, outDir].filter(
-				(dir): dir is Direction => dir !== undefined,
-			);
-			this.apply(coords, Block.Redstone(...connections));
+			const connections = [inDir, outDir].filter((dir) => dir !== undefined);
+			this.apply(coords, Block.Redstone(...new Set(connections)));
 		} else if (value !== null) {
 			const direction = outDir ?? inDir;
 			if (direction === undefined) {

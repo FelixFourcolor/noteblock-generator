@@ -18,46 +18,54 @@ export class DoubleBuilder extends Builder<"double"> {
 	}
 
 	protected buildPlayButton(index: number) {
-		if (index % 2 !== 0) {
-			return; // TODO need to figure out this algorithm
-		}
+		const isFirst = index === 0;
+		const isLeftSide = index % 2 === 0;
+		const isRightSide = !isLeftSide;
 
-		const midpoint = Math.floor(this.size.width / 2);
+		const { height, width } = this.size;
+		const midpoint = Math.floor(width / 2);
 		const junction = Math.ceil(midpoint / 2);
 
-		this.withCursor(
-			this.cursor.at({ y: this.size.height - 2 }).offset({ dz: -2 }),
-			(self) => {
-				// left connector
-				self.useWireOffset((wire) => {
-					for (let dz = junction - 1; dz >= 2; dz--) {
-						wire.add([0, 0, dz]);
-					}
-					wire.add([0, -1, 1]);
-					wire.add([0, -2, 2], null);
-				});
-				// right connector
-				self.useWireOffset((wire) => {
-					for (let dz = junction + 1; dz <= midpoint + 1; dz++) {
-						wire.add([0, 0, dz]);
-					}
-					wire.add([0, -1, midpoint + 2]);
-					wire.add([0, -2, midpoint + 3], null);
-				});
-				// button
-				if (index === 0) {
-					self.setOffset([0, 0, junction], Block.Generic);
-					self.useWireOffset((wire) => {
-						for (let dz = midpoint; dz >= junction; dz--) {
-							wire.add([-2, 0, dz]);
-						}
-						wire.add([-1, 0, junction], "repeater");
-					});
-					self.setOffset([-2, 0, midpoint], Block.Button);
-				} else {
-					self.setOffset([0, 0, junction], Block.Button);
+		const cursor = isLeftSide
+			? this.cursor.at({ y: height - 2 }).offset({ dz: -2 })
+			: this.cursor.at({ y: height - 2, z: midpoint }).flipDirection();
+
+		this.withCursor(cursor, (self) => {
+			// left connector
+			const zLeft = isLeftSide ? 1 : -1;
+			self.useWireOffset((wire) => {
+				for (let dz = junction - 1; dz > zLeft; dz--) {
+					wire.add([0, 0, dz]);
 				}
-			},
-		);
+				wire.add([0, -1, zLeft]);
+				wire.add([0, -2, zLeft], null);
+			});
+			self.setOffset([0, -3, zLeft], Block("air"));
+
+			// right connector
+			const zRight = isRightSide ? midpoint : midpoint + 2;
+			self.useWireOffset((wire) => {
+				for (let dz = junction + 1; dz < zRight; dz++) {
+					wire.add([0, 0, dz]);
+				}
+				wire.add([0, -1, zRight]);
+				wire.add([0, -2, zRight], null);
+			});
+			self.setOffset([0, -3, zRight], Block("air"));
+
+			// button
+			if (isFirst) {
+				self.setOffset([0, 0, junction], Block.Generic);
+				self.useWireOffset((wire) => {
+					for (let dz = midpoint; dz >= junction; dz--) {
+						wire.add([-2, 0, dz]);
+					}
+					wire.add([-1, 0, junction], "repeater");
+				});
+				self.setOffset([-2, 0, midpoint], Block.Button);
+			} else {
+				self.setOffset([0, 0, junction], Block.Button);
+			}
+		});
 	}
 }
