@@ -39,6 +39,6 @@
         "build": "rm -fr dist; tsc",
         "build:watch": "rm -fr dist; tsc --watch",
         "test": "vitest run",
-        "test:coverage": "rm -fr coverage; vitest --coverage --ui"
+        "test:ui": "rm -fr coverage; vitest --coverage --ui"
     }
 }
