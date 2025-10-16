@@ -1,4 +1,3 @@
-import { times } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs, is } from "typia";
 import type { Delete, Reset, Positional as T_Positional } from "#schema/@";
@@ -118,7 +117,10 @@ export function Positional<
 	function resolveFn({
 		current,
 		...args
-	}: TResolveArgs & { current: TInternal }) {
+	}: TResolveArgs & { current: TInternal | undefined }): TReturn | undefined {
+		if (current === undefined) {
+			return undefined;
+		}
 		return resolve(current, args as unknown as TResolveArgs);
 	}
 
@@ -193,31 +195,20 @@ export function Positional<
 				return cached;
 			}
 
-			let resolveCurrent = this.current;
-			if (isMulti(this.current)) {
-				const argsLength = Math.max(
-					0,
-					...Object.values(args)
-						.filter(isMulti)
-						.map((v) => v.length),
-				);
-				const currentLength = this.current.length;
-				if (currentLength < argsLength) {
-					resolveCurrent = multi([
-						...this.current,
-						...times(argsLength - currentLength, (i) =>
-							isMulti(this.original)
-								? (this.original[currentLength + i] ?? Default)
-								: this.original,
-						),
-					]);
-				}
-			}
-
-			const result = multiMap(resolveFn, {
-				current: resolveCurrent,
+			const mappedResolution = multiMap(resolveFn, {
+				current: this.current,
 				...args,
 			} as InternalResolveArgs);
+			let result: OneOrMany<TReturn>;
+			if (isMulti(mappedResolution)) {
+				result = multi(
+					mappedResolution.filter(
+						(value): value is TReturn => value !== undefined,
+					),
+				);
+			} else {
+				result = mappedResolution as TReturn;
+			}
 			this.resolveCache.set(cacheKey, result);
 			return result;
 		}

@@ -73,7 +73,7 @@ function getNoteBlock(args: {
 		delay,
 		noteDuration,
 		instrument,
-		trill = Trill.Default({ noteDuration }),
+		trill = Trill.default({ noteDuration }),
 	} = args;
 
 	if (!instrument) {

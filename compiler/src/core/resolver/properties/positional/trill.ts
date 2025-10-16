@@ -8,7 +8,7 @@ const Start = Positional<T_Trill["start"]>({ Default: 0 });
 const Length = Positional<T_Trill["length"]>({ Default: "..." });
 
 export class Trill {
-	static Default({ noteDuration }: { noteDuration: number }) {
+	static default({ noteDuration }: { noteDuration: number }) {
 		return { style: "normal" as const, start: 0, length: noteDuration };
 	}
 
