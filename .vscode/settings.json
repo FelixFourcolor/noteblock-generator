@@ -1,6 +1,6 @@
 {
 	"files.exclude": {
-		"compiler/node_modules": true,
+		"compiler/**/node_modules": true,
 		"compiler/pnpm-lock.yaml": true,
 		"compiler/coverage": true,
 		"generator/poetry.lock": true,

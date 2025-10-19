@@ -1,4 +1,5 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import type { ArgumentsCamelCase } from "yargs";
 import type { CLIOptions } from "./cli.js";
 import { handleError } from "./error.js";
@@ -28,6 +29,7 @@ export function withOutput<T extends ArgumentsCamelCase<CLIOptions>>(
 			: JSON.stringify(result);
 
 		if (args.out) {
+			mkdirSync(dirname(args.out), { recursive: true });
 			writeFileSync(args.out, `${stringified}\n`);
 		} else {
 			process.stdout.write(`${stringified}\n`);

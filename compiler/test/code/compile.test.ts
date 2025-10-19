@@ -2,7 +2,7 @@ import { readFile, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { CLI } from "#cli";
-import { forEachProject } from "../test";
+import { forEachProject } from "./shared";
 
 const COMPILE_MODES = [
 	{ mode: "resolve", output: "resolved" },
@@ -20,7 +20,7 @@ forEachProject("Compile tests", async (projectDir) => {
 		}
 
 		test(`${mode}`, async () => {
-			const entryPoint = join(projectDir, "src", "index.yaml");
+			const entryPoint = join(projectDir, "repo", "src", "index.yaml");
 			const receivedFile = join(projectDir, "build", `${output}.received.json`);
 
 			await CLI.run([
@@ -31,7 +31,6 @@ forEachProject("Compile tests", async (projectDir) => {
 
 			const received = await readFile(receivedFile, "utf-8");
 			expect(received).toBe(expected);
-			// remove received file if test passed
 			await unlink(receivedFile);
 		});
 	}

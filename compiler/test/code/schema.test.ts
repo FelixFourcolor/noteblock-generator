@@ -4,7 +4,7 @@ import Ajv from "ajv";
 import { afterAll, expect, test } from "vitest";
 import { parse as parseYAML } from "yaml";
 import { CLI } from "#cli";
-import { forEachProject } from "../test";
+import { forEachProject } from "./shared";
 
 const schemaFile = join(__dirname, "schema.json");
 const validatePromise = CLI.run(["--schema", "--out", schemaFile])
@@ -13,12 +13,13 @@ const validatePromise = CLI.run(["--schema", "--out", schemaFile])
 	.then((schema) => new Ajv({ unicodeRegExp: false }).compile(schema));
 
 forEachProject("Schema tests", async (projectDir) => {
-	const srcDir = join(projectDir, "src");
+	const srcDir = join(projectDir, "repo", "src");
 	for (const srcFile of await findSourceFiles(srcDir)) {
-		test(srcFile, async () => {
-			await readFile(srcFile, "utf-8")
+		const validate = await validatePromise;
+		test(srcFile, () => {
+			return readFile(srcFile, "utf-8")
 				.then(parseYAML)
-				.then(await validatePromise)
+				.then(validate)
 				.then((valid) => expect(valid).toBe(true));
 		});
 	}
