@@ -5,4 +5,4 @@ dist
 coverage
 
 __pycache__
-poetry.lock
+uv.lock
