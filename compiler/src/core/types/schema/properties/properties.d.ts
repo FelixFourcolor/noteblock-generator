@@ -13,7 +13,7 @@ import type {
 
 export type IStaticProperties = ITime & IDelay & IBeat;
 
-export type IProperties<T extends TPosition = TPosition> = IStaticProperties &
+export type IProperties<T = TPosition> = IStaticProperties &
 	IInstrument &
 	IDynamic &
 	ISustain &

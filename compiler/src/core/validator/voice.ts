@@ -3,7 +3,7 @@ import type { Deferred, IProperties, Notes, TPosition, Voice } from "#schema/@";
 import { type Validated, type ValidateError, validate } from "./validate.js";
 
 type ValidateContext = {
-	voice: Deferred<Voice>;
+	voice: Deferred<Voice<"lazy">>;
 	cwd: string;
 	index: number | [number, number];
 };
@@ -11,7 +11,7 @@ type ValidatedVoice = {
 	name: string;
 	type: TPosition;
 	modifier: IProperties;
-	notes: Notes;
+	notes: Notes<"lazy">;
 };
 
 export async function validateVoice({
@@ -22,7 +22,7 @@ export async function validateVoice({
 	const validatedVoice = await validate({
 		data: voice,
 		cwd,
-		validator: createEquals<Voice>(),
+		validator: createEquals<Voice<"lazy">>(),
 	});
 
 	if ("error" in validatedVoice) {
@@ -34,7 +34,7 @@ export async function validateVoice({
 	const validatedNotes = await validate({
 		data: notesRef,
 		cwd,
-		validator: createEquals<Notes>(),
+		validator: createEquals<Notes<"lazy">>(),
 	});
 
 	if ("error" in validatedNotes) {
@@ -51,13 +51,13 @@ export async function validateVoice({
 	};
 }
 
-function normalize(voice: Validated<Voice>) {
+function normalize(voice: Validated<Voice<"lazy">>) {
 	const { data, filename } = voice;
 	const { notes, ...modifier } = data;
 	return { name: filename, notes, modifier };
 }
 
-function resolveType(args: { notes: Notes; modifier: IProperties }) {
+function resolveType(args: { notes: unknown[]; modifier: IProperties }) {
 	const { notes, modifier } = args;
 	return equals<Voice<"single">>({ notes, ...modifier })
 		? ("single" as const)

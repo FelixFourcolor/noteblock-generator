@@ -16,6 +16,6 @@ export namespace Position {
 
 export type TPosition = "single" | "double";
 
-export type IPosition<T extends TPosition> = T extends "single"
+export type IPosition<T> = T extends "single"
 	? { position?: Positional<Level> } | ILevel
 	: { position?: Positional<Position> } | (ILevel & IDivision);
