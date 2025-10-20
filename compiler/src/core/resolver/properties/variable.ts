@@ -34,6 +34,12 @@ export function parseNumericValue(value: string): {
 export function uniformAbsolute(value: number): VariableTransformation {
 	return [{ transform: { value, type: "absolute" }, duration: undefined }];
 }
-export function uniformRelative(value: string): VariableTransformation {
+
+export function uniformRelative(
+	value: string | number,
+): VariableTransformation {
+	if (typeof value === "number") {
+		return [{ transform: { value, type: "relative" }, duration: undefined }];
+	}
 	return [{ transform: parseNumericValue(value), duration: undefined }];
 }
