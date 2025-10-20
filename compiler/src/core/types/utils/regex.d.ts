@@ -2,9 +2,15 @@ import type { Subtract } from "ts-arithmetic";
 import type { tags } from "typia";
 import type { Tuplify } from "./array.js";
 
-export type Re<A, B = "", C = "", D = "", E = ""> = [A] extends [string[]]
-	? Regex<ReJoin<[...A, string & B, string & C, string & D, string & E]>>
-	: Re<[string & A, string & B, string & C, string & D, string & E]>;
+export type Re<A, B = "", C = "", D = "", E = "", F = ""> = [A] extends [
+	string[],
+]
+	? Regex<
+			ReJoin<[...A, string & B, string & C, string & D, string & E, string & F]>
+		>
+	: Re<
+			[string & A, string & B, string & C, string & D, string & E, string & F]
+		>;
 
 export type Token<
 	T,
@@ -36,6 +42,8 @@ export type Repeat<
 	options["atLeast"] extends number
 		? `{${Subtract<options["atLeast"], 1>},}`
 		: "*",
+	// optional dangling separator
+	Re<Token<options["separator"]>, "?">,
 	// close wrapper
 	Token<
 		options["wrapper"] extends string[]

@@ -30,6 +30,7 @@ export function resolveNote(
 			pitches
 				.slice(1, -1)
 				.split(";")
+				.filter((v) => v.trim())
 				.map((pitch) => (duration ? `${pitch}:${duration}` : pitch))
 				.map((v) => resolveSimple(v)),
 		);
@@ -55,12 +56,16 @@ export function resolveNote(
 		const fastContext = noteContext.fork({ beat: halfBeat });
 
 		const values = noteValue.split("'");
-		const initial = values
+		const quaverNotes = values
 			.slice(0, -1)
 			.map((v) => resolveSimple(v, fastContext));
-		const last = resolveSimple(values[values.length - 1]!);
 
-		return chain([...initial, last]);
+		const lastValue = values[values.length - 1]!;
+		if (!lastValue.trim()) {
+			return chain(quaverNotes);
+		}
+		const normalNote = resolveSimple(lastValue);
+		return chain([...quaverNotes, normalNote]);
 	}
 
 	return match(normalizedNote)

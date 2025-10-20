@@ -13,6 +13,6 @@ export namespace NoteValue {
 		Repeat<Pitch, { atLeast: 2; wrapper: ["\\(", "\\)"]; separator: ";" }>
 	>;
 	export type Quaver = Timed<
-		Repeat<Rest | Pitch, { atLeast: 2; separator: "'" }>
+		Repeat<Rest | Pitch, { atLeast: 1; separator: "'" }>
 	>;
 }

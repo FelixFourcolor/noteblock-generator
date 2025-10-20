@@ -41,7 +41,10 @@ export const Instrument = Positional({
 		},
 	): [NoteBlock | undefined, NoteBlock | undefined] => {
 		const instrumentChoices = assert<instrument.Name[]>(
-			current.split("|").map((s) => s.trim()),
+			current
+				.split("|")
+				.map((s) => s.trim())
+				.filter(Boolean),
 		);
 		const defaultInstrument = assert<instrument.Name>(instrumentChoices[0]);
 		if (defaultInstrument === "null") {

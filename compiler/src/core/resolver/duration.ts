@@ -99,7 +99,7 @@ export function splitVariableValue(
 	return variableValue
 		.split(";")
 		.map((part) => part.trim())
-		.filter((part) => part.length > 0)
+		.filter(Boolean)
 		.map(splitTimedValue);
 }
 
