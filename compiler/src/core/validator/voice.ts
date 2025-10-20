@@ -5,7 +5,7 @@ import { type Validated, type ValidateError, validate } from "./validate.js";
 type ValidateContext = {
 	voice: Deferred<Voice>;
 	cwd: string;
-	index: number;
+	index: number | [number, number];
 };
 type ValidatedVoice = {
 	name: string;

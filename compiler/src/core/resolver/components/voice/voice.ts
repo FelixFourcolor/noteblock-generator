@@ -15,19 +15,19 @@ export async function resolveVoice(
 	const validated = await validateVoice({ ...ctx, voice });
 
 	if ("error" in validated) {
-		return error({ ...validated, index });
+		const voice = `Voice ${index}`;
+		return error({ ...validated, voice });
 	}
 
 	const { type, notes, name, modifier } = validated;
 
+	const level = typeof index === "number" ? index : index[0];
 	const context = new Context(name)
-		.transform({ level: index })
+		.transform({ level })
 		.transform(songModifier)
 		.fork(modifier);
 
-	// This function is synchronous, but it's wrapped in async
-	// so that the API is identical to the threaded version.
-	async function* generator(): AsyncGenerator<Tick> {
+	function* generator(): Generator<Tick> {
 		let hasBarLine = false;
 
 		for (const item of notes) {
@@ -68,10 +68,10 @@ export async function resolveVoice(
 	return { time, type, ticks: generator() };
 }
 
-function error({ error, index }: { error: string; index: number }) {
+function error({ error, voice }: { error: string; voice: string }) {
 	const type = "single" as const;
-	const ticks = (async function* () {
-		yield [{ error, voice: `Voice ${index}`, measure: { bar: 1, tick: 1 } }];
+	const ticks = (function* () {
+		yield [{ error, voice, measure: { bar: 1, tick: 1 } }];
 	})();
 	return { time: NaN, type, ticks };
 }

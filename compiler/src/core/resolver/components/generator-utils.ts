@@ -8,18 +8,6 @@ export function* zip<T>(generators: Generator<T[]>[]): Generator<T[]> {
 	}
 }
 
-export async function* zipAsync<T>(
-	generators: AsyncGenerator<T[]>[],
-): AsyncGenerator<T[]> {
-	while (true) {
-		const iterables = await Promise.all(generators.map((gen) => gen.next()));
-		if (iterables.every((iter) => iter.done)) {
-			return;
-		}
-		yield zipped(iterables);
-	}
-}
-
 function zipped<T>(iterables: IteratorResult<T[]>[]): T[] {
 	const result: T[] = [];
 

@@ -1,4 +1,6 @@
-import { readFile, unlink } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "vitest";
 import { CLI } from "#cli";
@@ -13,8 +15,8 @@ const COMPILE_MODES = [
 forEachProject("Compile tests", async (projectDir) => {
 	for (const { mode, output } of COMPILE_MODES) {
 		const expectedFile = join(projectDir, "build", `${output}.json`);
-		const expected = await readFile(expectedFile, "utf-8").catch(() => null);
-		if (!expected) {
+		const expectedHash = await getFileHash(expectedFile).catch(() => null);
+		if (!expectedHash) {
 			test.skip(`expected ${output} output not found`);
 			continue;
 		}
@@ -29,9 +31,19 @@ forEachProject("Compile tests", async (projectDir) => {
 				...["--debug", mode],
 			]);
 
-			const received = await readFile(receivedFile, "utf-8");
-			expect(received).toBe(expected);
+			const receivedHash = await getFileHash(receivedFile);
+			expect(receivedHash).toBe(expectedHash);
 			await unlink(receivedFile);
 		});
 	}
 });
+
+async function getFileHash(filePath: string): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const hash = createHash("sha256");
+		const stream = createReadStream(filePath);
+		stream.on("data", (chunk) => hash.update(chunk));
+		stream.on("end", () => resolve(hash.digest("hex")));
+		stream.on("error", reject);
+	});
+}

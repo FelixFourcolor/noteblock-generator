@@ -83,7 +83,6 @@ export const Level = Positional({
 		);
 
 		const silentPart = times(noteDuration - sustain, () => 0);
-
 		return [...sustainedPart, ...silentPart];
 	},
 });

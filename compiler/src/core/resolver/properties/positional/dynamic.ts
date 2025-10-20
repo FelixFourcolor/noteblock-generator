@@ -88,7 +88,6 @@ export const Dynamic = Positional({
 		);
 
 		const silentPart = times(noteDuration - sustain, () => 0);
-
 		return [...sustainedPart, ...silentPart];
 	},
 });

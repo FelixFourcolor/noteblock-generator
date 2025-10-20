@@ -94,7 +94,6 @@ export const Division = Positional({
 		);
 
 		const silentPart = times(noteDuration - sustain, () => "LR" as const);
-
 		return [...sustainedPart, ...silentPart];
 	},
 });
