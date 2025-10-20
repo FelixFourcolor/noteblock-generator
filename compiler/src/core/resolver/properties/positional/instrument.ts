@@ -3,12 +3,7 @@ import { match, P } from "ts-pattern";
 import { assert, createIs, is } from "typia";
 import { UserError } from "#cli/error.js";
 
-import type {
-	Pitch,
-	Instrument as T_Instrument,
-	Transpose as T_Transpose,
-	Trill,
-} from "#schema/@";
+import type { Pitch, Instrument as T_Instrument, Trill } from "#schema/@";
 import type { Int } from "#utils/@";
 import { Positional } from "../positional.js";
 import { Transpose } from "./transpose.js";
@@ -41,8 +36,8 @@ export const Instrument = Positional({
 		}: {
 			pitch: Pitch;
 			trillValue: Trill.Value | undefined;
-			transpose: T_Transpose.absolute | undefined;
-			autoTranspose: T_Transpose.Auto | undefined;
+			transpose: number | undefined;
+			autoTranspose: boolean | undefined;
 		},
 	): [NoteBlock | undefined, NoteBlock | undefined] => {
 		const instrumentChoices = assert<instrument.Name[]>(

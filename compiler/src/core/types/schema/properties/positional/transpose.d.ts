@@ -7,11 +7,8 @@ export type Transpose = {
 };
 
 export namespace Transpose {
-	export type Value = absolute | relative;
+	export type Value = Int | Re<Token<"[+-]?">, "\\d+">;
 	export type Auto = boolean;
-
-	export type absolute = Int;
-	export type relative = Re<"[+-]", Token<"\\d+">>;
 }
 
 export type ITranspose = {

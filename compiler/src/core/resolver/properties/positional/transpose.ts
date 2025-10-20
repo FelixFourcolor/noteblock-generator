@@ -7,10 +7,10 @@ const Value = Positional({
 	Default: 0,
 	transform: (current, modifier: T_Transpose.Value) => {
 		return match(modifier)
-			.with(P.number, (modifier) => modifier)
+			.with(P.number, (modifier) => current + modifier)
 			.otherwise((modifier) => {
-				const { value } = parseNumericValue(modifier);
-				return current + value;
+				const { value, type } = parseNumericValue(modifier);
+				return type === "absolute" ? value : current + value;
 			});
 	},
 });
