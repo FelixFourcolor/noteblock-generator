@@ -1,4 +1,5 @@
 import { times } from "lodash";
+import { UserError } from "#cli/error.js";
 import type { SongResolution } from "#core/resolver/@";
 import { BoundsTracker } from "./bounds-tracker.js";
 import { ErrorTracker } from "./error-tracker.js";
@@ -12,6 +13,9 @@ export async function assemble(song: SongResolution): Promise<SongLayout> {
 	const rawSlices = await Array.fromAsync(
 		processSong({ song, errorTracker, boundTracker }),
 	);
+	if (rawSlices.length === 0) {
+		throw new UserError("Song is empty.");
+	}
 
 	const error = errorTracker.validate();
 	if (error) {

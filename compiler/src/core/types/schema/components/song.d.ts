@@ -4,7 +4,7 @@ import type { Deferred } from "./deferred.ts";
 import type { Notes, Voice } from "./voice.ts";
 
 type VoiceGroup<T extends TPosition = TPosition> = Deferred<Voice<T>>[] &
-	tags.MinItems<2>;
+	tags.MinItems<1>;
 
 export type VoiceEntry<T extends TPosition = TPosition> =
 	| null
