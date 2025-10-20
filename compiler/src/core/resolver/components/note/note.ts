@@ -54,7 +54,7 @@ export function resolveNote(
 		const halfBeat = Math.max(1, Math.floor(beat / 2));
 		const fastContext = noteContext.fork({ beat: halfBeat });
 
-		const values = noteValue.split(";");
+		const values = noteValue.split("'");
 		const initial = values
 			.slice(0, -1)
 			.map((v) => resolveSimple(v, fastContext));
