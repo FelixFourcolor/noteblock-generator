@@ -1,5 +1,5 @@
 import type { Timed } from "#schema/duration.ts";
-import type { Repeat } from "#utils/@";
+import type { Re, Repeat } from "#utils/@";
 import type { Pitch } from "./pitch.ts";
 
 export type NoteValue = NoteValue.Simple | NoteValue.Chord | NoteValue.Quaver;
@@ -13,6 +13,6 @@ export namespace NoteValue {
 		Repeat<Pitch, { atLeast: 2; wrapper: ["\\(", "\\)"]; separator: ";" }>
 	>;
 	export type Quaver = Timed<
-		Repeat<Rest | Pitch, { atLeast: 1; separator: "'" }>
+		Repeat<Re<"R"> | Pitch, { atLeast: 1; separator: "'" }>
 	>;
 }
