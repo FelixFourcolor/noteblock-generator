@@ -5,6 +5,7 @@ import shutil
 import signal
 from pathlib import Path
 
+from .cache import Cache
 import typer
 from click import UsageError
 
@@ -35,15 +36,21 @@ class IgnoreInterrupt:
             signal.signal(sig, handler)
 
 
-aborted_message = "Aborted. No changes were made."
+aborted_message = "Safely aborted. No changes were made."
 
 
 class WorldGeneratingSession:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, use_cache: bool):
         self.original_path = path
         self.working_path: str | None = None
         self.world: World | None = None
         self.world_hash: int | None = None
+
+        if use_cache:
+            self.cache = Cache(str(path))
+        else:
+            self.cache = None
+            Cache.delete(str(path))
 
     def load_world(self):
         if not self.working_path:
@@ -127,13 +134,16 @@ class WorldGeneratingSession:
         if not self.world:
             return
 
+        self.world.close()
         with IgnoreInterrupt():
             # This section is critical but should be very fast,
             # no need to handle interrupt signals, just ignore them
-            self.world.close()
             if self.working_path:
                 shutil.rmtree(self.original_path, ignore_errors=True)
                 shutil.move(self.working_path, self.original_path)
+
+        if self.cache:
+            self.cache.save()
 
         if externally_modified:
             Console.success(

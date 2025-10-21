@@ -11,7 +11,7 @@ export type BlockData = {
 	properties: Record<string, unknown>;
 };
 
-export type BlockType = BlockName | BlockData | null;
+export type BlockType = BlockName | BlockData | 0;
 
 export type BlockMap = Record<string, BlockType>;
 

@@ -98,7 +98,6 @@ class CancellableProgress:
             jobs_iter,
             total=jobs_count,
             description=description,
-            auto_refresh=False,
         ):
             pass
 

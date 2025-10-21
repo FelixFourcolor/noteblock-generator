@@ -13,30 +13,30 @@ if TYPE_CHECKING:
 class ChunkProcessor:
     def __init__(self, structure: Structure):
         self.structure = structure
-
         self._chunks: ChunksData = {}
-        bounds = structure.bounds
-        min_cx = bounds.min_x // 16
-        min_cz = bounds.min_z // 16
-        max_cx = bounds.max_x // 16
-        max_cz = bounds.max_z // 16
-        for cx in range(min_cx, max_cx + 1):
-            for cz in range(min_cz, max_cz + 1):
-                self._chunks[cx, cz] = {}
-
-        self.chunks_count = len(self._chunks)
-        self._blocks_per_chunk = structure.volume // self.chunks_count
+        self._chunks_count_ready = False
 
     def process(self):
-        for i, (coords, placement) in enumerate(self.structure):
-            self[coords] = placement
-            if i % self._blocks_per_chunk == 0:
-                yield
+        for placement in self.structure:
+            if placement:
+                coords, block = placement
+                self[coords] = block
+            yield
+
+        self._chunks_count_ready = True
+
+    @property
+    def chunks_count(self) -> int:
+        if self._chunks_count_ready:
+            return len(self._chunks)
+        raise RuntimeError("Cannot access chunks count until processing is complete.")
 
     def __setitem__(self, coords: XYZ, placement: BlockType):
         x, y, z = coords
         cx, offset_x = divmod(x, 16)
         cz, offset_z = divmod(z, 16)
+        if (cx, cz) not in self._chunks:
+            self._chunks[cx, cz] = {}
         self._chunks[cx, cz][offset_x, y, offset_z] = placement
 
     def __iter__(self):

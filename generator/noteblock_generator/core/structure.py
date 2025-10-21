@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from .cache import Cache
+
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
@@ -21,6 +23,9 @@ class Bounds(NamedTuple):
     max_z: int
 
 
+air: BlockData = {"name": "air", "properties": {}}
+
+
 class Structure:
     def __init__(
         self,
@@ -31,6 +36,7 @@ class Structure:
         tilt: TiltName,
         theme: str,
         blend: bool,
+        cache: Cache | None,
     ):
         size = data["size"]
         self.length = int(size["length"])
@@ -42,31 +48,47 @@ class Structure:
         self.direction = Direction[direction]
         self.tilt = tilt
         self.theme = theme
-        air: BlockData = {"name": "air", "properties": {}}
-        self.space_block = None if blend else air
+        self.blend = blend
         self.bounds = self._get_bounds()
+        self.cache = cache
 
-    def __iter__(self) -> Iterator[tuple[XYZ, BlockType]]:
+    def __iter__(self) -> Iterator[None | tuple[XYZ, BlockType]]:
         for x in range(self.length + 1):
             for y in range(self.height + 1):
                 for z in range(self.width + 1):
-                    coords = (x, y, z)
-                    yield self.translate_position(coords), self.get_block(coords)
+                    yield self.get_placement((x, y, z))
+
+    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, BlockType]:
+        translated_coords = self.translate_position(coords)
+        block = self.get_block(coords)
+
+        if self.cache:
+            cached_block = self.cache[translated_coords]
+            if block == cached_block or block is None and cached_block == air:
+                # block == None means blend,
+                # if cache is already air, no need to do anything
+                return None
+            self.cache[translated_coords] = block
+
+        return translated_coords, block
 
     def get_block(self, coords: XYZ) -> BlockType:
         x, y, z = coords
+        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else air)
 
-        key = f"{x} {y} {z}"
-        if key not in self.blocks:
-            return self.space_block
-
-        block = self.blocks[key]
+        if block is None:
+            return None
 
         if isinstance(block, dict):
-            block["properties"] = self.translate_properties(block["properties"])
-            return block
+            return {
+                **block,
+                "properties": self.translate_properties(block["properties"]),
+            }
 
-        block_name = block or self.theme
+        if block == 0:  # magic value for "use theme block"
+            block_name = self.theme
+        else:
+            block_name = block
         return {"name": block_name, "properties": {}}
 
     def translate_position(self, coords: XYZ):

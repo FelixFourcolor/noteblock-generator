@@ -15,7 +15,7 @@ export function Block(
 
 export namespace Block {
 	// chosen by the user when generating
-	export const Generic = null satisfies BlockType;
+	export const Generic = 0 satisfies BlockType;
 
 	export function Note(props: NoteBlock) {
 		return Block("note_block", props);

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import chain
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,14 +17,18 @@ def generate(
     *,
     data: BuildingDTO,
     world_path: Path,
-    theme: str,
-    blend: bool,
     position: XYZ | None,
     dimension: str | None,
     direction: DirectionName | None,
     tilt: TiltName | None,
+    theme: str,
+    blend: bool,
+    use_cache: bool,
 ):
-    with WorldGeneratingSession(world_path) as session:
+    if blend:
+        Console.warn("Blend mode is experimental. Turn it off if you encounter issues.")
+
+    with WorldGeneratingSession(world_path, use_cache=use_cache) as session:
         world = session.load_world()
         dimension = dimension or world.player_dimension
 
@@ -36,13 +39,8 @@ def generate(
             tilt=tilt or world.player_tilt,
             theme=theme,
             blend=blend,
+            cache=session.cache,
         )
-
-        if blend:
-            Console.warn(
-                "Blend mode is experimental. Turn it off if you encounter issues."
-            )
-
         bounds = structure.bounds
         Console.info(
             "The structure will occupy the space\n{start} to {end} in {dimension}.",
@@ -53,12 +51,39 @@ def generate(
         )
         world.validate_bounds(bounds, dimension)
 
-        chunks = ChunkProcessor(structure)
-        jobs_iter = chain(chunks.process(), world.write(chunks, dimension))
-        jobs_count = 3 * chunks.chunks_count
-
         with CancellableProgress("Confirm to proceed?", default=True) as progress:
-            finished = progress.run(jobs_iter, jobs_count, "Generating")
+            chunk_processor = ChunkProcessor(structure)
+
+            def process():
+                return progress.run(
+                    chunk_processor.process(),
+                    jobs_count=structure.volume,
+                    description="Loading data",
+                )
+
+            def write():
+                write_jobs_count = 2 * chunk_processor.chunks_count
+                if not write_jobs_count:
+                    if use_cache:
+                        Console.info(
+                            "Structure unchanged from cache. Nothing to generate.",
+                            important=True,
+                        )
+                    else:
+                        # should never happen, but just in case
+                        Console.warn(
+                            "The structure is empty. Nothing to generate.",
+                            important=True,
+                        )
+                    return True
+
+                return progress.run(
+                    world.write(chunk_processor, dimension),
+                    jobs_count=write_jobs_count,
+                    description="Generating",
+                )
+
+            finished = process() and write()
 
         if not finished:
             raise UserCancelled

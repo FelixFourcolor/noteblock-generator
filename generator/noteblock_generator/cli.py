@@ -55,7 +55,7 @@ def run(
         Option(
             "--out",
             "-o",
-            help="Path to the world save folder.",
+            help="Minecraft Java world save",
             show_default=False,
             metavar="folder",
             rich_help_panel="Paths",
@@ -71,7 +71,7 @@ def run(
         Option(
             "--in",
             "-i",
-            help="Path to the input file",
+            help="Music input",
             show_default="read from stdin",
             metavar="file",
             rich_help_panel="Paths",
@@ -80,40 +80,21 @@ def run(
             dir_okay=False,
         ),
     ] = None,
-    theme: Annotated[
-        str,
-        Option(
-            "--theme",
-            "-t",
-            help="Structure's primary building block; must be redstone-conductive.",
-            rich_help_panel="Build customization",
-            metavar="block_name",
-        ),
-    ] = "stone",
-    blend: Annotated[
-        bool,
-        Option(
-            "--blend/--clear",
-            help="Preserve surrounding blocks in the area",
-            show_default="clear area before generating",
-            rich_help_panel="Build customization",
-        ),
-    ] = False,
     position: Annotated[
         XYZ | None,
         Option(
             "--at",
             help="Coordinates to place the structure",
-            show_default="player's position",
+            show_default="player's coordinates",
             rich_help_panel="Build location",
-            metavar="<X Y Z>",
+            metavar="<X> <Y> <Z>",
         ),
     ] = None,
     dimension: Annotated[
         Dimension | None,
         Option(
             "--dim",
-            help="Dimension to place the structure in.",
+            help="Dimension to place the structure in",
             show_default="player's dimension",
             rich_help_panel="Build location",
             case_sensitive=False,
@@ -123,7 +104,7 @@ def run(
         Direction | None,
         Option(
             "--dir",
-            help="Build direction (horizontal) from the starting position",
+            help="Build direction (horizontal) starting from --at",
             show_default="player's look direction",
             rich_help_panel="Build location",
             case_sensitive=False,
@@ -133,12 +114,38 @@ def run(
         Tilt | None,
         Option(
             "--tilt",
-            help="Build direction (vertical) from the starting position",
+            help="Build direction (vertical) starting from --at",
             show_default="player's look direction",
             rich_help_panel="Build location",
             case_sensitive=False,
         ),
     ] = None,
+    theme: Annotated[
+        str,
+        Option(
+            "--theme",
+            "-t",
+            help="Primary building block; must be redstone-conductive",
+            rich_help_panel="Build customization",
+            metavar="block name",
+        ),
+    ] = "stone",
+    blend: Annotated[
+        bool,
+        Option(
+            "--blend/--clear",
+            help="Preserve surrounding blocks (--blend) or replace them with air (--clear)",
+            rich_help_panel="Build customization",
+        ),
+    ] = False,
+    use_cache: Annotated[
+        bool,
+        Option(
+            "--cache/--no-cache",
+            help="Remember placed blocks to skip unchanged areas on subsequent runs",
+            rich_help_panel="Build customization",
+        ),
+    ] = False,
     _: Annotated[  # to hide --help in the help message
         bool,
         Option(
@@ -164,10 +171,11 @@ def run(
     generate(
         data=data,
         world_path=world_path,
-        theme=theme,
-        blend=blend,
         position=position,
         dimension=dimension.value if dimension else None,
         direction=direction.name if direction else None,
         tilt=tilt.name if tilt else None,
+        theme=theme,
+        blend=blend,
+        use_cache=use_cache,
     )
