@@ -9,13 +9,13 @@ from .structure import Structure
 from .utils.console import CancellableProgress, Console
 
 if TYPE_CHECKING:
-    from ..api.types import BuildingDTO
+    from ..api.types import Building
     from .coordinates import XYZ, DirectionName, TiltName
 
 
 def generate(
     *,
-    data: BuildingDTO,
+    data: Building,
     world_path: Path,
     position: XYZ | None,
     dimension: str | None,

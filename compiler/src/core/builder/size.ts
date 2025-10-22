@@ -1,5 +1,10 @@
 import type { SongLayout } from "#core/assembler/@";
-import type { Size } from "./types.js";
+
+export type Size = {
+	width: number;
+	length: number;
+	height: number;
+};
 
 export const SLICE_SIZE = {
 	length: 4,

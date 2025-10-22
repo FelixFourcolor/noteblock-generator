@@ -5,12 +5,12 @@ from sys import stdin
 
 from msgspec import json
 
-from .types import BuildingDTO
+from .types import Building
 
 
-def load_and_validate(path: Path | None) -> BuildingDTO | None:
+def load_and_validate(path: Path | None) -> Building | None:
     if data := _load(path):
-        return json.decode(data, type=BuildingDTO)
+        return json.decode(data, type=Building)
 
 
 def _load(path: Path | None) -> bytes | None:

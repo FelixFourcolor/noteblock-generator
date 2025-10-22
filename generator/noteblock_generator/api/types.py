@@ -25,6 +25,6 @@ class Size(Struct):
     length: int
 
 
-class BuildingDTO(Struct):
+class Building(Struct):
     size: Size
     blocks: BlockMap

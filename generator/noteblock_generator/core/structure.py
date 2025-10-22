@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, NamedTuple
 
-from ..api.types import BlockData, BuildingDTO, Properties
+from ..api.types import BlockData, Building, Properties
 from .cache import BlocksCache
 from .coordinates import DIRECTION_NAMES, Direction
 
@@ -19,7 +19,7 @@ class Structure:
     def __init__(
         self,
         *,
-        data: BuildingDTO,
+        data: Building,
         position: XYZ,
         direction: DirectionName,
         tilt: TiltName,

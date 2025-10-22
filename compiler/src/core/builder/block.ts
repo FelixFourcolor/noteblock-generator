@@ -1,11 +1,18 @@
 import type { NoteBlock } from "#core/resolver/@";
 import type { Delay } from "#schema/@";
 import { Direction } from "./direction.js";
-import type { BlockType } from "./types.js";
+
+type BlockName = string;
+type BlockProperties = Record<string, string | number>;
+type BlockData = {
+	name: BlockName;
+	properties: BlockProperties;
+};
+export type BlockType = BlockName | BlockData | 0;
 
 export function Block(
-	name: string,
-	properties: Record<string, string | number> | undefined = undefined,
+	name: BlockName,
+	properties: BlockProperties | undefined = undefined,
 ): BlockType {
 	if (!properties) {
 		return name;

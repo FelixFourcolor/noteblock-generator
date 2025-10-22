@@ -1,5 +1,5 @@
 import { assemble, type SongLayout } from "#core/assembler/@";
-import { type BuildingDTO, build } from "#core/builder/@";
+import { type Building, build } from "#core/builder/@";
 import { resolve, type SongResolution, type Tick } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
 
@@ -18,12 +18,12 @@ export function compile(
 export function compile(
 	src: FileRef | JsonData,
 	mode: "compile",
-): Promise<BuildingDTO>;
+): Promise<Building>;
 
 export async function compile(
 	src: FileRef | JsonData,
 	mode?: "resolve" | "assemble" | "compile",
-): Promise<SongResolutionSerialized | SongLayout | BuildingDTO>;
+): Promise<SongResolutionSerialized | SongLayout | Building>;
 
 export async function compile(
 	src: FileRef | JsonData,

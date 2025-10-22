@@ -2,10 +2,14 @@ import type { Slice, SongLayout } from "#core/assembler/@";
 import type { NoteBlock } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import { Block } from "../block.js";
-import { BlockPlacer } from "../block-placer.js";
+import { type BlockMap, BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";
-import { getSize, SLICE_SIZE } from "../size.js";
-import type { BuildingDTO, Size } from "../types.js";
+import { getSize, type Size, SLICE_SIZE } from "../size.js";
+
+export type Building = {
+	size: Size;
+	blocks: BlockMap;
+};
 
 export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	protected abstract buildPlayButton(index: number): void;
@@ -22,7 +26,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		this.size = getSize(this.song);
 	}
 
-	build(): BuildingDTO {
+	build(): Building {
 		this.buildWalkSpace();
 		this.buildGrid();
 

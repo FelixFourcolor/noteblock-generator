@@ -1,12 +1,13 @@
-import { Block } from "./block.js";
+import { Block, type BlockType } from "./block.js";
 import { Cursor } from "./cursor.js";
-import type { BlockMap, BlockType } from "./types.js";
 import { Wire } from "./wire.js";
 
 export type Coord = [number, number, number];
+export type StrCoord = `${number} ${number} ${number}`;
+export type BlockMap = Record<StrCoord, BlockType>;
 
 export class BlockPlacer {
-	private readonly blocks: Map<string, BlockType> = new Map();
+	private readonly blocks: Map<StrCoord, BlockType> = new Map();
 	protected cursor = new Cursor();
 
 	protected exportBlocks(): BlockMap {
