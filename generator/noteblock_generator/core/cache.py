@@ -8,14 +8,15 @@ from humanize import naturaldelta
 from msgspec import Struct, msgpack
 from platformdirs import user_cache_dir
 
-from ..api.types import NullableBlockData
+from ..api.types import BlockName, BlockType
 from .coordinates import XYZ
 from .utils.console import Console
 
 
 class CacheData(Struct):
     last_modified: float
-    blocks: dict[XYZ, NullableBlockData]
+    theme: BlockName
+    blocks: dict[XYZ, BlockType | None]
 
 
 _CACHE_MISS = object()
@@ -37,16 +38,17 @@ class BlocksCache:
             delta = datetime.now() - datetime.fromtimestamp(cache.last_modified)
             Console.info("Using cache from {time} ago.", time=naturaldelta(delta))
         else:
-            self._data = CacheData(last_modified=0, blocks={})
+            self._data = CacheData(last_modified=0, theme="", blocks={})
+            Console.info("No cache found, starting fresh.")
 
         self._initial_length = len(self._data.blocks)
         self._updates_count = 0
 
-    def __setitem__(self, coords: XYZ, block: NullableBlockData) -> None:
+    def __setitem__(self, coords: XYZ, block: BlockType | None) -> None:
         self._data.blocks[coords] = block
         self._updates_count += 1
 
-    def __getitem__(self, coords: XYZ) -> NullableBlockData | object:
+    def __getitem__(self, coords: XYZ) -> object:
         return self._data.blocks.get(coords, _CACHE_MISS)
 
     def save(self):
@@ -56,20 +58,19 @@ class BlocksCache:
         self._data.last_modified = datetime.now().timestamp()
         save_cache(self.path, self._data)
 
-        Console.info("Cache saved to {path}.", path=self.path)
         if self._initial_length:
-            changed_percentage = (self._updates_count / (self._initial_length)) * 100
-            if changed_percentage < 0.01:
+            percentage = (self._updates_count / (self._initial_length)) * 100
+            if percentage < 0.01:
                 Console.info(
-                    "{count} blocks changed since last generation.",
-                    count=self._updates_count,
+                    "{blocks} changed since last generation.",
+                    blocks=f"{self._updates_count} blocks",
                 )
             else:
                 Console.info(
-                    "{count} blocks ({percentage} of cache) changed since last generation.",
-                    count=self._updates_count,
-                    percentage=f"{changed_percentage:.2f}%",
+                    "{percentage} of blocks changed since last generation.",
+                    percentage=f"{percentage:.2f}%",
                 )
+        Console.info("Cache saved to {path}.", path=self.path)
 
 
 def get_cache_file(key: str) -> Path:

@@ -3,16 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, NamedTuple
 
-from ..api.types import BlockData, Building, Properties
+from ..api.types import BlockData, BlockName, BlockProperties, Building
+from .blend import DANGER_LIST
 from .cache import BlocksCache
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from ..api.types import NullableBlockData
+    from ..api.types import BlockData
     from .coordinates import XYZ, DirectionName, TiltName
-
-
-air = BlockData("air", {})
 
 
 class Structure:
@@ -41,29 +39,32 @@ class Structure:
         self.bounds = self._get_bounds()
         self.cache = cache
 
-    def __iter__(self) -> Iterator[None | tuple[XYZ, NullableBlockData]]:
+    def __iter__(self) -> Iterator[None | tuple[XYZ, BlockData | None]]:
         for x in range(self.length + 1):
             for y in range(self.height + 1):
                 for z in range(self.width + 1):
                     yield self.get_placement((x, y, z))
 
-    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, NullableBlockData]:
+    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, BlockData | None]:
         translated_coords = self.translate_position(coords)
         block = self.get_block(coords)
 
         if self.cache:
             cached_block = self.cache[translated_coords]
-            if block == cached_block or block is None and cached_block == air:
-                # block == None means blend,
-                # if cache is already air, no need to do anything
+            if block == cached_block:
                 return None
+            if block is None and isinstance(cached_block, str):
+                if cached_block not in DANGER_LIST:
+                    return None
             self.cache[translated_coords] = block
 
+        if isinstance(block, str):
+            block = BlockData(name=block, properties={})
         return translated_coords, block
 
-    def get_block(self, coords: XYZ) -> NullableBlockData:
+    def get_block(self, coords: XYZ) -> BlockName | BlockData | None:
         x, y, z = coords
-        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else air)
+        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else "air")
 
         if block is None:
             return None
@@ -72,11 +73,10 @@ class Structure:
             block.properties = self.translate_properties(block.properties)
             return block
 
-        if block == 0:  # magic value for "use theme block"
-            name = self.theme
-        else:
-            name = block
-        return BlockData(name=name, properties={})
+        if block == 0:
+            return self.theme
+
+        return block
 
     def translate_position(self, coords: XYZ):
         raw_x, raw_y, raw_z = coords
@@ -100,8 +100,8 @@ class Structure:
         rotated_dir = Direction(self.direction.rotate(raw_dir))
         return rotated_dir.name
 
-    def translate_properties(self, data: Properties):
-        translated: Properties = {}
+    def translate_properties(self, data: BlockProperties):
+        translated: BlockProperties = {}
 
         for key, value in data.items():
             if key in DIRECTION_NAMES:

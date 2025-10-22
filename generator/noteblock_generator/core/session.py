@@ -5,10 +5,10 @@ import shutil
 import signal
 from pathlib import Path
 
-from .cache import BlocksCache
 import typer
 from click import UsageError
 
+from .cache import BlocksCache
 from .utils.console import Console
 from .utils.files import backup_files, hash_files
 from .world import World
@@ -114,14 +114,19 @@ class WorldGeneratingSession:
         finally:
             shutil.rmtree(self.working_path, ignore_errors=True)
 
-    def _detect_external_modifications(self) -> bool:
+    def _externally_modified(self) -> bool:
         try:
             return self.world_hash is None or self.world_hash != self._compute_hash()
         except FileNotFoundError:
             return True
 
     def _commit(self):
-        if externally_modified := self._detect_external_modifications():
+        if not self.world:
+            return
+
+        self.world.close()
+
+        if self._externally_modified():
             Console.warn(
                 "The save files have been modified while generating."
                 "\nTo keep this generation, all other changes must be discarded.",
@@ -130,23 +135,15 @@ class WorldGeneratingSession:
             if not Console.confirm("Confirm to proceed?", default=True):
                 Console.success(aborted_message)
                 raise typer.Exit()
+            Console.success(
+                "If you are inside the world, exit and re-enter to see the result.",
+            )
 
-        if not self.world:
-            return
-
-        self.world.close()
         with IgnoreInterrupt():
-            # This section is critical but should be very fast,
-            # no need to handle interrupt signals, just ignore them
+            # This section is critical but should be very fast (< 0.1s)
+            # No need to handle signals, just ignore them
             if self.working_path:
                 shutil.rmtree(self.original_path, ignore_errors=True)
                 shutil.move(self.working_path, self.original_path)
-
-        if self.cache:
-            self.cache.save()
-
-        if externally_modified:
-            Console.success(
-                "If you are inside the world, exit and re-enter to see the result.",
-                important=True,
-            )
+            if self.cache:
+                self.cache.save()

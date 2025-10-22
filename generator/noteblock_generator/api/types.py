@@ -3,20 +3,18 @@ from typing import Literal
 from msgspec import Struct
 
 BlockName = str
-Properties = dict[str, str | int]
+BlockProperties = dict[str, str | int]
 
 
 class BlockData(Struct):
     name: BlockName
-    properties: Properties
+    properties: BlockProperties
 
 
-NullableBlockData = BlockData | None
-
-
-StrCoords = str  # f"{x} {y} {z}"
+StrCoord = str  # f"{x} {y} {z}"
 ThemeBlock = Literal[0]
-BlockMap = dict[StrCoords, BlockName | ThemeBlock | BlockData]
+BlockType = BlockName | ThemeBlock | BlockData
+BlockMap = dict[StrCoord, BlockType]
 
 
 class Size(Struct):

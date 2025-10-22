@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..api.types import NullableBlockData
+    from ..api.types import BlockData
     from .coordinates import XYZ, XZ
     from .structure import Structure
 
-    ChunkPlacement = dict[XYZ, NullableBlockData]
+    ChunkPlacement = dict[XYZ, BlockData | None]
     ChunksData = dict[XZ, ChunkPlacement]
 
 
@@ -32,7 +32,7 @@ class ChunkProcessor:
             return len(self._chunks)
         raise RuntimeError("Cannot access chunks count until processing is complete.")
 
-    def __setitem__(self, coords: XYZ, placement: NullableBlockData):
+    def __setitem__(self, coords: XYZ, placement: BlockData | None):
         x, y, z = coords
         cx, offset_x = divmod(x, 16)
         cz, offset_z = divmod(z, 16)

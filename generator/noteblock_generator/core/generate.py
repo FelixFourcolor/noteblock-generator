@@ -58,7 +58,7 @@ def generate(
                 return progress.run(
                     chunk_processor.process(),
                     jobs_count=structure.volume,
-                    description="Loading data",
+                    description="Loading",
                 )
 
             def write():
