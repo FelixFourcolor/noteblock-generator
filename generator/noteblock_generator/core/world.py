@@ -158,9 +158,7 @@ class World(BaseWorld):
                 if isinstance(block, str):
                     block = self.create_block(block)
             else:
-                block = self.create_block(
-                    block_data["name"], **block_data["properties"]
-                )
+                block = self.create_block(block_data.name, **block_data.properties)
 
             if block is not None:
                 chunk.set_block(*coords, block)

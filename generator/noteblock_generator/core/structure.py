@@ -1,29 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
-from .cache import Cache
-
+from ..api.types import BlockData, BuildingDTO, Properties
+from .cache import BlocksCache
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from ..api.types import BlockData, BuildingDTO
+    from ..api.types import NullableBlockData
     from .coordinates import XYZ, DirectionName, TiltName
 
-    BlockType = BlockData | None
 
-
-class Bounds(NamedTuple):
-    min_x: int
-    max_x: int
-    min_y: int
-    max_y: int
-    min_z: int
-    max_z: int
-
-
-air: BlockData = {"name": "air", "properties": {}}
+air = BlockData("air", {})
 
 
 class Structure:
@@ -36,14 +25,14 @@ class Structure:
         tilt: TiltName,
         theme: str,
         blend: bool,
-        cache: Cache | None,
+        cache: BlocksCache | None,
     ):
-        size = data["size"]
-        self.length = int(size["length"])
-        self.height = int(size["height"])
-        self.width = int(size["width"])
+        size = data.size
+        self.length = size.length
+        self.height = size.height
+        self.width = size.width
         self.volume = self.length * self.height * self.width
-        self.blocks = data["blocks"]
+        self.blocks = data.blocks
         self.origin_x, self.origin_y, self.origin_z = position
         self.direction = Direction[direction]
         self.tilt = tilt
@@ -52,13 +41,13 @@ class Structure:
         self.bounds = self._get_bounds()
         self.cache = cache
 
-    def __iter__(self) -> Iterator[None | tuple[XYZ, BlockType]]:
+    def __iter__(self) -> Iterator[None | tuple[XYZ, NullableBlockData]]:
         for x in range(self.length + 1):
             for y in range(self.height + 1):
                 for z in range(self.width + 1):
                     yield self.get_placement((x, y, z))
 
-    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, BlockType]:
+    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, NullableBlockData]:
         translated_coords = self.translate_position(coords)
         block = self.get_block(coords)
 
@@ -72,24 +61,22 @@ class Structure:
 
         return translated_coords, block
 
-    def get_block(self, coords: XYZ) -> BlockType:
+    def get_block(self, coords: XYZ) -> NullableBlockData:
         x, y, z = coords
         block = self.blocks.get(f"{x} {y} {z}", None if self.blend else air)
 
         if block is None:
             return None
 
-        if isinstance(block, dict):
-            return {
-                **block,
-                "properties": self.translate_properties(block["properties"]),
-            }
+        if isinstance(block, BlockData):
+            block.properties = self.translate_properties(block.properties)
+            return block
 
         if block == 0:  # magic value for "use theme block"
-            block_name = self.theme
+            name = self.theme
         else:
-            block_name = block
-        return {"name": block_name, "properties": {}}
+            name = block
+        return BlockData(name=name, properties={})
 
     def translate_position(self, coords: XYZ):
         raw_x, raw_y, raw_z = coords
@@ -113,18 +100,14 @@ class Structure:
         rotated_dir = Direction(self.direction.rotate(raw_dir))
         return rotated_dir.name
 
-    def translate_properties(self, data: dict[str, Any]):
-        translated: dict[str, Any] = {}
+    def translate_properties(self, data: Properties):
+        translated: Properties = {}
 
         for key, value in data.items():
             if key in DIRECTION_NAMES:
                 key = self.translate_direction(key)
-
             if value in DIRECTION_NAMES:
                 value = self.translate_direction(value)
-            elif isinstance(value, dict):
-                value = self.translate_properties(value)
-
             translated[key] = value
 
         return translated
@@ -144,3 +127,12 @@ class Structure:
             min_z=min(start_z, end_z),
             max_z=max(start_z, end_z),
         )
+
+
+class Bounds(NamedTuple):
+    min_x: int
+    max_x: int
+    min_y: int
+    max_y: int
+    min_z: int
+    max_z: int

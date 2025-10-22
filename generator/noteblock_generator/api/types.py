@@ -1,22 +1,30 @@
-"""Transpiled from TypeScript."""
+from typing import Literal
 
-from typing_extensions import Any, Dict, Literal, TypedDict, Union
-
-class Size(TypedDict):
-  width: float
-  length: float
-  height: float
+from msgspec import Struct
 
 BlockName = str
+Properties = dict[str, str | int]
 
-class BlockData(TypedDict):
-  name: str
-  properties: Dict[str,Any]
 
-BlockType = Union[str,Literal[0],BlockData]
+class BlockData(Struct):
+    name: BlockName
+    properties: Properties
 
-BlockMap = Dict[str,BlockType]
 
-class BuildingDTO(TypedDict):
-  size: Size
-  blocks: BlockMap
+NullableBlockData = BlockData | None
+
+
+StrCoords = str  # f"{x} {y} {z}"
+ThemeBlock = Literal[0]
+BlockMap = dict[StrCoords, BlockName | ThemeBlock | BlockData]
+
+
+class Size(Struct):
+    width: int
+    height: int
+    length: int
+
+
+class BuildingDTO(Struct):
+    size: Size
+    blocks: BlockMap

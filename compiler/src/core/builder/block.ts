@@ -5,7 +5,7 @@ import type { BlockType } from "./types.js";
 
 export function Block(
 	name: string,
-	properties: Record<string, unknown> | undefined = undefined,
+	properties: Record<string, string | number> | undefined = undefined,
 ): BlockType {
 	if (!properties) {
 		return name;

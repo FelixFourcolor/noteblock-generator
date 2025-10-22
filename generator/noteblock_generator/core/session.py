@@ -5,7 +5,7 @@ import shutil
 import signal
 from pathlib import Path
 
-from .cache import Cache
+from .cache import BlocksCache
 import typer
 from click import UsageError
 
@@ -47,10 +47,10 @@ class WorldGeneratingSession:
         self.world_hash: int | None = None
 
         if use_cache:
-            self.cache = Cache(str(path))
+            self.cache = BlocksCache(str(path))
         else:
             self.cache = None
-            Cache.delete(str(path))
+            BlocksCache.delete(str(path))
 
     def load_world(self):
         if not self.working_path:
