@@ -53,6 +53,14 @@ class World(BaseWorld):
         return hash(self.path)
 
     def validate_bounds(self, bounds: Bounds, dimension: str):
+        Console.info(
+            "Structure will occupy the space\n{start} to {end} in {dimension}.",
+            start=(bounds.min_x, bounds.min_y, bounds.min_z),
+            end=(bounds.max_x, bounds.max_y, bounds.max_z),
+            dimension=dimension,
+            important=True,
+        )
+
         world_bounds = self.bounds("minecraft:" + dimension)
         for coord, limit, axis in [
             (bounds.min_x, world_bounds.min_x, "min_x"),

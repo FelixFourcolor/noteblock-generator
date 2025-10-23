@@ -6,14 +6,14 @@ BlockName = str
 BlockProperties = dict[str, str | int]
 
 
-class BlockData(Struct):
+class Block(Struct):
     name: BlockName
-    properties: BlockProperties
+    properties: BlockProperties = {}
 
 
 StrCoord = str  # f"{x} {y} {z}"
 ThemeBlock = Literal[0]
-BlockType = BlockName | ThemeBlock | BlockData
+BlockType = BlockName | ThemeBlock | Block
 BlockMap = dict[StrCoord, BlockType]
 
 

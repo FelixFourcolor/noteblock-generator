@@ -1,14 +1,17 @@
+from collections import deque
 from collections.abc import Iterable
 from threading import Thread
 
 import typer
 from click import Abort
+from rich import progress
 from rich.console import Console as _Console
 from rich.panel import Panel
-from rich.progress import track
 
 _console = _Console()
 _print = _console.print
+
+_console.line
 
 
 class Console:
@@ -80,27 +83,30 @@ class CancellableProgress:
         if self._thread:
             self._thread.join()
 
-    def run(self, jobs_iter: Iterable, jobs_count: int, description: str) -> bool:
+    def run(
+        self, jobs_iter: Iterable, *, jobs_count: int, description: str, transient=False
+    ) -> bool:
+        jobs_exhausted = jobs_count == 0
         if not self.result_ready:
             for _ in jobs_iter:
                 jobs_count -= 1
                 if self.result_ready:
                     break
+            else:
+                # cannot do jobs_exhausted = jobs_count == 0
+                # because jobs_count may be inaccurate
+                jobs_exhausted = True
 
         if self.cancelled:
             return False
 
-        if not jobs_count:
-            jobs_iter = range(1)
-            jobs_count = 1
+        if jobs_exhausted and transient:
+            return True
 
-        for _ in track(
-            jobs_iter,
-            total=jobs_count,
-            description=description,
-        ):
-            pass
-
+        deque(
+            progress.track(jobs_iter, total=jobs_count, description=description),
+            maxlen=0,
+        )
         return True
 
     @property

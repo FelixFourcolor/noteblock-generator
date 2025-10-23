@@ -8,6 +8,8 @@ import time
 import zlib
 from pathlib import Path
 
+from noteblock_generator import APP_NAME
+
 
 def backup_files(src: Path, patience: int = 5):
     class PermissionDenied(Exception): ...
@@ -30,7 +32,7 @@ def backup_files(src: Path, patience: int = 5):
         elif src_path.is_file():
             copyfile(src, dst)
 
-    temp_dir = Path(tempfile.gettempdir()) / "noteblock-generator"
+    temp_dir = Path(tempfile.gettempdir()) / APP_NAME
     temp_dir.mkdir(exist_ok=True)
 
     name = Path(src).name

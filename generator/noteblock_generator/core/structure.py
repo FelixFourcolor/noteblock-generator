@@ -3,13 +3,14 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, NamedTuple
 
-from ..api.types import BlockData, BlockName, BlockProperties, Building
+from ..api.types import Block, BlockName, BlockProperties, Building
 from .blend import DANGER_LIST
-from .cache import BlocksCache
+from .cache import Cache
 from .coordinates import DIRECTION_NAMES, Direction
+from .utils.console import Console
 
 if TYPE_CHECKING:
-    from ..api.types import BlockData
+    from ..api.types import Block
     from .coordinates import XYZ, DirectionName, TiltName
 
 
@@ -23,7 +24,7 @@ class Structure:
         tilt: TiltName,
         theme: str,
         blend: bool,
-        cache: BlocksCache | None,
+        cache: Cache | None,
     ):
         size = data.size
         self.length = size.length
@@ -39,13 +40,18 @@ class Structure:
         self.bounds = self._get_bounds()
         self.cache = cache
 
-    def __iter__(self) -> Iterator[None | tuple[XYZ, BlockData | None]]:
+        if blend:
+            Console.warn(
+                "Blend mode is experimental. Turn it off if you encounter issues."
+            )
+
+    def __iter__(self) -> Iterator[None | tuple[XYZ, Block | None]]:
         for x in range(self.length + 1):
             for y in range(self.height + 1):
                 for z in range(self.width + 1):
                     yield self.get_placement((x, y, z))
 
-    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, BlockData | None]:
+    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, Block | None]:
         translated_coords = self.translate_position(coords)
         block = self.get_block(coords)
 
@@ -59,17 +65,17 @@ class Structure:
             self.cache[translated_coords] = block
 
         if isinstance(block, str):
-            block = BlockData(name=block, properties={})
+            block = Block(block)
         return translated_coords, block
 
-    def get_block(self, coords: XYZ) -> BlockName | BlockData | None:
+    def get_block(self, coords: XYZ) -> BlockName | Block | None:
         x, y, z = coords
         block = self.blocks.get(f"{x} {y} {z}", None if self.blend else "air")
 
         if block is None:
             return None
 
-        if isinstance(block, BlockData):
+        if isinstance(block, Block):
             block.properties = self.translate_properties(block.properties)
             return block
 

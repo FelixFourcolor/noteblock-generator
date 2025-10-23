@@ -138,11 +138,11 @@ def run(
             rich_help_panel="Build customization",
         ),
     ] = False,
-    use_cache: Annotated[
+    partial: Annotated[
         bool,
         Option(
-            "--cache/--no-cache",
-            help="Remember placed blocks to skip unchanged areas on subsequent runs",
+            "--partial/--full",
+            help="Generate only changed blocks since last generation",
             rich_help_panel="Build customization",
         ),
     ] = False,
@@ -177,5 +177,5 @@ def run(
         tilt=tilt.name if tilt else None,
         theme=theme,
         blend=blend,
-        use_cache=use_cache,
+        partial=partial,
     )

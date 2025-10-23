@@ -8,7 +8,6 @@ from pathlib import Path
 import typer
 from click import UsageError
 
-from .cache import BlocksCache
 from .utils.console import Console
 from .utils.files import backup_files, hash_files
 from .world import World
@@ -36,21 +35,15 @@ class IgnoreInterrupt:
             signal.signal(sig, handler)
 
 
-aborted_message = "Safely aborted. No changes were made."
+cancelled_message = "Generation cancelled. No changes were made."
 
 
-class WorldGeneratingSession:
-    def __init__(self, path: Path, *, use_cache: bool):
+class GeneratingSession:
+    def __init__(self, path: Path):
         self.original_path = path
         self.working_path: str | None = None
         self.world: World | None = None
         self.world_hash: int | None = None
-
-        if use_cache:
-            self.cache = BlocksCache(str(path))
-        else:
-            self.cache = None
-            BlocksCache.delete(str(path))
 
     def load_world(self):
         if not self.working_path:
@@ -110,7 +103,7 @@ class WorldGeneratingSession:
             if commit:
                 self._commit()
             else:
-                Console.success(aborted_message)
+                Console.success(cancelled_message)
         finally:
             shutil.rmtree(self.working_path, ignore_errors=True)
 
@@ -133,7 +126,7 @@ class WorldGeneratingSession:
                 important=True,
             )
             if not Console.confirm("Confirm to proceed?", default=True):
-                Console.success(aborted_message)
+                Console.success(cancelled_message)
                 raise typer.Exit()
             Console.success(
                 "If you are inside the world, exit and re-enter to see the result.",
@@ -145,5 +138,3 @@ class WorldGeneratingSession:
             if self.working_path:
                 shutil.rmtree(self.original_path, ignore_errors=True)
                 shutil.move(self.working_path, self.original_path)
-            if self.cache:
-                self.cache.save()
