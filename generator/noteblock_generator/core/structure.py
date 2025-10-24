@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, NamedTuple, final
 
-from ..api.types import Block, BlockName, BlockProperties, Building
+from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
 from .blend import DANGER_LIST
 from .cache import Cache
 from .coordinates import DIRECTION_NAMES, Direction
@@ -11,7 +11,8 @@ from .utils.console import Console
 
 if TYPE_CHECKING:
     from ..api.types import Block
-    from .coordinates import XYZ, DirectionName, TiltName
+    from .coordinates import XYZ, XZ, DirectionName, TiltName
+
 
 @final
 class Structure:
@@ -46,9 +47,9 @@ class Structure:
             )
 
     def __iter__(self) -> Iterator[None | tuple[XYZ, Block | None]]:
-        for x in range(self.length + 1):
-            for y in range(self.height + 1):
-                for z in range(self.width + 1):
+        for x in range(self.length):
+            for y in range(self.height):
+                for z in range(self.width):
                     yield self.get_placement((x, y, z))
 
     def get_placement(self, coords: XYZ) -> None | tuple[XYZ, Block | None]:
@@ -70,7 +71,10 @@ class Structure:
 
     def get_block(self, coords: XYZ) -> BlockName | Block | None:
         x, y, z = coords
-        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else "air")
+        block: BlockType | None = self.blocks.get(
+            f"{x} {y} {z}",
+            "air" if not self.blend or self._is_boundary((x, z)) else None,
+        )
 
         if block is None:
             return None
@@ -117,6 +121,10 @@ class Structure:
             translated[key] = value
 
         return translated
+
+    def _is_boundary(self, coords: XZ) -> bool:
+        x, z = coords
+        return x in (0, self.length - 1) or z in (0, self.width - 1)
 
     def _get_bounds(self) -> Bounds:
         start_x, start_y, start_z = self.translate_position((0, 0, 0))

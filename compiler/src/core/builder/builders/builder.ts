@@ -70,8 +70,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private buildWalkSpace() {
 		const { length, width, height } = this.size;
-		for (let x = 0; x < length; ++x) {
-			for (let z = 0; z < width; ++z) {
+		for (let x = 1; x < length - 1; ++x) {
+			for (let z = 1; z < width - 1; ++z) {
 				this.set([x, height - 1, z], Block("air"));
 				this.set([x, height - 2, z], Block("air"));
 				this.set([x, height - 3, z], Block("glass"));

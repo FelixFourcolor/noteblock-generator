@@ -9,7 +9,7 @@ export class DoubleBuilder extends Builder<"double"> {
 
 		this.withCursor(
 			this.cursor.offset({
-				dz: (this.size.width + 1) / 2,
+				dz: (this.size.width - 1) / 2,
 				respectDirection: false,
 			}),
 			(self) => self.buildSingleSlice(right),
@@ -23,16 +23,16 @@ export class DoubleBuilder extends Builder<"double"> {
 		const isRightSide = !isLeftSide;
 
 		const { height, width } = this.size;
-		const midpoint = Math.floor(width / 2);
+		const midpoint = (width - 1) / 2;
 		const junction = Math.ceil(midpoint / 2);
 
 		const cursor = isLeftSide
 			? this.cursor.at({ y: height - 2 }).offset({ dz: -2 })
-			: this.cursor.at({ y: height - 2, z: midpoint }).flipDirection();
+			: this.cursor.at({ y: height - 2, z: midpoint - 1 }).flipDirection();
 
 		this.withCursor(cursor, (self) => {
 			// left connector
-			const zLeft = isLeftSide ? 1 : -1;
+			const zLeft = isLeftSide ? 1 : 0;
 			self.useWireOffset((wire) => {
 				for (let dz = junction - 1; dz > zLeft; dz--) {
 					wire.add([0, 0, dz]);
@@ -43,7 +43,7 @@ export class DoubleBuilder extends Builder<"double"> {
 			self.setOffset([0, -3, zLeft], Block("air"));
 
 			// right connector
-			const zRight = isRightSide ? midpoint : midpoint + 2;
+			const zRight = isRightSide ? midpoint : midpoint + 1;
 			self.useWireOffset((wire) => {
 				for (let dz = junction + 1; dz < zRight; dz++) {
 					wire.add([0, 0, dz]);
