@@ -58,7 +58,7 @@ def generate(
                 if cache:
                     cache.display_stats()
 
-                write_jobs_count = 3 * chunks.count
+                write_jobs_count = 2 * chunks.count
                 if not write_jobs_count:
                     # when partial update and nothing has changed
                     return

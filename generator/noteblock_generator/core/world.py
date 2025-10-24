@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING, cast, final
 
 from amulet import StringTag, load_format
 from amulet.api import Block
@@ -83,9 +84,6 @@ class World(BaseWorld):
         dimension = "minecraft:" + dimension
         for chunk_coords, data in chunks:
             self._modify_chunk(chunk_coords, data, dimension=dimension)
-            # write takes approx 2x time as save
-            # this makes a smoother progress bar
-            yield
             yield
 
         yield from self._save(dimension=dimension)
@@ -178,9 +176,12 @@ class World(BaseWorld):
                 chunk.set_block(*coords, block)
 
     def _save(self, dimension: str):
-        wrapper = self.level_wrapper
-        for chunk in self._modified_chunks.values():
+        wrapper = cast(AnvilFormat, self.level_wrapper)
+        for (x, z), chunk in self._modified_chunks.items():
+            deque(wrapper._calculate_height(self, [(dimension, x, z)]), maxlen=0)
+            deque(wrapper._calculate_light(self, [(dimension, x, z)]), maxlen=0)
             wrapper.commit_chunk(chunk, dimension)
             yield
+
         self.history_manager.mark_saved()
         wrapper.save()
