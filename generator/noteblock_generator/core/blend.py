@@ -26,6 +26,7 @@ _GRAVITY_AFFECTED = {
     "pointed_dripstone",
     "sand",
     "scaffolding",
+    "snow",
     "suspicious_sand",
     "suspicious_gravel",
 }
