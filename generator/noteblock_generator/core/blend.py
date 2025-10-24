@@ -20,10 +20,13 @@ _LIQUID = {
 
 _GRAVITY_AFFECTED = {
     "anvil",
+    "chipped_anvil",
     "concrete_powder",
+    "damaged_anvil",
     "dragon_egg",
     "gravel",
     "pointed_dripstone",
+    "red_sand",
     "sand",
     "scaffolding",
     "snow",
