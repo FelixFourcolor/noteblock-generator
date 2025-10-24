@@ -51,7 +51,7 @@ def generate(
                     chunks.process(),
                     jobs_count=structure.volume,
                     description="Calculating",
-                    transient=True,
+                    cancellable=False,
                 ):
                     raise UserCancelled
 

@@ -86,24 +86,24 @@ class CancellableProgress:
             self._thread.join()
 
     def run(
-        self, jobs_iter: Iterable, *, jobs_count: int, description: str, transient=False
+        self,
+        jobs_iter: Iterable,
+        *,
+        jobs_count: int,
+        description: str,
+        cancellable=True,
     ) -> bool:
-        jobs_exhausted = jobs_count == 0
         if not self.result_ready:
             for _ in jobs_iter:
                 jobs_count -= 1
                 if self.result_ready:
                     break
             else:
-                # cannot do jobs_exhausted = jobs_count == 0
-                # because jobs_count may be inaccurate
-                jobs_exhausted = True
+                if not cancellable:
+                    return True
 
         if self.cancelled:
             return False
-
-        if jobs_exhausted and transient:
-            return True
 
         deque(
             progress.track(jobs_iter, total=jobs_count, description=description),
