@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from amulet.api.chunk import Chunk
 
-    from .chunks import XYZ
+    from .coordinates import XYZ
 
 
 _LIQUID = {

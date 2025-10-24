@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 if TYPE_CHECKING:
     from ..api.types import Block
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     ChunksData = dict[XZ, ChunkPlacement]
 
 
+@final
 class ChunkProcessor:
     def __init__(self, structure: Structure):
         self.structure = structure

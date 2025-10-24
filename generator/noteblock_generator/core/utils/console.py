@@ -1,6 +1,7 @@
 from collections import deque
 from collections.abc import Iterable
 from threading import Thread
+from typing import final
 
 import typer
 from click import Abort
@@ -20,7 +21,7 @@ class Console:
         _print()
 
     @staticmethod
-    def confirm(text, *, default: bool | None) -> bool:
+    def confirm(text: str, *, default: bool | None) -> bool:
         try:
             return typer.confirm(text, default=default)
         except Abort:
@@ -66,6 +67,7 @@ class Console:
         _print(Panel(text, expand=False, border_style="red"))
 
 
+@final
 class CancellableProgress:
     def __init__(self, text: str, *, default: bool | None):
         self.text = text

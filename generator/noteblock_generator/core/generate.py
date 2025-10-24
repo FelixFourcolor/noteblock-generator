@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,7 +27,10 @@ def generate(
     blend: bool,
     partial: bool,
 ):
-    with Cache(world_path, enabled=partial) as cache:
+    if not partial:
+        Cache.delete(key=world_path)
+
+    with Cache(key=world_path) if partial else nullcontext() as cache:
         with GeneratingSession(world_path) as session:
             world = session.load_world()
             dimension = dimension or world.player_dimension
@@ -54,13 +58,15 @@ def generate(
                 if cache:
                     cache.display_stats()
 
-                if write_jobs_count := 2 * chunks.count:
-                    description = "Generating" + (
-                        " the difference" if cache and cache.has_data else ""
-                    )
-                    if not progress.run(
-                        world.write(chunks, dimension),
-                        jobs_count=write_jobs_count,
-                        description=description,
-                    ):
-                        raise UserCancelled
+                write_jobs_count = 3 * chunks.count
+                if not write_jobs_count:
+                    # when partial update and nothing has changed
+                    return
+
+                if not progress.run(
+                    world.write(chunks, dimension),
+                    jobs_count=write_jobs_count,
+                    description="Generating"
+                    + (" the difference" if cache and cache.has_data else ""),
+                ):
+                    raise UserCancelled

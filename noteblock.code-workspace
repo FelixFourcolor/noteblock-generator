@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{ "path": ".", "name": "/" },
+		{ "path": "compiler" },
+		{ "path": "generator" }
+	],
+	"settings": {
+		"files.exclude": { "compiler": true, "generator": true }
+	}
+}

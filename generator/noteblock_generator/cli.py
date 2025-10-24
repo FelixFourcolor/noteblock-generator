@@ -36,7 +36,7 @@ class Alignment(Enum):
     end = "end"
 
 
-def help_callback(ctx: Context, param: CallbackParam, value: bool):
+def help_callback(ctx: Context, _: CallbackParam, value: bool):
     if value:
         typer.echo(ctx.get_help())
         ctx.exit()

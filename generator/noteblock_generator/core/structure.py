@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, final
 
 from ..api.types import Block, BlockName, BlockProperties, Building
 from .blend import DANGER_LIST
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from ..api.types import Block
     from .coordinates import XYZ, DirectionName, TiltName
 
-
+@final
 class Structure:
     def __init__(
         self,

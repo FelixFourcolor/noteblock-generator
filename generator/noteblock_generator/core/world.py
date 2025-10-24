@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, final
 
 from amulet import StringTag, load_format
 from amulet.api import Block
@@ -11,6 +11,7 @@ from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
 from amulet.api.level import World as BaseWorld
 from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
+from typing_extensions import override
 
 from .blend import blend_filter
 from .coordinates import Direction, get_nearest_direction
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
     from .structure import Bounds
 
 
+@final
 class World(BaseWorld):
     @classmethod
     def load(cls, world_path: str | Path) -> World:
@@ -49,6 +51,7 @@ class World(BaseWorld):
         self.player = players[0] if players else None
         self._modified_chunks: dict[XZ, Chunk] = {}
 
+    @override
     def __hash__(self):
         return hash(self.path)
 
@@ -80,6 +83,9 @@ class World(BaseWorld):
         dimension = "minecraft:" + dimension
         for chunk_coords, data in chunks:
             self._modify_chunk(chunk_coords, data, dimension=dimension)
+            # write takes approx 2x time as save
+            # this makes a smoother progress bar
+            yield
             yield
 
         yield from self._save(dimension=dimension)

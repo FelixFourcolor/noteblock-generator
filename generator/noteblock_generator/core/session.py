@@ -4,6 +4,7 @@ import os
 import shutil
 import signal
 from pathlib import Path
+from typing import final
 
 import typer
 from click import UsageError
@@ -23,7 +24,11 @@ _HANDLED_SIGNALS = set(signal.Signals) - {
 }
 
 
+@final
 class IgnoreInterrupt:
+    def __init__(self):
+        self._original_handlers = {}
+
     def __enter__(self):
         self._original_handlers = {
             sig: signal.signal(sig, signal.SIG_IGN) for sig in _HANDLED_SIGNALS
@@ -38,6 +43,7 @@ class IgnoreInterrupt:
 cancelled_message = "Generation cancelled. No changes were made."
 
 
+@final
 class GeneratingSession:
     def __init__(self, path: Path):
         self.original_path = path
@@ -49,8 +55,7 @@ class GeneratingSession:
         if not self.working_path:
             # clone unsuccessful, must generate in-place
             Console.warn(
-                "To prevent data corruption, "
-                "if you are inside the world,\n{highlighted}.",
+                "To prevent data corruption, if you are inside the world,\n{highlighted}.",
                 highlighted="exit now before proceeding",
                 important=True,
             )
@@ -73,7 +78,7 @@ class GeneratingSession:
             os._exit(0)
 
     def _setup_signal_handlers(self):
-        def handle_interrupt(sig, _):
+        def handle_interrupt(sig: int, _):
             Console.newline()
             self._cleanup(commit=False)
             os._exit(130 if sig == signal.SIGINT else 143)
@@ -93,7 +98,7 @@ class GeneratingSession:
         except PermissionError:
             raise UsageError(
                 "Permission denied to read save files. "
-                "If the game is running, close it and try again.",
+                + "If the game is running, close it and try again.",
             )
 
     def _cleanup(self, *, commit: bool):
@@ -121,8 +126,8 @@ class GeneratingSession:
 
         if self._externally_modified():
             Console.warn(
-                "The save files have been modified while generating."
-                "\nTo keep this generation, all other changes must be discarded.",
+                "The save files have been modified while generating.\n"
+                + "To keep this generation, all other changes must be discarded.",
                 important=True,
             )
             if not Console.confirm("Confirm to proceed?", default=True):

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from typing import final
 
 from humanize import naturaltime
 from msgspec import Struct, msgpack
@@ -23,28 +24,28 @@ class CacheData(Struct):
 _CACHE_MISS = object()
 
 
+@final
 class Cache:
-    def __init__(self, key: object, *, enabled: bool):
-        self.enabled = enabled
+    @staticmethod
+    def delete(key: object) -> None:
+        path = _get_cache_file(str(key))
+        path.unlink(missing_ok=True)
+
+    def __init__(self, key: object):
         self._path = _get_cache_file(str(key))
-        self._initial_length = 0
+        self._load()
+        self._initial_length = len(self._data.blocks)
+        self._updates_count = 0
 
     @property
     def has_data(self):
         return bool(self._initial_length)
 
     def __enter__(self):
-        if not self.enabled:
-            self._path.unlink(missing_ok=True)
-            return None
-
-        self._load()
-        self._initial_length = len(self._data.blocks)
-        self._updates_count = 0
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        if self.enabled and not exc_type:
+        if not exc_type:
             self._save()
 
     def __setitem__(self, coords: XYZ, block: BlockType | None) -> None:
@@ -80,13 +81,14 @@ class Cache:
             self._data = cache
             delta = datetime.now() - datetime.fromtimestamp(cache.last_modified)
             Console.info(
-                "Found previous generation {whence}", whence=naturaltime(delta)
+                "Using previous generation from {whence}", whence=naturaltime(delta)
             )
         else:
             self._data = CacheData()
             Console.info(
                 "No previous generation found; generating from scratch", important=True
             )
+        self._path.unlink(missing_ok=True)
 
     def _save(self):
         if not self._updates_count:

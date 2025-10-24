@@ -3,6 +3,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Literal
 
+from typing_extensions import override
+
 if TYPE_CHECKING:
     DirectionName = Literal["north", "south", "east", "west"]
     TiltName = Literal["up", "down"]
@@ -19,6 +21,7 @@ class Direction(XZ, Enum):
     east = (1, 0)
     west = (-1, 0)
 
+    @override
     def __str__(self):
         return self.name
 

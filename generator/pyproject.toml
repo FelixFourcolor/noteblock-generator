@@ -31,4 +31,14 @@ packages = ["noteblock_generator"]
 target-version = "py310"
 show-fixes = true
 extend-safe-fixes = ["ALL"]
-cache-dir = "~/.cache/ruff"
+
+[tool.pyright]
+pythonVersion = "3.10"
+reportUnknownMemberType = "none"
+reportMissingParameterType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportMissingTypeArgument = "none"
+reportMissingTypeStubs = "none"
+reportUnusedCallResult = "none"
