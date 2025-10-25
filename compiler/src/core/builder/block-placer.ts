@@ -2,7 +2,7 @@ import { Block, type BlockType } from "./block.js";
 import { Cursor } from "./cursor.js";
 import { Wire } from "./wire.js";
 
-export type Coord = [number, number, number];
+export type XYZ = [number, number, number];
 export type StrCoord = `${number} ${number} ${number}`;
 export type BlockMap = Record<StrCoord, BlockType>;
 
@@ -18,11 +18,11 @@ export class BlockPlacer {
 		return Block.Repeater({ delay, direction: this.cursor.direction });
 	}
 
-	protected set([x, y, z]: Coord, value: BlockType) {
+	protected set([x, y, z]: XYZ, value: BlockType) {
 		this.blocks.set(`${x} ${y} ${z}`, value);
 	}
 
-	protected setOffset([dx, dy, dz]: Coord, value: BlockType) {
+	protected setOffset([dx, dy, dz]: XYZ, value: BlockType) {
 		this.set(this.cursor.getOffset({ dx, dy, dz }), value);
 	}
 
@@ -46,5 +46,17 @@ export class BlockPlacer {
 		callback: (self: this) => T,
 	): T {
 		return this.withCursor(this.cursor.at(coords), callback);
+	}
+
+	protected offset<T = void>(
+		offsets: {
+			dx?: number;
+			dy?: number;
+			dz?: number;
+			respectDirection?: boolean;
+		},
+		callback: (self: this) => T,
+	): T {
+		return this.withCursor(this.cursor.offset(offsets), callback);
 	}
 }

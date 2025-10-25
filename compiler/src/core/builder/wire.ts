@@ -1,19 +1,19 @@
-import { match } from "ts-pattern";
+import { match, P } from "ts-pattern";
 import { Block, type BlockType } from "./block.js";
-import type { Coord } from "./block-placer.js";
+import type { XYZ } from "./block-placer.js";
 import { Direction } from "./direction.js";
 
 type Value = "wire" | "repeater" | null;
 
 export class Wire {
-	private readonly data: [Coord, Value][] = [];
+	private readonly data: [XYZ, Value][] = [];
 
 	constructor(
-		private apply: (coord: Coord, value: BlockType) => void,
+		private apply: (coord: XYZ, value: BlockType) => void,
 		private base: BlockType = Block("glass"),
 	) {}
 
-	add(coord: Coord, value: Value = "wire") {
+	add(coord: XYZ, value: Value = "wire") {
 		this.data.push([coord, value]);
 	}
 
@@ -50,33 +50,46 @@ export class Wire {
 		let wireLength = 0;
 
 		this.data.forEach(([coords, value], index) => {
-			const inDir = match(this.data[index - 1])
+			const prev = this.data[index - 1];
+			const next = this.data[index + 1];
+
+			const inDir = match(prev)
 				.with(undefined, () => undefined)
 				.otherwise(([prevCoords]) => this.getDirection(prevCoords, coords));
 
-			const outDir = match(this.data[index + 1])
+			const outDir = match(next)
 				.with(undefined, () => undefined)
 				.otherwise(([nextCoords]) => this.getDirection(coords, nextCoords));
 
-			if (value !== "wire") {
-				wireLength = 0;
-			} else if (++wireLength >= 15) {
-				value = "repeater";
-				wireLength = 0;
+			wireLength = value === "wire" ? wireLength + 1 : 0;
+
+			if (wireLength >= 15) {
+				match(next)
+					.with([[P._, coords[1] - 1, P._], P._], ([[nextX, _, nextZ]]) => {
+						value = "repeater";
+						wireLength = 0;
+						this.apply([nextX, coords[1], nextZ], Block.Generic);
+					})
+					.otherwise(() => {
+						if (wireLength > 15) {
+							value = "repeater";
+							wireLength = 0;
+						}
+					});
 			}
 
 			this.placeRedstone(coords, value, [inDir, outDir]);
 		});
 	}
 
-	private getDirection = (from: Coord, to: Coord) => {
+	private getDirection = (from: XYZ, to: XYZ) => {
 		const [fromX, , fromZ] = from;
 		const [toX, , toZ] = to;
 		return Direction.fromCoords(toX - fromX, toZ - fromZ);
 	};
 
 	private placeRedstone = (
-		coords: Coord,
+		coords: XYZ,
 		value: Value,
 		[inDir, outDir]: [Direction | undefined, Direction | undefined],
 	) => {

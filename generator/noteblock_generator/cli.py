@@ -58,7 +58,7 @@ def run(
             help="Minecraft Java world save",
             show_default=False,
             metavar="directory",
-            rich_help_panel="Input & output",
+            rich_help_panel="Input & Output",
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -74,13 +74,30 @@ def run(
             help="Compiled music source",
             show_default="read from stdin",
             metavar="file",
-            rich_help_panel="Input & output",
+            rich_help_panel="Input & Output",
             exists=True,
             file_okay=True,
             dir_okay=False,
         ),
     ] = None,
-    position: Annotated[
+    theme: Annotated[
+        str,
+        Option(
+            "--theme",
+            help="Primary building block; must be redstone-conductive",
+            rich_help_panel="Customization",
+            metavar="block_name",
+        ),
+    ] = "stone",
+    blend: Annotated[
+        bool,
+        Option(
+            "--blend/--clear",
+            help="Preserve existing world blocks for a more natural look",
+            rich_help_panel="Customization",
+        ),
+    ] = False,
+    coordinates: Annotated[
         XYZ | None,
         Option(
             "--at",
@@ -128,46 +145,21 @@ def run(
             rich_help_panel="Positioning",
         ),
     ] = Alignment.center,
-    theme: Annotated[
-        str,
-        Option(
-            "--theme",
-            "-t",
-            help="Primary building block; must be redstone-conductive",
-            rich_help_panel="Build options",
-            metavar="block_name",
-        ),
-    ] = "stone",
-    blend: Annotated[
-        bool,
-        Option(
-            "--blend/--clear",
-            help="Preserve existing world blocks for a more natural look",
-            rich_help_panel="Build options",
-        ),
-    ] = False,
-    walkable: Annotated[
-        bool,
-        Option(
-            "--walkable/--unwalkable",
-            help="Ensure the area above the structure is walkable",
-            rich_help_panel="Build options",
-        ),
-    ] = True,
     partial: Annotated[
         bool,
         Option(
             "--partial/--full",
             help="Generate only changed blocks since last run",
-            rich_help_panel="Build options",
+            rich_help_panel="Advanced",
         ),
     ] = False,
     _: Annotated[  # to hide --help in the help message
         bool,
         Option(
             "--help",
-            hidden=True,
+            "-h",
             is_eager=True,
+            hidden=True,
             callback=help_callback,
         ),
     ] = False,
@@ -187,13 +179,12 @@ def run(
     generate(
         data=data,
         world_path=world_path,
-        position=position,
+        coordinates=coordinates,
         dimension=dimension.name if dimension else None,
         facing=facing.name if facing else None,
         tilt=tilt.name if tilt else None,
         align=align.name,
         theme=theme,
         blend=blend,
-        walkable=walkable,
         partial=partial,
     )

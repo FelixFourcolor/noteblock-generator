@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+import math
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
 from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
@@ -23,31 +24,27 @@ class Structure:
         self,
         *,
         data: Building,
-        position: XYZ,
+        coordinates: XYZ,
         facing: DirectionName,
         tilt: TiltName,
         align: AlignName,
         theme: str,
         blend: bool,
-        walkable: bool,
         cache: Cache | None,
     ):
         self.blocks = data.blocks
-        self.origin_x, self.origin_y, self.origin_z = position
+        self.origin_x, self.origin_y, self.origin_z = coordinates
         self.facing = Direction[facing]
         self.tilt = tilt
         self.align = align
         self.theme = theme
         self.blend = blend
-        self.walkable = walkable
         self.cache = cache
 
         size = data.size
         self.length = size.length
         self.width = size.width
         self.height = size.height
-        if walkable:
-            self.height += 1  # to fit player's height
         self.volume = self.length * self.height * self.width
         self.bounds = self._get_bounds()
 
@@ -82,7 +79,8 @@ class Structure:
     def get_block(self, coords: XYZ) -> BlockName | Block | None:
         x, y, z = coords
         block: BlockType | None = self.blocks.get(
-            f"{x} {y} {z}", self._get_implied_block((x, y, z))
+            f"{x} {y} {z}",
+            "air" if not self.blend or self._is_boundary(coords) else None,
         )
 
         if block is None:
@@ -101,7 +99,7 @@ class Structure:
         raw_x, raw_y, raw_z = coords
 
         if self.align == "center":
-            shifted_z = raw_z - self.width // 2
+            shifted_z = raw_z - math.floor((self.width - 1) / 2)
         elif self.align == "right":
             shifted_z = raw_z - self.width + 1
         else:  # left
@@ -114,9 +112,7 @@ class Structure:
         translated_z = self.origin_z + rotated_z
 
         if self.tilt == "down":
-            translated_y -= self.height - 1
-            if self.walkable:
-                translated_y += 1
+            translated_y -= self.height - 2
 
         return translated_x, translated_y, translated_z
 
@@ -137,20 +133,9 @@ class Structure:
 
         return translated
 
-    def _get_implied_block(self, coords: XYZ) -> BlockName | None:
-        x, y, z = coords
-
-        if self.walkable and z == self.width // 2 and x in range(self.length - 1):
-            if y in [self.height - 1, self.height - 2]:
-                return "air"
-            if y == self.height - 3:
-                return "glass"
-
-        if not self.blend:
-            return "air"
-
-        if x in (0, self.length - 1) or z in (0, self.width - 1):
-            return "air"
+    def _is_boundary(self, coords: XYZ) -> bool:
+        x, _, z = coords
+        return x in (0, self.length - 1) or z in (0, self.width - 1)
 
     def _get_bounds(self) -> Bounds:
         start_x, start_y, start_z = self.translate_position((0, 0, 0))

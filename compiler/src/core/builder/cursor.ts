@@ -1,4 +1,4 @@
-import type { Coord } from "./block-placer.js";
+import type { XYZ } from "./block-placer.js";
 import { Direction } from "./direction.js";
 
 export class Cursor {
@@ -17,7 +17,7 @@ export class Cursor {
 		return new Cursor(x, y, z, this.zSign);
 	}
 
-	getOffset({ dx = 0, dy = 0, dz = 0, respectDirection = true }): Coord {
+	getOffset({ dx = 0, dy = 0, dz = 0, respectDirection = true }): XYZ {
 		const newX = this.x + dx;
 		const newY = this.y + dy;
 		const newZ = this.z + dz * (respectDirection ? this.zSign : 1);

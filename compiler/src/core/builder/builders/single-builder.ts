@@ -4,25 +4,33 @@ import { Direction } from "../direction.js";
 import { Builder } from "./builder.js";
 
 export class SingleBuilder extends Builder<"single"> {
-	protected buildSlice(slice: Slice<"single">) {
+	protected override buildSlice(slice: Slice<"single">) {
 		this.buildSingleSlice(slice);
 	}
 
+	protected buildWalkSpace() {
+		const { height, width, length } = this.size;
+		for (let x = 0; x < length - 1; x++) {
+			for (let z = width / 2 - 1; z <= width / 2; z++) {
+				this.set([x, height - 3, z], Block("glass"));
+				this.set([x, height - 2, z], Block("air"));
+				this.set([x, height - 1, z], Block("air"));
+			}
+		}
+	}
+
 	protected buildPlayButton(index: number) {
-		this.withCursor(
-			this.cursor.at({ y: this.size.height - 1 }).offset({ dz: -2 }),
-			(self) => {
-				if (index === 0) {
-					self.initialPlayButton();
-				} else {
-					self.recurringPlayButton();
-				}
-			},
-		);
+		this.at({ y: this.size.height - 2 }, (self) => {
+			if (index === 0) {
+				self.at({ z: 0 }, (self) => self.initialPlayButton());
+			} else {
+				self.offset({ dz: -2 }, (self) => self.recurringPlayButton());
+			}
+		});
 	}
 
 	private initialPlayButton() {
-		const midpoint = Math.ceil(this.size.width / 2);
+		const midpoint = this.size.width / 2 - 1;
 		this.setOffset([0, 0, midpoint], Block.Button);
 		this.useWireOffset((wire) => {
 			for (let dz = midpoint - 1; dz >= 2; dz--) {
@@ -38,6 +46,5 @@ export class SingleBuilder extends Builder<"single"> {
 		this.setOffset([0, -1, 0], Block.Generic);
 		this.setOffset([0, -1, 1], Block.Redstone(Direction.fromCoords(0, 1)));
 		this.setOffset([0, -2, 1], Block.Generic);
-		this.setOffset([0, -3, 1], Block("air"));
 	}
 }

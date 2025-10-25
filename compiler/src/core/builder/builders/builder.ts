@@ -13,6 +13,7 @@ export type Building = {
 
 export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	protected abstract buildPlayButton(index: number): void;
+	protected abstract buildWalkSpace(): void;
 	protected abstract buildSlice(slice: Slice<T>): void;
 
 	protected readonly song: SongLayout<T>;
@@ -27,19 +28,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	build(): Building {
-		let previousDelay = 1;
-		this.at({ x: 3, z: 2 }, (self) => {
-			let rowCounter = 0;
-			for (const { delay, levels } of this.song.slices) {
-				if (this.isStartOfRow) {
-					self.buildPlayButton(rowCounter++);
-				}
-				self.buildSlice({ delay: previousDelay, levels });
-				previousDelay = delay;
-				this.stepCounter += 1;
-			}
-		});
-
+		this.buildWalkSpace();
+		this.buildSong();
 		return { size: this.size, blocks: this.exportBlocks() };
 	}
 
@@ -76,6 +66,22 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		});
 
 		this.cursor = newCursor;
+	}
+
+	private buildSong() {
+		let previousDelay = 1;
+
+		this.at({ x: 3, z: 2 }, (self) => {
+			let rowCounter = 0;
+			for (const { delay, levels } of this.song.slices) {
+				if (this.isStartOfRow) {
+					self.buildPlayButton(rowCounter++);
+				}
+				self.buildSlice({ delay: previousDelay, levels });
+				previousDelay = delay;
+				this.stepCounter += 1;
+			}
+		});
 	}
 
 	private buildClusterStructure(delay: number) {

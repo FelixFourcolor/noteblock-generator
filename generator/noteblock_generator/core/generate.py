@@ -20,14 +20,13 @@ def generate(
     *,
     data: Building,
     world_path: Path,
-    position: XYZ | None,
+    coordinates: XYZ | None,
     dimension: str | None,
     facing: DirectionName | None,
     tilt: TiltName | None,
     align: AlignName,
     theme: str,
     blend: bool,
-    walkable: bool,
     partial: bool,
 ):
     if not partial:
@@ -39,13 +38,12 @@ def generate(
             dimension = dimension or world.player_dimension
             structure = Structure(
                 data=data,
-                position=position or world.player_coordinates,
+                coordinates=coordinates or world.player_coordinates,
                 facing=facing or world.player_facing,
                 tilt=tilt or world.player_tilt,
                 align=align,
                 theme=theme,
                 blend=blend,
-                walkable=walkable,
                 cache=cache,
             )
             world.validate_bounds(structure.bounds, dimension)

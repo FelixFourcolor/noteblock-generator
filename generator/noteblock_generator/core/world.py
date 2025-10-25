@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from collections import deque
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
@@ -17,6 +16,7 @@ from typing_extensions import override
 from .blend import blend_filter
 from .coordinates import Direction, get_nearest_direction
 from .utils.console import Console
+from .utils.iter import exhaust
 
 if TYPE_CHECKING:
     from amulet.api.chunk import Chunk
@@ -178,8 +178,11 @@ class World(BaseWorld):
     def _save(self, dimension: str):
         wrapper = cast(AnvilFormat, self.level_wrapper)
         for (x, z), chunk in self._modified_chunks.items():
-            deque(wrapper._calculate_height(self, [(dimension, x, z)]), maxlen=0)
-            deque(wrapper._calculate_light(self, [(dimension, x, z)]), maxlen=0)
+            dimension_chunk = (dimension, x, z)
+            exhaust(
+                wrapper._calculate_height(self, [dimension_chunk]),  # pyright: ignore[reportPrivateUsage]
+                wrapper._calculate_light(self, [dimension_chunk]),  # pyright: ignore[reportPrivateUsage]
+            )
             wrapper.commit_chunk(chunk, dimension)
             yield
 

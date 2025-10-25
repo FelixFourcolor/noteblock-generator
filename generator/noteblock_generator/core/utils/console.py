@@ -1,4 +1,3 @@
-from collections import deque
 from collections.abc import Iterable
 from threading import Thread
 from typing import final
@@ -8,6 +7,8 @@ from click import Abort
 from rich import progress
 from rich.console import Console as _Console
 from rich.panel import Panel
+
+from .iter import exhaust
 
 _console = _Console()
 _print = _console.print
@@ -98,16 +99,20 @@ class CancellableProgress:
                 jobs_count -= 1
                 if self.result_ready:
                     break
-            else:
+            else:  #  all jobs finish before user responds
                 if not cancellable:
                     return True
 
         if self.cancelled:
             return False
 
-        deque(
-            progress.track(jobs_iter, total=jobs_count, description=description),
-            maxlen=0,
+        exhaust(
+            progress.track(
+                jobs_iter,
+                total=jobs_count,
+                description=description,
+                transient=not cancellable,
+            )
         )
         return True
 

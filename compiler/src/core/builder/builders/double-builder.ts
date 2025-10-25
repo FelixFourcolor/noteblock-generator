@@ -3,21 +3,29 @@ import { Block } from "../block.js";
 import { Builder } from "./builder.js";
 
 export class DoubleBuilder extends Builder<"double"> {
-	protected buildSlice({ delay, levels }: Slice<"double">) {
+	protected override buildSlice({ delay, levels }: Slice<"double">) {
 		const left = { delay, levels: levels.map((pair) => pair?.[0]) };
 		const right = { delay, levels: levels.map((pair) => pair?.[1]) };
 
-		this.withCursor(
-			this.cursor.offset({
-				dz: (this.size.width - 1) / 2,
-				respectDirection: false,
-			}),
+		this.offset(
+			{ dz: (this.size.width - 1) / 2, respectDirection: false },
 			(self) => self.buildSingleSlice(right),
 		);
 		this.buildSingleSlice(left);
 	}
 
-	protected buildPlayButton(index: number) {
+	protected override buildWalkSpace() {
+		const { height, width, length } = this.size;
+		const midpoint = (width - 1) / 2;
+
+		for (let x = 0; x < length - 1; x++) {
+			this.set([x, height - 3, midpoint], Block("glass"));
+			this.set([x, height - 2, midpoint], Block("air"));
+			this.set([x, height - 1, midpoint], Block("air"));
+		}
+	}
+
+	protected override buildPlayButton(index: number) {
 		const isFirst = index === 0;
 		const isLeftSide = index % 2 === 0;
 		const isRightSide = !isLeftSide;
@@ -27,8 +35,8 @@ export class DoubleBuilder extends Builder<"double"> {
 		const junction = Math.ceil(midpoint / 2);
 
 		const cursor = isLeftSide
-			? this.cursor.at({ y: height - 1 }).offset({ dz: -2 })
-			: this.cursor.at({ y: height - 1, z: midpoint - 1 }).flipDirection();
+			? this.cursor.at({ y: height - 2 }).offset({ dz: -2 })
+			: this.cursor.at({ y: height - 2, z: midpoint - 1 }).flipDirection();
 
 		this.withCursor(cursor, (self) => {
 			// left connector
@@ -40,7 +48,6 @@ export class DoubleBuilder extends Builder<"double"> {
 				wire.add([0, -1, zLeft]);
 				wire.add([0, -2, zLeft], null);
 			});
-			self.setOffset([0, -3, zLeft], Block("air"));
 
 			// right connector
 			const zRight = isRightSide ? midpoint : midpoint + 1;
@@ -51,7 +58,6 @@ export class DoubleBuilder extends Builder<"double"> {
 				wire.add([0, -1, zRight]);
 				wire.add([0, -2, zRight], null);
 			});
-			self.setOffset([0, -3, zRight], Block("air"));
 
 			// button
 			if (isFirst) {
