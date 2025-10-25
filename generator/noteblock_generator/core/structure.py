@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, NamedTuple, final
+from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
 from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
 from .blend import DANGER_LIST
@@ -11,7 +11,10 @@ from .utils.console import Console
 
 if TYPE_CHECKING:
     from ..api.types import Block
-    from .coordinates import XYZ, DirectionName, TiltName
+    from .coordinates import XYZ, DirectionName
+
+    TiltName = Literal["up", "down"]
+    AlignName = Literal["left", "center", "right"]
 
 
 @final
@@ -21,8 +24,9 @@ class Structure:
         *,
         data: Building,
         position: XYZ,
-        direction: DirectionName,
+        facing: DirectionName,
         tilt: TiltName,
+        align: AlignName,
         theme: str,
         blend: bool,
         walkable: bool,
@@ -30,8 +34,9 @@ class Structure:
     ):
         self.blocks = data.blocks
         self.origin_x, self.origin_y, self.origin_z = position
-        self.direction = Direction[direction]
+        self.facing = Direction[facing]
         self.tilt = tilt
+        self.align = align
         self.theme = theme
         self.blend = blend
         self.walkable = walkable
@@ -95,10 +100,14 @@ class Structure:
     def translate_position(self, coords: XYZ):
         raw_x, raw_y, raw_z = coords
 
-        rotated_x, rotated_z = self.direction.rotate((
-            raw_x,
-            raw_z - self.width // 2,
-        ))
+        if self.align == "center":
+            shifted_z = raw_z - self.width // 2
+        elif self.align == "right":
+            shifted_z = raw_z - self.width + 1
+        else:  # left
+            shifted_z = raw_z
+
+        rotated_x, rotated_z = self.facing.rotate((raw_x, shifted_z))
 
         translated_x = self.origin_x + rotated_x
         translated_y = self.origin_y + raw_y
@@ -113,7 +122,7 @@ class Structure:
 
     def translate_direction(self, name: DirectionName):
         raw_dir = Direction[name]
-        rotated_dir = Direction(self.direction.rotate(raw_dir))
+        rotated_dir = Direction(self.facing.rotate(raw_dir))
         return rotated_dir.name
 
     def translate_properties(self, data: BlockProperties):

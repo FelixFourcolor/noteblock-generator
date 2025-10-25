@@ -18,7 +18,7 @@ class Dimension(Enum):
     the_end = "the_end"
 
 
-class Direction(Enum):
+class Facing(Enum):
     north = "-z"
     south = "+z"
     east = "+x"
@@ -26,14 +26,14 @@ class Direction(Enum):
 
 
 class Tilt(Enum):
-    up = "+y"
-    down = "-y"
+    up = "up"
+    down = "down"
 
 
 class Alignment(Enum):
-    start = "start"
+    left = "left"
     center = "center"
-    end = "end"
+    right = "right"
 
 
 def help_callback(ctx: Context, _: CallbackParam, value: bool):
@@ -58,7 +58,7 @@ def run(
             help="Minecraft Java world save",
             show_default=False,
             metavar="directory",
-            rich_help_panel="Paths",
+            rich_help_panel="Input & output",
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -71,10 +71,10 @@ def run(
         Option(
             "--in",
             "-i",
-            help="Compiled music source (noteblock-compiler's output)",
+            help="Compiled music source",
             show_default="read from stdin",
             metavar="file",
-            rich_help_panel="Paths",
+            rich_help_panel="Input & output",
             exists=True,
             file_okay=True,
             dir_okay=False,
@@ -86,8 +86,8 @@ def run(
             "--at",
             help="Coordinates to place the structure",
             show_default="player's coordinates",
-            rich_help_panel="Build location",
-            metavar="<x y z>",
+            rich_help_panel="Positioning",
+            metavar="<X Y Z>",
         ),
     ] = None,
     dimension: Annotated[
@@ -96,46 +96,54 @@ def run(
             "--dim",
             help="Dimension to place the structure in",
             show_default="player's dimension",
-            rich_help_panel="Build location",
+            rich_help_panel="Positioning",
             case_sensitive=False,
         ),
     ] = None,
-    direction: Annotated[
-        Direction | None,
+    facing: Annotated[
+        Facing | None,
         Option(
-            "--dir",
-            help="Build direction (horizontal) starting from --at",
+            "--face",
+            help="Direction for the structure's length",
             show_default="player's look direction",
-            rich_help_panel="Build location",
+            rich_help_panel="Positioning",
             case_sensitive=False,
+            metavar="[-X|+X|-Z|+Z]",
         ),
     ] = None,
     tilt: Annotated[
         Tilt | None,
         Option(
             "--tilt",
-            help="Build direction (vertical) starting from --at",
+            help="Direction for the structure's height",
             show_default="player's look direction",
-            rich_help_panel="Build location",
-            case_sensitive=False,
+            rich_help_panel="Positioning",
         ),
     ] = None,
+    align: Annotated[
+        Alignment,
+        Option(
+            "--align",
+            help="Alignment for the structure's width",
+            rich_help_panel="Positioning",
+        ),
+    ] = Alignment.center,
     theme: Annotated[
         str,
         Option(
             "--theme",
             "-t",
             help="Primary building block; must be redstone-conductive",
-            rich_help_panel="Build customization",
-            metavar="block name",
+            rich_help_panel="Build options",
+            metavar="block_name",
         ),
     ] = "stone",
     blend: Annotated[
         bool,
         Option(
             "--blend/--clear",
-            help="Preserve surrounding blocks for a more natural look",
-            rich_help_panel="Build customization",
+            help="Preserve existing world blocks for a more natural look",
+            rich_help_panel="Build options",
         ),
     ] = False,
     walkable: Annotated[
@@ -143,7 +151,7 @@ def run(
         Option(
             "--walkable/--unwalkable",
             help="Ensure the area above the structure is walkable",
-            rich_help_panel="Build customization",
+            rich_help_panel="Build options",
         ),
     ] = True,
     partial: Annotated[
@@ -151,7 +159,7 @@ def run(
         Option(
             "--partial/--full",
             help="Generate only changed blocks since last run",
-            rich_help_panel="Build customization",
+            rich_help_panel="Build options",
         ),
     ] = False,
     _: Annotated[  # to hide --help in the help message
@@ -180,9 +188,10 @@ def run(
         data=data,
         world_path=world_path,
         position=position,
-        dimension=dimension.value if dimension else None,
-        direction=direction.name if direction else None,
+        dimension=dimension.name if dimension else None,
+        facing=facing.name if facing else None,
         tilt=tilt.name if tilt else None,
+        align=align.name,
         theme=theme,
         blend=blend,
         walkable=walkable,

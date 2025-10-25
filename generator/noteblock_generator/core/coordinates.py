@@ -7,7 +7,6 @@ from typing_extensions import override
 
 if TYPE_CHECKING:
     DirectionName = Literal["north", "south", "east", "west"]
-    TiltName = Literal["up", "down"]
 
 
 XYZ = tuple[int, int, int]
@@ -21,10 +20,6 @@ class Direction(XZ, Enum):
     east = (1, 0)
     west = (-1, 0)
 
-    @override
-    def __str__(self):
-        return self.name
-
     def rotate(self, vector: XZ) -> XZ:
         """Complex multiplication, with (x, z) representing x + zi"""
         return (
@@ -32,8 +27,8 @@ class Direction(XZ, Enum):
             self[0] * vector[1] + self[1] * vector[0],
         )
 
-    @property
-    def description(self):
+    @override
+    def __str__(self):
         return {
             Direction.north: "towards negative Z",
             Direction.south: "towards positive Z",

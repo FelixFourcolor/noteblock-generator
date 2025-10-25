@@ -12,7 +12,8 @@ from .utils.console import CancellableProgress
 
 if TYPE_CHECKING:
     from ..api.types import Building
-    from .coordinates import XYZ, DirectionName, TiltName
+    from .coordinates import XYZ, DirectionName
+    from .structure import AlignName, TiltName
 
 
 def generate(
@@ -21,8 +22,9 @@ def generate(
     world_path: Path,
     position: XYZ | None,
     dimension: str | None,
-    direction: DirectionName | None,
+    facing: DirectionName | None,
     tilt: TiltName | None,
+    align: AlignName,
     theme: str,
     blend: bool,
     walkable: bool,
@@ -37,9 +39,10 @@ def generate(
             dimension = dimension or world.player_dimension
             structure = Structure(
                 data=data,
-                position=position or world.player_position,
-                direction=direction or world.player_direction,
+                position=position or world.player_coordinates,
+                facing=facing or world.player_facing,
                 tilt=tilt or world.player_tilt,
+                align=align,
                 theme=theme,
                 blend=blend,
                 walkable=walkable,

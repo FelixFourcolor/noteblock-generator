@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from amulet.api.chunk import Chunk
 
     from .chunks import ChunkPlacement, ChunkProcessor
-    from .coordinates import XZ, DirectionName, TiltName
-    from .structure import Bounds
+    from .coordinates import XZ, DirectionName
+    from .structure import Bounds, TiltName
 
 
 @final
@@ -89,15 +89,15 @@ class World(BaseWorld):
         yield from self._save(dimension=dimension)
 
     @cached_property
-    def player_position(self):
+    def player_coordinates(self):
         if self.player:
             [x, y, z] = tuple(map(math.floor, self.player.location))
-            Console.info("Using player's position: {position}", position=(x, y, z))
+            Console.info("Using player's coordinates: {location}", location=(x, y, z))
             return (x, y, z)
 
         default = (0, 63, 0)
         Console.info(
-            "Unable to read player data; position {location} is used by default.",
+            "Unable to read player data; coordinates {location} is used by default.",
             location=default,
         )
         return default
@@ -117,20 +117,20 @@ class World(BaseWorld):
         return default
 
     @cached_property
-    def player_direction(self) -> DirectionName:
+    def player_facing(self) -> DirectionName:
         if self.player:
             [horizontal_rotation, _] = self.player.rotation
             direction = get_nearest_direction(horizontal_rotation)
             Console.info(
-                "Using player's direction: {direction}",
-                direction=f"{direction.name} ({direction.description})",
+                "Using player's facing: {direction}",
+                direction=direction,
             )
             return direction.name
 
         default = Direction.east
         Console.info(
             "Unable to read player data; facing {direction} is used by default.",
-            direction=f"{default.name} ({default.description})",
+            direction=default,
         )
         return default.name
 
