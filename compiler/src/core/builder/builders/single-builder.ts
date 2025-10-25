@@ -10,7 +10,7 @@ export class SingleBuilder extends Builder<"single"> {
 
 	protected buildPlayButton(index: number) {
 		this.withCursor(
-			this.cursor.at({ y: this.size.height - 2 }).offset({ dz: -2 }),
+			this.cursor.at({ y: this.size.height - 1 }).offset({ dz: -2 }),
 			(self) => {
 				if (index === 0) {
 					self.initialPlayButton();

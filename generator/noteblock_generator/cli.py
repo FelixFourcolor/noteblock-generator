@@ -57,7 +57,7 @@ def run(
             "-o",
             help="Minecraft Java world save",
             show_default=False,
-            metavar="folder",
+            metavar="directory",
             rich_help_panel="Paths",
             exists=True,
             file_okay=False,
@@ -71,7 +71,7 @@ def run(
         Option(
             "--in",
             "-i",
-            help="Music input",
+            help="Compiled music source (noteblock-compiler's output)",
             show_default="read from stdin",
             metavar="file",
             rich_help_panel="Paths",
@@ -87,7 +87,7 @@ def run(
             help="Coordinates to place the structure",
             show_default="player's coordinates",
             rich_help_panel="Build location",
-            metavar="<X> <Y> <Z>",
+            metavar="<x y z>",
         ),
     ] = None,
     dimension: Annotated[
@@ -134,15 +134,23 @@ def run(
         bool,
         Option(
             "--blend/--clear",
-            help="Preserve surrounding blocks (--blend) or replace them with air (--clear)",
+            help="Preserve surrounding blocks for a more natural look",
             rich_help_panel="Build customization",
         ),
     ] = False,
+    walkable: Annotated[
+        bool,
+        Option(
+            "--walkable/--unwalkable",
+            help="Ensure the area above the structure is walkable",
+            rich_help_panel="Build customization",
+        ),
+    ] = True,
     partial: Annotated[
         bool,
         Option(
             "--partial/--full",
-            help="Generate only changed blocks since last generation",
+            help="Generate only changed blocks since last run",
             rich_help_panel="Build customization",
         ),
     ] = False,
@@ -177,5 +185,6 @@ def run(
         tilt=tilt.name if tilt else None,
         theme=theme,
         blend=blend,
+        walkable=walkable,
         partial=partial,
     )

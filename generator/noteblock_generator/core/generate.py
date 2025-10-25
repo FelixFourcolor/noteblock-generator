@@ -25,6 +25,7 @@ def generate(
     tilt: TiltName | None,
     theme: str,
     blend: bool,
+    walkable: bool,
     partial: bool,
 ):
     if not partial:
@@ -41,6 +42,7 @@ def generate(
                 tilt=tilt or world.player_tilt,
                 theme=theme,
                 blend=blend,
+                walkable=walkable,
                 cache=cache,
             )
             world.validate_bounds(structure.bounds, dimension)

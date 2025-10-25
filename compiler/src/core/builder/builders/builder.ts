@@ -27,8 +27,18 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	build(): Building {
-		this.buildWalkSpace();
-		this.buildGrid();
+		let previousDelay = 1;
+		this.at({ x: 3, z: 2 }, (self) => {
+			let rowCounter = 0;
+			for (const { delay, levels } of this.song.slices) {
+				if (this.isStartOfRow) {
+					self.buildPlayButton(rowCounter++);
+				}
+				self.buildSlice({ delay: previousDelay, levels });
+				previousDelay = delay;
+				this.stepCounter += 1;
+			}
+		});
 
 		return { size: this.size, blocks: this.exportBlocks() };
 	}
@@ -66,33 +76,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		});
 
 		this.cursor = newCursor;
-	}
-
-	private buildWalkSpace() {
-		const { length, width, height } = this.size;
-		for (let x = 1; x < length - 1; ++x) {
-			for (let z = 1; z < width - 1; ++z) {
-				this.set([x, height - 1, z], Block("air"));
-				this.set([x, height - 2, z], Block("air"));
-				this.set([x, height - 3, z], Block("glass"));
-			}
-		}
-	}
-
-	private buildGrid() {
-		let previousDelay = 1;
-
-		this.at({ x: 3, z: 2 }, (self) => {
-			let rowCounter = 0;
-			for (const { delay, levels } of this.song.slices) {
-				if (this.isStartOfRow) {
-					self.buildPlayButton(rowCounter++);
-				}
-				self.buildSlice({ delay: previousDelay, levels });
-				previousDelay = delay;
-				this.stepCounter += 1;
-			}
-		});
 	}
 
 	private buildClusterStructure(delay: number) {

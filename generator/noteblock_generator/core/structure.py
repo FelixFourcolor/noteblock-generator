@@ -11,7 +11,7 @@ from .utils.console import Console
 
 if TYPE_CHECKING:
     from ..api.types import Block
-    from .coordinates import XYZ, XZ, DirectionName, TiltName
+    from .coordinates import XYZ, DirectionName, TiltName
 
 
 @final
@@ -25,21 +25,26 @@ class Structure:
         tilt: TiltName,
         theme: str,
         blend: bool,
+        walkable: bool,
         cache: Cache | None,
     ):
-        size = data.size
-        self.length = size.length
-        self.height = size.height
-        self.width = size.width
-        self.volume = self.length * self.height * self.width
         self.blocks = data.blocks
         self.origin_x, self.origin_y, self.origin_z = position
         self.direction = Direction[direction]
         self.tilt = tilt
         self.theme = theme
         self.blend = blend
-        self.bounds = self._get_bounds()
+        self.walkable = walkable
         self.cache = cache
+
+        size = data.size
+        self.length = size.length
+        self.width = size.width
+        self.height = size.height
+        if walkable:
+            self.height += 1  # to fit player's height
+        self.volume = self.length * self.height * self.width
+        self.bounds = self._get_bounds()
 
         if blend:
             Console.warn(
@@ -72,8 +77,7 @@ class Structure:
     def get_block(self, coords: XYZ) -> BlockName | Block | None:
         x, y, z = coords
         block: BlockType | None = self.blocks.get(
-            f"{x} {y} {z}",
-            "air" if not self.blend or self._is_boundary((x, z)) else None,
+            f"{x} {y} {z}", self._get_implied_block((x, y, z))
         )
 
         if block is None:
@@ -101,7 +105,9 @@ class Structure:
         translated_z = self.origin_z + rotated_z
 
         if self.tilt == "down":
-            translated_y -= self.height - 2
+            translated_y -= self.height - 1
+            if self.walkable:
+                translated_y += 1
 
         return translated_x, translated_y, translated_z
 
@@ -122,9 +128,20 @@ class Structure:
 
         return translated
 
-    def _is_boundary(self, coords: XZ) -> bool:
-        x, z = coords
-        return x in (0, self.length - 1) or z in (0, self.width - 1)
+    def _get_implied_block(self, coords: XYZ) -> BlockName | None:
+        x, y, z = coords
+
+        if self.walkable and z == self.width // 2 and x in range(self.length - 1):
+            if y in [self.height - 1, self.height - 2]:
+                return "air"
+            if y == self.height - 3:
+                return "glass"
+
+        if not self.blend:
+            return "air"
+
+        if x in (0, self.length - 1) or z in (0, self.width - 1):
+            return "air"
 
     def _get_bounds(self) -> Bounds:
         start_x, start_y, start_z = self.translate_position((0, 0, 0))

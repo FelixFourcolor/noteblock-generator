@@ -27,8 +27,8 @@ export class DoubleBuilder extends Builder<"double"> {
 		const junction = Math.ceil(midpoint / 2);
 
 		const cursor = isLeftSide
-			? this.cursor.at({ y: height - 2 }).offset({ dz: -2 })
-			: this.cursor.at({ y: height - 2, z: midpoint - 1 }).flipDirection();
+			? this.cursor.at({ y: height - 1 }).offset({ dz: -2 })
+			: this.cursor.at({ y: height - 1, z: midpoint - 1 }).flipDirection();
 
 		this.withCursor(cursor, (self) => {
 			// left connector
@@ -65,6 +65,7 @@ export class DoubleBuilder extends Builder<"double"> {
 				self.setOffset([-2, 0, midpoint], Block.Button);
 			} else {
 				self.setOffset([0, 0, junction], Block.Button);
+				self.setOffset([0, -1, junction], Block("glass"));
 			}
 		});
 	}
