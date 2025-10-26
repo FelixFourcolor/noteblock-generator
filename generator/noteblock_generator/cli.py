@@ -105,7 +105,7 @@ def run(
         Option(
             "--theme",
             "-t",
-            help="Building block (must be redstone-conductive); can be used multiple times",
+            help="Building block; must be redstone-conductive",
             rich_help_panel="Customization",
             metavar="name",
             callback=_validate_theme,
@@ -163,7 +163,7 @@ def run(
         Alignment,
         Option(
             "--align",
-            help="Alignment for the structure's width",
+            help="Direction for the structure's width",
             rich_help_panel="Positioning",
         ),
     ] = Alignment.center,

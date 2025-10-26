@@ -57,10 +57,7 @@ class Cache:
 
     def display_stats(self):
         if not self._updates_count:
-            Console.info(
-                "Structure unchanged; nothing to generate.",
-                important=True,
-            )
+            Console.success("Structure unchanged; nothing to generate.")
             return
 
         if not self._initial_length:
@@ -72,8 +69,7 @@ class Cache:
             "Structure differs by {difference} from last generation.",
             difference=f"{percentage:.2f}%"
             if percentage > 0.01
-            else f"{self._updates_count} blocks",
-            important=True,
+            else f"{self._updates_count} block{'s' if self._updates_count > 1 else ''}",
         )
 
     def _load(self):
@@ -85,15 +81,12 @@ class Cache:
             )
         else:
             self._data = CacheData()
-            Console.info(
-                "No previous generation found; generating from scratch", important=True
+            Console.warn(
+                "No previous generation found. This run will generate from scratch."
             )
         self._path.unlink(missing_ok=True)
 
     def _save(self):
-        if not self._updates_count:
-            return
-
         self._data.last_modified = datetime.now().timestamp()
         _save_cache(self._path, self._data)
 

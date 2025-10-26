@@ -77,7 +77,7 @@ class World(BaseWorld):
             if ("min" in axis and coord >= limit) or ("max" in axis and coord <= limit):
                 continue
             raise UsageError(
-                f"Structure exceeds world boundary at {axis}: {coord} vs {limit}.",
+                f"Structure exceeds world boundary at {axis}: {coord} vs {limit=}.",
             )
 
     def write(self, chunks: ChunkProcessor, dimension: str):

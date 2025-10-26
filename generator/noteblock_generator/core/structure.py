@@ -102,9 +102,9 @@ class Structure:
 
         if self.align == "center":
             shifted_z = raw_z - math.floor((self.width - 1) / 2)
-        elif self.align == "right":
+        elif self.align == "left":
             shifted_z = raw_z - self.width + 1
-        else:  # left
+        else:  # right
             shifted_z = raw_z
 
         rotated_x, rotated_z = self.facing.rotate((raw_x, shifted_z))
