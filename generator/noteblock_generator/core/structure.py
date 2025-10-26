@@ -48,6 +48,9 @@ class Structure:
         self.volume = self.length * self.height * self.width
         self.bounds = self._get_bounds()
 
+        # to alternate between rounding up and down in edge cases
+        self._theme_should_round_up = True
+
         if blend:
             Console.warn(
                 "Blend mode is experimental. Turn it off if you encounter issues."
@@ -87,15 +90,36 @@ class Structure:
             return None
 
         if isinstance(block, Block):
+            # apply rotation to directional properties (e.g. "west"), if any
             block.properties = self.translate_properties(block.properties)
             return block
 
-        if block == 0:  # magic value for using theme block
-            themes_count = len(self.theme)
-            index = min(themes_count - 1, (z * themes_count) // self.width)
-            return self.theme[index]
+        if block == 0:  # magic value for theme block
+            return self.get_theme_block(z)
 
         return block
+
+    def get_theme_block(self, z: int) -> BlockName:
+        max_z = self.width - 1
+        if z == 0:
+            return self.theme[0]
+        if z == max_z:
+            return self.theme[-1]
+
+        themes_count = len(self.theme)
+        theme_index = (z * themes_count) / max_z
+
+        if int(theme_index) != theme_index:
+            return self.theme[int(theme_index)]
+
+        # Edge case: when the index is a whole number
+        if self._theme_should_round_up:
+            self._theme_should_round_up = False
+            theme_index = int(theme_index)
+        else:
+            self._theme_should_round_up = True
+            theme_index = int(theme_index) - 1
+        return self.theme[theme_index]
 
     def translate_position(self, coords: XYZ):
         raw_x, raw_y, raw_z = coords
