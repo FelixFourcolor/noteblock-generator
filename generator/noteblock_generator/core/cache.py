@@ -84,7 +84,6 @@ class Cache:
             Console.warn(
                 "No previous generation found. This run will generate from scratch."
             )
-        self._path.unlink(missing_ok=True)
 
     def _save(self):
         self._data.last_modified = datetime.now().timestamp()
