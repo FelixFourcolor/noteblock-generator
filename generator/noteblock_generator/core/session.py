@@ -126,16 +126,14 @@ class GeneratingSession:
 
         if self._externally_modified():
             Console.warn(
-                "The save files have been modified while generating.\n"
-                + "To keep this generation, all other changes must be discarded.",
+                "It looks like you were inside the world while generating.\n"
+                + "To keep this generation, all of your changes since the program started must be discarded.",
                 important=True,
             )
-            if not Console.confirm("Confirm to proceed?", default=True):
+            if not Console.confirm("Confirm to proceed?", default=False):
                 Console.success(cancelled_message)
                 raise typer.Exit()
-            Console.success(
-                "If you are inside the world, exit and re-enter to see the result.",
-            )
+            Console.success("Exit and re-enter to see the result.")
 
         with IgnoreInterrupt():
             # This section is critical but should be very fast (< 0.1s)
