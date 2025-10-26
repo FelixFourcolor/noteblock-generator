@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Callable
 from enum import Enum
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import typer
 from click import UsageError
-from typer import CallbackParam, Context, Option, Typer
+from typer import Context, Option, Typer
 
-from .api.loader import load_and_validate
+from noteblock_generator import VERSION
+
+from .api.loader import load
+from .api.types import BlockName
 from .core.coordinates import XYZ
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Dimension(Enum):
@@ -36,7 +43,20 @@ class Alignment(Enum):
     right = "right"
 
 
-def help_callback(ctx: Context, _: CallbackParam, value: bool):
+def _validate_theme(_ctx, _callback_param, value: list[str] | None):
+    if value and len(value) > 8:
+        raise UsageError("Cannot use more than 8 themes.")
+
+    return value
+
+
+def version_callback(value: bool):
+    if value:
+        print(VERSION)
+        raise typer.Exit()
+
+
+def _show_help(ctx: Context, _callback_param, value: bool):
     if value:
         typer.echo(ctx.get_help())
         ctx.exit()
@@ -58,7 +78,7 @@ def run(
             help="Minecraft Java world save",
             show_default=False,
             metavar="directory",
-            rich_help_panel="Input & Output",
+            rich_help_panel="Input & output",
             exists=True,
             file_okay=False,
             dir_okay=True,
@@ -74,21 +94,23 @@ def run(
             help="Compiled music source",
             show_default="read from stdin",
             metavar="file",
-            rich_help_panel="Input & Output",
+            rich_help_panel="Input & output",
             exists=True,
             file_okay=True,
             dir_okay=False,
         ),
     ] = None,
     theme: Annotated[
-        str,
+        list[BlockName] | None,
         Option(
             "--theme",
-            help="Primary building block; must be redstone-conductive",
+            "-t",
+            help="Building block (must be redstone-conductive); can be used multiple times",
             rich_help_panel="Customization",
-            metavar="block_name",
+            metavar="name",
+            callback=_validate_theme,
         ),
-    ] = "stone",
+    ] = ["stone"],  # pyright: ignore[reportCallInDefaultInitializer] # must be list for typer's help message
     blend: Annotated[
         bool,
         Option(
@@ -150,22 +172,20 @@ def run(
         Option(
             "--partial/--full",
             help="Generate only changed blocks since last run",
-            rich_help_panel="Advanced",
+            rich_help_panel="Advanced options",
         ),
     ] = False,
-    _: Annotated[  # to hide --help in the help message
+    _version: Annotated[
         bool,
-        Option(
-            "--help",
-            "-h",
-            is_eager=True,
-            hidden=True,
-            callback=help_callback,
-        ),
+        Option("--version", is_eager=True, hidden=True, callback=version_callback),
+    ] = False,
+    _help: Annotated[
+        bool,
+        Option("--help", is_eager=True, hidden=True, callback=_show_help),
     ] = False,
 ):
     try:
-        data = load_and_validate(input_path)
+        data = load(input_path)
     except Exception:
         raise UsageError("Invalid input data.")
     if not data:
@@ -184,7 +204,7 @@ def run(
         facing=facing.name if facing else None,
         tilt=tilt.name if tilt else None,
         align=align.name,
-        theme=theme,
+        theme=theme or ["stone"],
         blend=blend,
         partial=partial,
     )

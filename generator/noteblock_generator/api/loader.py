@@ -8,12 +8,12 @@ from msgspec import json
 from .types import Building
 
 
-def load_and_validate(path: Path | None) -> Building | None:
-    if data := _load(path):
+def load(path: Path | None) -> Building | None:
+    if data := _load_bytes(path):
         return json.decode(data, type=Building)
 
 
-def _load(path: Path | None) -> bytes | None:
+def _load_bytes(path: Path | None) -> bytes | None:
     if path:
         with path.open("rb") as f:
             return f.read()

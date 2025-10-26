@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 _LIQUID = {
     "lava",
     "water",
+    "ice",
     "bubble_column",
     "kelp",
     "kelp_plant",

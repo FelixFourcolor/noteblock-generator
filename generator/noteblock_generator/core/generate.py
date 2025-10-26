@@ -11,7 +11,7 @@ from .structure import Structure
 from .utils.console import CancellableProgress
 
 if TYPE_CHECKING:
-    from ..api.types import Building
+    from ..api.types import BlockName, Building
     from .coordinates import XYZ, DirectionName
     from .structure import AlignName, TiltName
 
@@ -25,7 +25,7 @@ def generate(
     facing: DirectionName | None,
     tilt: TiltName | None,
     align: AlignName,
-    theme: str,
+    theme: list[BlockName],
     blend: bool,
     partial: bool,
 ):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 import math
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
 from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
@@ -28,7 +28,7 @@ class Structure:
         facing: DirectionName,
         tilt: TiltName,
         align: AlignName,
-        theme: str,
+        theme: list[BlockName],
         blend: bool,
         cache: Cache | None,
     ):
@@ -90,8 +90,10 @@ class Structure:
             block.properties = self.translate_properties(block.properties)
             return block
 
-        if block == 0:
-            return self.theme
+        if block == 0:  # magic value for using theme block
+            themes_count = len(self.theme)
+            index = min(themes_count - 1, (z * themes_count) // self.width)
+            return self.theme[index]
 
         return block
 
