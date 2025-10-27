@@ -1,12 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { readdir, stat } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { ArgumentsCamelCase } from "yargs";
 import type { CLIOptions } from "./cli.js";
 import { handleError } from "./error.js";
 
 export async function getInput(args: CLIOptions) {
 	if (args.in) {
-		return `file://${args.in}` as const;
+		const path = await getEntryPath(args.in);
+		return `file://${path}` as const;
 	}
 	if (!process.stdin.isTTY) {
 		const chunks = await Array.fromAsync(process.stdin);
@@ -35,4 +37,20 @@ export function withOutput<T extends ArgumentsCamelCase<CLIOptions>>(
 			process.stdout.write(`${stringified}\n`);
 		}
 	};
+}
+
+async function getEntryPath(dirPath: string): Promise<string> {
+	const isDirectory = await stat(dirPath)
+		.then((st) => st.isDirectory())
+		.catch(() => false);
+	if (!isDirectory) {
+		return dirPath;
+	}
+
+	const entries = await readdir(dirPath, { withFileTypes: true });
+	const topLevelFiles = entries.filter((entry) => entry.isFile());
+	if (topLevelFiles.length === 1) {
+		return join(dirPath, topLevelFiles[0]!.name);
+	}
+	return `${dirPath}/index.yaml`;
 }

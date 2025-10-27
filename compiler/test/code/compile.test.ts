@@ -22,7 +22,7 @@ forEachProject("Compile tests", async (projectDir) => {
 		}
 
 		test(`${mode}`, async () => {
-			const entryPoint = join(projectDir, "repo", "src", "index.yaml");
+			const entryPoint = join(projectDir, "repo", "src");
 			const receivedFile = join(projectDir, "build", `${output}.received.json`);
 
 			await CLI.run([
