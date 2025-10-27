@@ -43,20 +43,13 @@ class Alignment(Enum):
     right = "right"
 
 
-def _validate_theme(_ctx, _callback_param, value: list[str] | None):
-    if value and len(value) > 8:
-        raise UsageError("Cannot use more than 8 themes.")
-
-    return value
-
-
-def version_callback(value: bool):
+def _show_version(value: bool):
     if value:
         print(VERSION)
         raise typer.Exit()
 
 
-def _show_help(ctx: Context, _callback_param, value: bool):
+def _show_help(ctx: Context, value: bool):
     if value:
         typer.echo(ctx.get_help())
         ctx.exit()
@@ -108,7 +101,6 @@ def run(
             help="Building block; must be redstone-conductive",
             rich_help_panel="Customization",
             metavar="name",
-            callback=_validate_theme,
         ),
     ] = ["stone"],  # pyright: ignore[reportCallInDefaultInitializer] # must be list for typer's help message
     blend: Annotated[
@@ -177,7 +169,7 @@ def run(
     ] = False,
     _version: Annotated[
         bool,
-        Option("--version", is_eager=True, hidden=True, callback=version_callback),
+        Option("--version", is_eager=True, hidden=True, callback=_show_version),
     ] = False,
     _help: Annotated[
         bool,
