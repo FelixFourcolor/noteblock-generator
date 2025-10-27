@@ -8,13 +8,13 @@ type NormalizedModifier = {
 	noteModifier: IProperties;
 };
 
-type Normalized<T extends Note> = NormalizedModifier &
+export type Normalized<T extends Note> = NormalizedModifier &
 	(T extends Note.Chord
 		? { type: "chord"; value: NoteValue.Chord }
 		: T extends Note.Compound
-			? { type: "compound"; value: (Note.Simple | Note.Chord)[] }
+			? { type: "compound"; value: Note.Compound.Item[] }
 			: T extends Note.Quaver
-				? { type: "quaver"; value: NoteValue.Quaver }
+				? { type: "quaver"; value: NoteValue.Quaver.Item[] }
 				: { type: "simple"; value: NoteValue.Simple });
 
 export function normalize<T extends Note>(note: T): Normalized<T>;
@@ -44,9 +44,9 @@ export function normalize(note: Note): Normalized<Note> {
 
 function normalizeNoteValue(value: NoteValue) {
 	return match(value)
+		.with(P.when(createIs<NoteValue.Simple>()), (value) => simple(value))
 		.with(P.when(createIs<NoteValue.Chord>()), (value) => chord(value))
 		.with(P.when(createIs<NoteValue.Quaver>()), (value) => quaver(value))
-		.with(P.when(createIs<NoteValue.Simple>()), (value) => simple(value))
 		.exhaustive();
 }
 
@@ -96,13 +96,13 @@ const chord = (value: NoteValue.Chord, noteModifier: IProperties = {}) => ({
 
 const quaver = (value: NoteValue.Quaver, noteModifier: IProperties = {}) => ({
 	type: "quaver" as const,
-	value,
+	value: value.split("'"),
 	noteModifier,
 	trillValue: undefined,
 });
 
 const compound = (
-	value: (Note.Simple | Note.Chord)[],
+	value: Note.Compound.Item[],
 	noteModifier: IProperties = {},
 ) => ({
 	type: "compound" as const,

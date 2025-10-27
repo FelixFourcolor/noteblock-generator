@@ -24,7 +24,7 @@ export function resolveNote(
 		return applyPhrasing({ events, context });
 	}
 
-	function resolveChord(noteValue: NoteValue.Chord) {
+	function resolveChord(noteValue: NoteValue.Chord, context = noteContext) {
 		const { value: pitches, duration } = splitTimedValue(noteValue);
 		return zip(
 			pitches
@@ -32,13 +32,13 @@ export function resolveNote(
 				.split(";")
 				.filter((v) => v.trim())
 				.map((pitch) => (duration ? `${pitch}:${duration}` : pitch))
-				.map((v) => resolveSimple(v)),
+				.map((v) => resolveSimple(v, context)),
 		);
 	}
 
-	function resolveCompound(noteValue: (Note.Simple | Note.Chord)[]) {
+	function resolveCompound(values: (Note.Simple | Note.Chord)[]) {
 		const events = chain(
-			noteValue.map((note) => {
+			values.map((note) => {
 				const { value, trillValue, noteModifier } = normalize(note);
 				return resolveNoteblocks({
 					noteValue: value,
@@ -50,27 +50,34 @@ export function resolveNote(
 		return applyPhrasing({ events, context: noteContext });
 	}
 
-	function resolveQuaver(noteValue: NoteValue.Quaver) {
+	function resolveQuaver(values: NoteValue.Quaver.Item[]) {
 		const { beat } = noteContext.resolveStatic();
 		const halfBeat = Math.max(1, Math.floor(beat / 2));
 		const fastContext = noteContext.fork({ beat: halfBeat });
 
-		const values = noteValue.split("'");
+		function resolveItem(value: NoteValue.Quaver.Item, context?: Context) {
+			const type = value.trim().startsWith("(") ? "chord" : "simple";
+			if (type === "chord") {
+				return resolveChord(value as unknown as NoteValue.Chord, context);
+			}
+			return resolveSimple(value as unknown as NoteValue.Simple, context);
+		}
+
 		const quaverNotes = values
 			.slice(0, -1)
-			.map((v) => resolveSimple(v, fastContext));
+			.map((v) => resolveItem(v, fastContext));
 
 		const lastValue = values[values.length - 1]!;
 		if (!lastValue.trim()) {
 			return chain(quaverNotes);
 		}
-		const normalNote = resolveSimple(lastValue);
+		const normalNote = resolveItem(lastValue);
 		return chain([...quaverNotes, normalNote]);
 	}
 
 	return match(normalizedNote)
 		.with({ type: "simple", value: P.select() }, (v) => resolveSimple(v))
-		.with({ type: "chord", value: P.select() }, resolveChord)
+		.with({ type: "chord", value: P.select() }, (v) => resolveChord(v))
 		.with({ type: "compound", value: P.select() }, resolveCompound)
 		.with({ type: "quaver", value: P.select() }, resolveQuaver)
 		.exhaustive();

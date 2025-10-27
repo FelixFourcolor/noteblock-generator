@@ -39,9 +39,12 @@ export namespace Note {
 	>;
 
 	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ notes: (Simple<T> | Chord<T>)[] & tags.MinItems<2> },
+		{ notes: Compound.Item<T>[] & tags.MinItems<2> },
 		MultiNoteModifier<T>
 	>;
+	export namespace Compound {
+		export type Item<T extends TPosition = TPosition> = Simple<T> | Chord<T>;
+	}
 
 	export type Quaver<T extends TPosition = TPosition> = Modified<
 		{ notes: NoteValue.Quaver },

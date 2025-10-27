@@ -1,6 +1,8 @@
 import type { Re, Repeat, Token } from "#utils/@";
 
 export type Timed<Value> = Re<Value, Duration.optional>;
+export type Untimed<T> = T extends Timed<infer V> ? Re<V> : never;
+
 export type Variable<T> = Repeat<Timed<T>, { separator: ";" }>;
 
 export type Duration = Duration.required;
