@@ -215,9 +215,6 @@ namespace instrument {
 	export type NoteValue = Int<0, 24>;
 
 	export const octaves = {
-		bass_drum: 2,
-		hat: 2,
-		snare: 2,
 		bass: 2,
 		didgeridoo: 2,
 		guitar: 3,

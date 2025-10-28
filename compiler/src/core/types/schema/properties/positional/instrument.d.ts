@@ -19,7 +19,4 @@ type InstrumentName =
 	| "bell"
 	| "chime"
 	| "xylophone"
-	| "basedrum"
-	| "hat"
-	| "snare"
 	| "null";
