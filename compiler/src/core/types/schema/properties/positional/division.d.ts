@@ -12,4 +12,9 @@ export namespace Division {
 	export type variable = Variable<uniform | "~">;
 }
 
-export type IDivision = { division?: Positional<Division> };
+export type IDivision = {
+	/**
+	 * Where to place the note horizontally relative to the player (left, right, or both sides).
+	 */
+	division?: Positional<Division>;
+};

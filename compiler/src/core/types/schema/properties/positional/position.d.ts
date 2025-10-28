@@ -17,5 +17,15 @@ export namespace Position {
 export type TPosition = "single" | "double";
 
 export type IPosition<T> = T extends "single"
-	? { position?: Positional<Level> } | ILevel
-	: { position?: Positional<Position> } | (ILevel & IDivision);
+	?
+			| {
+					/** A shorthand for specifying both level and division. */
+					position?: Positional<Level>;
+			  }
+			| ILevel
+	:
+			| {
+					/** A shorthand for specifying both level and division. */
+					position?: Positional<Position>;
+			  }
+			| (ILevel & IDivision);

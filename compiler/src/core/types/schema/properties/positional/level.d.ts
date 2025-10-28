@@ -9,4 +9,10 @@ export namespace Level {
 	export type variable = Variable<uniform | Re<"~">>;
 }
 
-export type ILevel = { level?: Positional<Level> };
+export type ILevel = {
+	/**
+	 * Where to place the note vertically, higher means closer to the player.
+	 * This is one way to control volume, dynamic being the other one. A +1 in level has much less effect than a +1 in dynamic.
+	 */
+	level?: Positional<Level>;
+};

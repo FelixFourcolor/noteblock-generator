@@ -6,7 +6,7 @@ import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";
 import { getSize, type Size, SLICE_SIZE } from "../size.js";
-import { baseBlock } from "./noteblocks.js";
+import { instrumentBase } from "./noteblock-instruments.js";
 
 export type Building = {
 	size: Size;
@@ -129,7 +129,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
-			this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
+			this.setOffset([dx, -1, dz], instrumentBase[note.instrument]);
 			this.setOffset([dx, 0, dz], Block.Note(note));
 			this.setOffset([dx, 1, dz], "air");
 		});

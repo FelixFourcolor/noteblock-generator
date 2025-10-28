@@ -8,7 +8,7 @@ export type Static<T> = T | Reset;
 export type Positional<T> =
 	| (T | Reset)
 	| ((T | Reset | Delete | null)[] & tags.MinItems<1>);
-export type IPositional<T> = Partial<{ [K in keyof T]: Positional<T[K]> }>;
+export type IPositional<T> = { [K in keyof T]?: Positional<T[K]> };
 
 type Global<T> = T extends (infer U)[]
 	? Exclude<U, Reset | Delete>[] & tags.MinItems<1>
