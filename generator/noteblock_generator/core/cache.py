@@ -65,11 +65,12 @@ class Cache:
             return
 
         percentage = (self._updates_count / (self._initial_length)) * 100
+        blocks = f"{self._updates_count} block{'s' if self._updates_count > 1 else ''}"
         Console.info(
             "Structure differs by {difference} from last generation.",
-            difference=f"{percentage:.2f}%"
-            if percentage > 0.01
-            else f"{self._updates_count} block{'s' if self._updates_count > 1 else ''}",
+            difference=f"{percentage:.1f}%"
+            if percentage >= 0.1
+            else f"{blocks} (< 0.1%)",
         )
 
     def _load(self):
