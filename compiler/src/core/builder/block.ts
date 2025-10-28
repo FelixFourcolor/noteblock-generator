@@ -10,10 +10,7 @@ type BlockData = {
 };
 export type BlockType = BlockName | BlockData | 0;
 
-export function Block(
-	name: BlockName,
-	properties: BlockProperties | undefined = undefined,
-): BlockType {
+export function Block(name: BlockName, properties: BlockProperties): BlockType {
 	if (!properties) {
 		return name;
 	}

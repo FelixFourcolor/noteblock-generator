@@ -3,23 +3,29 @@ import { match, P } from "ts-pattern";
 import { assert, createIs, is } from "typia";
 import { UserError } from "#cli/error.js";
 
-import type { Pitch, Instrument as T_Instrument, Trill } from "#schema/@";
+import type {
+	InstrumentChoice,
+	InstrumentName,
+	Pitch,
+	Instrument as T_Instrument,
+	Trill,
+} from "#schema/@";
 import type { Int } from "#utils/@";
 import { Positional } from "../positional.js";
 import { Transpose } from "./transpose.js";
 
 export type NoteBlock = {
-	instrument: instrument.Name;
+	instrument: InstrumentName;
 	note: instrument.NoteValue;
 };
 
-function createNoteBlock(value: number, instrumentName: instrument.Name) {
-	if (instrumentName === "null") {
+function createNoteBlock(pitch: number, instrumentChoice: InstrumentChoice) {
+	if (instrumentChoice === "null") {
 		return undefined;
 	}
 	return {
-		instrument: instrumentName,
-		note: instrument.toNoteValue(value, instrumentName),
+		instrument: instrumentChoice,
+		note: instrument.toNoteValue(pitch, instrumentChoice),
 	} satisfies NoteBlock | undefined;
 }
 
@@ -40,18 +46,18 @@ export const Instrument = Positional({
 			autoTranspose: boolean | undefined;
 		},
 	): [NoteBlock | undefined, NoteBlock | undefined] => {
-		const instrumentChoices = assert<instrument.Name[]>(
+		const instrumentChoices = assert<InstrumentChoice[]>(
 			current
 				.split("|")
 				.map((s) => s.trim())
 				.filter(Boolean),
 		);
-		const defaultInstrument = assert<instrument.Name>(instrumentChoices[0]);
+		const defaultInstrument = instrumentChoices[0]!;
 		if (defaultInstrument === "null") {
 			return [undefined, undefined];
 		}
 		const defaultOctave = instrument.octaves[defaultInstrument];
-		const resolvedPitch = resolvePitch(pitch, defaultOctave);
+		const resolvedPitch = pitches.resolve(pitch, defaultOctave);
 		if (!resolvedPitch) {
 			throw new UserError(
 				`Unable to resolve pitch ${pitch} for ${defaultInstrument}`,
@@ -63,7 +69,7 @@ export const Instrument = Positional({
 			.with(P.boolean, (trill) => mainValue + (trill ? 2 : 0))
 			.with(P.number, (trill) => mainValue + trill)
 			.otherwise((trill) => {
-				const resolvedTrill = resolvePitch(trill, defaultOctave);
+				const resolvedTrill = pitches.resolve(trill, defaultOctave);
 				if (!resolvedTrill) {
 					throw new UserError(
 						`Unable to resolve trill ${trill} for ${defaultInstrument}`,
@@ -84,14 +90,14 @@ export const Instrument = Positional({
 			return transposedResult;
 		}
 
-		const mainInstrument = findInstrument(mainValue, instrumentChoices);
+		const mainInstrument = instrument.find(mainValue, instrumentChoices);
 		if (!mainInstrument) {
 			throw new UserError(
 				`Pitch ${resolvedPitch} is out of range for ${current}`,
 			);
 		}
 
-		const trillInstrument = findInstrument(trillValue, instrumentChoices);
+		const trillInstrument = instrument.find(trillValue, instrumentChoices);
 		if (!trillInstrument) {
 			throw new UserError(
 				`Trill ${trill} on ${resolvedPitch} is out of range for ${current}`,
@@ -105,34 +111,10 @@ export const Instrument = Positional({
 	},
 });
 
-function resolvePitch(
-	pitch: Pitch,
-	defaultOctave: pitches.Octave,
-): Pitch.absolute | undefined {
-	return match(pitch)
-		.with(P.when(createIs<Pitch.absolute>()), (pitch) => pitch)
-		.with(P.when(createIs<Pitch.relative>()), (pitch) => {
-			const octave = defaultOctave + (pitch.endsWith("^") ? 1 : -1);
-			if (!is<pitches.Octave>(octave)) {
-				return undefined;
-			}
-			return resolvePitch(pitch.slice(0, -1), octave);
-		})
-		.otherwise((pitch) => `${pitch}${defaultOctave}`);
-}
-
-function findInstrument(value: number, instrumentChoices: instrument.Name[]) {
-	for (const instrumentName of instrumentChoices) {
-		if (instrument.isInRange(value, instrumentName)) {
-			return instrumentName;
-		}
-	}
-}
-
 function findAutoTranspose(
 	mainValue: number,
 	trillValue: number,
-	instrumentName: instrument.Name,
+	instrumentName: InstrumentName,
 ): [NoteBlock | undefined, NoteBlock | undefined] | undefined {
 	const range = instrument.ranges[instrumentName];
 
@@ -176,7 +158,23 @@ namespace pitches {
 		return value;
 	};
 
-	// biome-ignore format: preserve manual formatting
+	export function resolve(
+		pitch: Pitch,
+		defaultOctave: pitches.Octave,
+	): Pitch.absolute | undefined {
+		return match(pitch)
+			.with(P.when(createIs<Pitch.absolute>()), (pitch) => pitch)
+			.with(P.when(createIs<Pitch.relative>()), (pitch) => {
+				const octave = defaultOctave + (pitch.endsWith("^") ? 1 : -1);
+				if (!is<Octave>(octave)) {
+					return undefined;
+				}
+				return resolve(pitch.slice(0, -1), octave);
+			})
+			.otherwise((pitch) => `${pitch}${defaultOctave}`);
+	}
+
+	// biome-ignore format: one line
 	const BASE_PITCHES = ["c", "c#", "d", "d#", "e", "f", "f#", "g", "g#", "a", "a#", "b"];
 	const MIN_OCTAVE = 0;
 	const MAX_OCTAVE = 8;
@@ -211,10 +209,9 @@ namespace pitches {
 }
 
 namespace instrument {
-	export type Name = keyof typeof octaves | "null";
 	export type NoteValue = Int<0, 24>;
 
-	export const octaves = {
+	export const octaves: Record<Exclude<InstrumentName, "null">, number> = {
 		bass: 2,
 		didgeridoo: 2,
 		guitar: 3,
@@ -228,7 +225,7 @@ namespace instrument {
 		bell: 6,
 		chime: 6,
 		xylophone: 6,
-	} as const;
+	};
 
 	export const ranges = (() => {
 		function range(from: string, to: string) {
@@ -239,22 +236,27 @@ namespace instrument {
 				instrument,
 				range(`F#${octave - 1}`, `F#${octave + 1}`),
 			]),
-		) as Record<Name, { min: number; max: number }>;
+		) as Record<InstrumentName, { min: number; max: number }>;
 	})();
 
-	export function isInRange(value: number, instrumentName: Name): boolean {
-		if (instrumentName === "null") {
+	function isInRange(pitch: number, instrumentChoice: InstrumentChoice) {
+		if (instrumentChoice === "null") {
 			return true;
 		}
-		const range = ranges[instrumentName];
-		return value >= range.min && value <= range.max;
+		const range = ranges[instrumentChoice];
+		return pitch >= range.min && pitch <= range.max;
 	}
 
-	export function toNoteValue(
-		pitchValue: number,
-		instrumentName: Name,
-	): NoteValue {
+	export function find(value: number, instrumentChoices: InstrumentChoice[]) {
+		for (const instrumentName of instrumentChoices) {
+			if (isInRange(value, instrumentName)) {
+				return instrumentName;
+			}
+		}
+	}
+
+	export function toNoteValue(pitch: number, instrumentName: InstrumentName) {
 		const range = ranges[instrumentName];
-		return assert<NoteValue>(pitchValue - range.min);
+		return assert<NoteValue>(pitch - range.min);
 	}
 }

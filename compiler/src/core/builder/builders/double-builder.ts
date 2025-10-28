@@ -19,9 +19,9 @@ export class DoubleBuilder extends Builder<"double"> {
 		const midpoint = (width - 1) / 2;
 
 		for (let x = 0; x < length - 1; x++) {
-			this.set([x, height - 3, midpoint], Block("glass"));
-			this.set([x, height - 2, midpoint], Block("air"));
-			this.set([x, height - 1, midpoint], Block("air"));
+			this.set([x, height - 3, midpoint], "glass");
+			this.set([x, height - 2, midpoint], "air");
+			this.set([x, height - 1, midpoint], "air");
 		}
 	}
 
@@ -71,7 +71,7 @@ export class DoubleBuilder extends Builder<"double"> {
 				self.setOffset([-2, 0, midpoint], Block.Button);
 			} else {
 				self.setOffset([0, 0, junction], Block.Button);
-				self.setOffset([0, -1, junction], Block("glass"));
+				self.setOffset([0, -1, junction], "glass");
 			}
 		});
 	}

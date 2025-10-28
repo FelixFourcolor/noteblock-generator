@@ -10,7 +10,7 @@ export class Wire {
 
 	constructor(
 		private apply: (coord: XYZ, value: BlockType) => void,
-		private base: BlockType = Block("glass"),
+		private base: BlockType = "glass",
 	) {}
 
 	add(coord: XYZ, value: Value = "wire") {

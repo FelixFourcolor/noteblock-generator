@@ -22,8 +22,16 @@ export class BlockPlacer {
 		this.blocks.set(`${x} ${y} ${z}`, value);
 	}
 
+	protected get([x, y, z]: XYZ): BlockType | undefined {
+		return this.blocks.get(`${x} ${y} ${z}`);
+	}
+
 	protected setOffset([dx, dy, dz]: XYZ, value: BlockType) {
 		this.set(this.cursor.getOffset({ dx, dy, dz }), value);
+	}
+
+	protected getOffset([dx, dy, dz]: XYZ): BlockType | undefined {
+		return this.get(this.cursor.getOffset({ dx, dy, dz }));
 	}
 
 	protected useWireOffset<T>(callback: (wire: Wire) => T, base?: BlockType): T {

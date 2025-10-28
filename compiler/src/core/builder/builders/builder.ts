@@ -1,3 +1,4 @@
+import { forEachRight } from "lodash";
 import type { Slice, SongLayout } from "#core/assembler/@";
 import type { NoteBlock } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
@@ -5,6 +6,7 @@ import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";
 import { getSize, type Size, SLICE_SIZE } from "../size.js";
+import { baseBlock } from "./noteblocks.js";
 
 export type Building = {
 	size: Size;
@@ -50,7 +52,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	protected buildSingleSlice({ delay, levels }: Slice<"single">) {
 		let newCursor = this.cursor;
 
-		levels.forEach((notes, level) => {
+		// Must build from top to bottom.
+		// Because the row below calculates where to place the noteblocks
+		// based on whether the space above is occupied.
+		forEachRight(levels, (notes, level) => {
 			newCursor = this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
 				self.buildClusterStructure(delay);
 				if (notes) {
@@ -93,25 +98,54 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		this.setOffset([0, 0, 2], Block.Generic);
 	}
 
-	private buildNotes(notes: NoteBlock[]) {
-		const notePlacements: [number, number][] = [
+	private getNotePlacements(): [number, number][] {
+		const placements: [number, number][] = [
 			[-1, 1],
 			[1, 1],
+			[-1, 2], // special handling required
+			[1, 2], // when is end of row
 			[-2, 1],
 			[2, 1],
 		];
 		if (this.isEndOfRow && this.hasNext) {
-			notePlacements.push([3, 1], [5, 1]);
-		} else {
-			notePlacements.push([-1, 2], [1, 2]);
+			placements[2] = [3, 1];
+			placements[3] = [5, 1];
 		}
 
+		// Priorize placements that are not blocked from above.
+		// Validity is not guaranteed (unless limiting cluster size to 3).
+		// We just try our best to *appear* valid.
+		return placements.sort(([xA, zA], [xB, zB]) => {
+			const aboveA = this.getOffset([xA, 1, zA]);
+			const aboveB = this.getOffset([xB, 1, zB]);
+
+			const occupiedA = aboveA != null && aboveA !== "air";
+			const occupiedB = aboveB != null && aboveB !== "air";
+
+			return occupiedA === occupiedB ? 0 : occupiedA ? 1 : -1;
+		});
+	}
+	private buildNotes(notes: NoteBlock[]) {
+		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
-			this.setOffset([dx, -1, dz], Block("air"));
+			this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
 			this.setOffset([dx, 0, dz], Block.Note(note));
-			this.setOffset([dx, 1, dz], Block("air"));
+			this.setOffset([dx, 1, dz], "air");
 		});
+
+		// If x=-2 or x=2 has a noteblock,
+		// x=-1 or x=1 (respectively) must be present to conduct redstone.
+		if (this.getOffset([-2, 1, 1])) {
+			if (!this.getOffset([-1, 0, 1])) {
+				this.setOffset([-1, 0, 1], Block.Generic);
+			}
+		}
+		if (this.getOffset([2, 1, 1])) {
+			if (!this.getOffset([1, 0, 1])) {
+				this.setOffset([1, 0, 1], Block.Generic);
+			}
+		}
 	}
 
 	private buildRowBridge() {
