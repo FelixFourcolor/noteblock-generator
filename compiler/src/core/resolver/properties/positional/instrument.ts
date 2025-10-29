@@ -4,7 +4,6 @@ import { assert, createIs, is } from "typia";
 import { UserError } from "#cli/error.js";
 
 import type {
-	InstrumentChoice,
 	InstrumentName,
 	Pitch,
 	Instrument as T_Instrument,
@@ -18,6 +17,8 @@ export type NoteBlock = {
 	instrument: InstrumentName;
 	note: instrument.NoteValue;
 };
+
+type InstrumentChoice = InstrumentName | "null";
 
 function createNoteBlock(pitch: number, instrumentChoice: InstrumentChoice) {
 	if (instrumentChoice === "null") {

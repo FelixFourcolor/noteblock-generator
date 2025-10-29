@@ -1,7 +1,11 @@
-import type { Repeat } from "#utils/@";
+import type { Re, Repeat, Token } from "#utils/@";
 import type { Positional } from "../meta.ts";
 
-export type Instrument = Repeat<InstrumentChoice, { separator: "\\|" }>;
+export type Instrument = Re<
+	Repeat<InstrumentName, { separator: "\\|" }>,
+	Re<Token<"\\|">, "null">,
+	"?"
+>;
 
 export type IInstrument = {
 	/**
@@ -25,5 +29,3 @@ export type InstrumentName =
 	| "bell"
 	| "chime"
 	| "xylophone";
-
-export type InstrumentChoice = InstrumentName | "null";
