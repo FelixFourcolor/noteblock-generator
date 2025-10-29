@@ -8,7 +8,6 @@ from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
 from .blend import DANGER_LIST
 from .cache import Cache
 from .coordinates import DIRECTION_NAMES, Direction
-from .utils.console import Console
 
 if TYPE_CHECKING:
     from ..api.types import Block
@@ -50,11 +49,6 @@ class Structure:
 
         # to alternate between rounding up and down in edge cases
         self._theme_should_round_up = True
-
-        if blend:
-            Console.warn(
-                "Blend mode is experimental. Turn it off if you encounter issues."
-            )
 
     def __iter__(self) -> Iterator[None | tuple[XYZ, Block | None]]:
         for x in range(self.length):
