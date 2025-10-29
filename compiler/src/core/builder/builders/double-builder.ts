@@ -48,6 +48,7 @@ export class DoubleBuilder extends Builder<"double"> {
 				wire.add([0, -1, zLeft]);
 				wire.add([0, -2, zLeft], null);
 			});
+			self.setOffset([0, 0, zLeft], "air");
 
 			// right connector
 			const zRight = isRightSide ? midpoint : midpoint + 1;
@@ -58,6 +59,7 @@ export class DoubleBuilder extends Builder<"double"> {
 				wire.add([0, -1, zRight]);
 				wire.add([0, -2, zRight], null);
 			});
+			self.setOffset([0, 0, zRight], "air");
 
 			// button
 			if (isFirst) {
