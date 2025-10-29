@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast, final
 
 from amulet import StringTag, load_format
 from amulet.api import Block
-from amulet.api.errors import ChunkLoadError, LoaderNoneMatched
+from amulet.api.errors import LoaderNoneMatched
 from amulet.api.level import World as BaseWorld
 from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
@@ -24,6 +24,14 @@ if TYPE_CHECKING:
     from .chunks import ChunkPlacement, ChunkProcessor
     from .coordinates import XZ, DirectionName
     from .structure import Bounds, TiltName
+
+
+@final
+class ChunkLoadError(Exception):
+    def __init__(self, chunk_coords: XZ):
+        super().__init__("")
+        cx, cz = chunk_coords
+        self.coordinates = [cx << 4, cz << 4]
 
 
 @final
@@ -159,8 +167,9 @@ class World(BaseWorld):
     ) -> None:
         try:
             chunk = self.get_chunk(*chunk_coords, dimension)
-        except ChunkLoadError:
-            chunk = self.create_chunk(*chunk_coords, dimension)
+        except Exception:
+            raise ChunkLoadError(chunk_coords)
+
         chunk.block_entities = {}
         self._modified_chunks[chunk_coords] = chunk
 

@@ -11,7 +11,7 @@ from click import UsageError
 
 from .utils.console import Console
 from .utils.files import backup_files, hash_files
-from .world import World
+from .world import ChunkLoadError, World
 
 
 class UserCancelled(Exception): ...
@@ -74,8 +74,19 @@ class GeneratingSession:
 
     def __exit__(self, exc_type, exc_value, tb):
         self._cleanup(commit=exc_type is None)
+
         if exc_type is UserCancelled:
+            Console.success(cancelled_message)
             os._exit(0)
+
+        if isinstance(exc_value, ChunkLoadError):
+            Console.warn(
+                "Failed to load chunk at {coordinates}.\n"
+                + "Load the chunk at this position in-game and try again.",
+                coordinates=exc_value.coordinates,
+                important=True,
+            )
+            os._exit(1)
 
     def _setup_signal_handlers(self):
         def handle_interrupt(sig: int, _):
@@ -107,8 +118,6 @@ class GeneratingSession:
         try:
             if commit:
                 self._commit()
-            else:
-                Console.success(cancelled_message)
         finally:
             shutil.rmtree(self.working_path, ignore_errors=True)
 
