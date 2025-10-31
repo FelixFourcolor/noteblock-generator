@@ -6,16 +6,16 @@ import type {
 	IStaticProperties,
 	TPosition,
 } from "#schema/properties/@";
-import type { DistributiveOmit, Modified } from "#utils/@";
+import type { DistributiveOmit, Modified, WithDoc } from "#utils/@";
 
 type RestModifier = Omit<IStaticProperties, "time">;
 
-type MultiNoteModifier<T extends TPosition> = DistributiveOmit<
+type NoteModifier<T extends TPosition = TPosition> = DistributiveOmit<
 	IProperties<T>,
 	"time" | "trill"
 >;
 
-type NoteModifier<T extends TPosition> = INoteTrill & MultiNoteModifier<T>;
+type TrillableNoteModifier<T extends TPosition> = INoteTrill & NoteModifier<T>;
 
 export type Note<T extends TPosition = TPosition> =
 	| Note.Simple<T>
@@ -28,26 +28,32 @@ export namespace Note {
 
 	export type Single<T extends TPosition = TPosition> = Modified<
 		{ note: NoteValue.Note },
-		NoteModifier<T>
+		TrillableNoteModifier<T>
 	>;
 
 	export type Simple<T extends TPosition = TPosition> = Rest | Single<T>;
 
 	export type Chord<T extends TPosition = TPosition> = Modified<
-		{ chord: NoteValue.Chord },
-		MultiNoteModifier<T>
+		{ note: NoteValue.Chord },
+		NoteModifier<T>
+	>;
+
+	export type Quaver<T extends TPosition = TPosition> = Modified<
+		{ note: NoteValue.Quaver },
+		NoteModifier<T>
 	>;
 
 	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ notes: Compound.Item<T>[] & tags.MinItems<2> },
-		MultiNoteModifier<T>
+		{ note: Compound.Value<T> },
+		NoteModifier<T>
 	>;
 	export namespace Compound {
-		export type Item<T extends TPosition = TPosition> = Simple<T> | Chord<T>;
+		export type Value<T extends TPosition = TPosition> = WithDoc<
+			(Simple<T> | Chord<T> | Quaver<T>)[] & tags.MinItems<2>,
+			{
+				title: "Compound note";
+				description: "Multiple notes played sequentially, but treated as one for the purpose of phrasing. Roughly equivalent to a glissando.";
+			}
+		>;
 	}
-
-	export type Quaver<T extends TPosition = TPosition> = Modified<
-		{ notes: NoteValue.Quaver },
-		MultiNoteModifier<T>
-	>;
 }

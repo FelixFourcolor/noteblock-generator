@@ -1,5 +1,4 @@
 import { match, P } from "ts-pattern";
-import { is } from "typia";
 import { UserError } from "#cli/error.js";
 import type { Instrument, OneOrMany, ResolveType } from "#core/resolver/@";
 import { resolveTimedValue } from "#core/resolver/duration.js";
@@ -13,7 +12,7 @@ export function* resolveNoteblocks({
 	trillValue,
 	context,
 }: {
-	noteValue: NoteValue;
+	noteValue: NoteValue.Simple;
 	trillValue: T_Trill.Value | undefined;
 	context: Context;
 }): Generator<OneOrMany<TickEvent> | undefined> {
@@ -21,7 +20,7 @@ export function* resolveNoteblocks({
 	const { value: pitch, duration } = resolveTimedValue(noteValue, beat);
 	const noteDuration = duration ?? time - context.tick + 1;
 
-	if (is<NoteValue.Rest>(noteValue)) {
+	if (pitch === "R" || pitch === "r") {
 		return yield* rest({ noteDuration, delay });
 	}
 
