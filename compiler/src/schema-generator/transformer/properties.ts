@@ -13,6 +13,7 @@ export function noAdditionalProperties(obj: unknown): unknown {
 		) {
 			return { ...mappedObj, additionalProperties: false };
 		}
+		return mappedObj;
 	}
 
 	return obj;
