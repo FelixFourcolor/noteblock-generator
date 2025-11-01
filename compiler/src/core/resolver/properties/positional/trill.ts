@@ -25,10 +25,7 @@ export class Trill {
 	}
 
 	fork(modifier: IPositional<T_Trill> | undefined) {
-		const ctor = this.constructor as new (
-			...args: ConstructorParameters<typeof Trill>
-		) => this;
-		return new ctor({
+		return new Trill({
 			style: this.style.fork(modifier?.style),
 			start: this.start.fork(modifier?.start),
 			length: this.length.fork(modifier?.length),

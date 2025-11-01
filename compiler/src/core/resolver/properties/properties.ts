@@ -14,6 +14,7 @@ import type {
 	IProperties,
 	Pitch,
 	Positional,
+	Sustain as T_Sustain,
 	Transpose as T_Transpose,
 	Trill as T_Trill,
 } from "#schema/@";
@@ -67,7 +68,14 @@ export class Properties {
 		this.division.transform(modifier.division, { beat });
 		this.position.transform(modifier.position, { beat });
 		this.dynamic.transform(modifier.dynamic, { beat });
-		this.sustain.transform(modifier.sustain, { beat });
+
+		if (modifier.sustain !== undefined) {
+			if (is<Positional<T_Sustain.Value>>(modifier.sustain)) {
+				this.sustain.transform({ value: modifier.sustain }, { beat });
+			} else {
+				this.sustain.transform(modifier.sustain, { beat });
+			}
+		}
 
 		if (modifier.transpose !== undefined) {
 			if (is<Positional<T_Transpose.Value>>(modifier.transpose)) {
@@ -95,10 +103,15 @@ export class Properties {
 			forked.transpose = this.transpose.fork(modifier.transpose);
 		}
 
-		const beat = this.beat.resolve();
+		const beat = forked.beat.resolve();
 
 		forked.dynamic = this.dynamic.fork(modifier.dynamic, { beat });
-		forked.sustain = this.sustain.fork(modifier.sustain, { beat });
+
+		if (is<Positional<T_Sustain.Value>>(modifier.sustain)) {
+			forked.sustain = this.sustain.fork({ value: modifier.sustain }, { beat });
+		} else {
+			forked.sustain = this.sustain.fork(modifier.sustain, { beat });
+		}
 
 		if (modifier.position !== undefined) {
 			forked.position = this.position.fork(modifier.position, { beat });
