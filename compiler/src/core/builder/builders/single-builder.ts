@@ -8,17 +8,6 @@ export class SingleBuilder extends Builder<"single"> {
 		this.buildSingleSlice(slice);
 	}
 
-	protected buildWalkSpace() {
-		const { height, width, length } = this.size;
-		for (let x = 0; x < length - 1; x++) {
-			for (let z = width / 2 - 1; z <= width / 2; z++) {
-				this.set([x, height - 3, z], "glass");
-				this.set([x, height - 2, z], "air");
-				this.set([x, height - 1, z], "air");
-			}
-		}
-	}
-
 	protected buildPlayButton(index: number) {
 		this.at({ y: this.size.height - 2 }, (self) => {
 			if (index === 0) {

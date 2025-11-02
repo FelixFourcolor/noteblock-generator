@@ -15,7 +15,6 @@ export type Building = {
 
 export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	protected abstract buildPlayButton(index: number): void;
-	protected abstract buildWalkSpace(): void;
 	protected abstract buildSlice(slice: Slice<T>): void;
 
 	protected readonly song: SongLayout<T>;
@@ -71,6 +70,17 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		});
 
 		this.cursor = newCursor;
+	}
+
+	private buildWalkSpace() {
+		const { height, width, length } = this.size;
+		for (let x = 0; x < length - 1; x++) {
+			for (let z = 1; z < width - 1; z++) {
+				this.set([x, height - 3, z], "glass");
+				this.set([x, height - 2, z], "air");
+				this.set([x, height - 1, z], "air");
+			}
+		}
 	}
 
 	private buildSong() {

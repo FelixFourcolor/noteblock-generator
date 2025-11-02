@@ -14,17 +14,6 @@ export class DoubleBuilder extends Builder<"double"> {
 		this.buildSingleSlice(left);
 	}
 
-	protected override buildWalkSpace() {
-		const { height, width, length } = this.size;
-		const midpoint = (width - 1) / 2;
-
-		for (let x = 0; x < length - 1; x++) {
-			this.set([x, height - 3, midpoint], "glass");
-			this.set([x, height - 2, midpoint], "air");
-			this.set([x, height - 1, midpoint], "air");
-		}
-	}
-
 	protected override buildPlayButton(index: number) {
 		const isFirst = index === 0;
 		const isLeftSide = index % 2 === 0;
