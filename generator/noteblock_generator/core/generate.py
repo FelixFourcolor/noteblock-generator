@@ -30,9 +30,9 @@ def generate(
     partial: bool,
 ):
     if not partial:
-        Cache.delete(key=world_path)
+        Cache.delete(world_path)
 
-    with Cache(key=world_path) if partial else nullcontext() as cache:
+    with Cache(world_path) if partial else nullcontext() as cache:
         with GeneratingSession(world_path) as session:
             world = session.load_world()
             dimension = dimension or world.player_dimension
@@ -61,14 +61,12 @@ def generate(
                 if cache:
                     cache.display_stats()
 
-                write_jobs_count = 2 * chunks.count
-                if not write_jobs_count:
-                    # when partial update and nothing has changed
+                if not chunks.count:  # when partial update and nothing has changed
                     return
 
                 if not progress.run(
                     world.write(chunks, dimension),
-                    jobs_count=write_jobs_count,
+                    jobs_count=2 * chunks.count,  # write + save
                     description="Generating"
                     + (" the difference" if cache and cache.has_data else ""),
                 ):
