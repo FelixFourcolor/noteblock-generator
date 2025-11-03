@@ -13,7 +13,7 @@ class Block(Struct):
 
 StrCoord = str  # f"{x} {y} {z}"
 ThemeBlock = Literal[0]
-BlockType = BlockName | ThemeBlock | Block
+BlockType = BlockName | ThemeBlock | Block | None
 BlockMap = dict[StrCoord, BlockType]
 
 

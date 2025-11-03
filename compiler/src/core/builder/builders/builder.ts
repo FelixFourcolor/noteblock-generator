@@ -166,6 +166,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			this.setOffset([dx, 0, dz], Block.Note(note));
 			this.setOffset([dx, 1, dz], "air");
 		});
+		// clear unused placements (necessary for partial updates)
+		notePlacements.slice(notes.length).forEach(([dx, dz]) => {
+			this.setOffset([dx, 0, dz], null);
+		});
 
 		// If x=-2 or x=2 has a noteblock,
 		// x=-1 or x=1 (respectively) must be present to conduct redstone.

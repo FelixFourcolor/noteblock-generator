@@ -8,6 +8,23 @@ from .console import Console
 from .iter import exhaust
 
 
+def progress_bar(
+    jobs_iter: Iterable,
+    *,
+    jobs_count: int,
+    description: str,
+    transient=False,
+):
+    exhaust(
+        progress.track(
+            jobs_iter,
+            total=jobs_count,
+            description=description,
+            transient=transient,
+        )
+    )
+
+
 @final
 class CancellableProgress:
     def __init__(self, text: str, *, default: bool):
@@ -46,13 +63,11 @@ class CancellableProgress:
         if self.cancelled:
             return False
 
-        exhaust(
-            progress.track(
-                jobs_iter,
-                total=jobs_count,
-                description=description,
-                transient=not cancellable,
-            )
+        progress_bar(
+            jobs_iter,
+            jobs_count=jobs_count,
+            description=description,
+            transient=not cancellable,
         )
         return True
 

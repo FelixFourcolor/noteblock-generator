@@ -4,13 +4,11 @@ import math
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
-from ..api.types import Block, BlockName, BlockProperties, Building
-from .blend import DANGER_LIST
-from .cache import Cache
+from ..api.types import Block, BlockProperties
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from ..api.types import Block
+    from ..api.types import BlockMap, BlockName, BlockType, Size
     from .coordinates import XYZ, DirectionName
 
     TiltName = Literal["up", "down"]
@@ -22,75 +20,70 @@ class Structure:
     def __init__(
         self,
         *,
-        data: Building,
+        size: Size,
+        blocks: BlockMap,
         coordinates: XYZ,
         facing: DirectionName,
         tilt: TiltName,
         align: AlignName,
         theme: list[BlockName],
         blend: bool,
-        cache: Cache | None,
+        partial: bool,
     ):
-        self.blocks = data.blocks
+        self.blocks = blocks
         self.origin_x, self.origin_y, self.origin_z = coordinates
         self.facing = Direction[facing]
         self.tilt = tilt
         self.align = align
         self.theme = theme
         self.blend = blend
-        self.cache = cache
+        self.partial = partial
 
-        size = data.size
         self.length = size.length
         self.width = size.width
         self.height = size.height
-        self.volume = self.length * self.height * self.width
+        self.blocks_count = (
+            len(blocks) if partial else self.length * self.height * self.width
+        )
         self.bounds = self._get_bounds()
 
         # to alternate between rounding up and down in edge cases
         self._theme_should_round_up = True
 
     def __iter__(self) -> Iterator[None | tuple[XYZ, Block | None]]:
+        if self.partial:
+            for str_coords, block in self.blocks.items():
+                x, y, z = map(int, str_coords.split(" "))
+                yield self.translate_position((x, y, z)), self.translate_block(block, z)
+            return
+
         for x in range(self.length):
             for y in range(self.height):
                 for z in range(self.width):
-                    yield self.get_placement((x, y, z))
+                    str_coords = f"{x} {y} {z}"
+                    yield (
+                        self.translate_position((x, y, z)),
+                        self.translate_block(
+                            self.blocks.get(str_coords, None if self.blend else "air"),
+                            z,
+                        ),
+                    )
 
-    def get_placement(self, coords: XYZ) -> None | tuple[XYZ, Block | None]:
-        translated_coords = self.translate_position(coords)
-        block = self.get_block(coords)
-
-        if self.cache:
-            cached_block = self.cache[translated_coords]
-            if block == cached_block:
-                return None
-            if block is None and isinstance(cached_block, str):
-                if cached_block not in DANGER_LIST:
-                    return None
-            self.cache[translated_coords] = block
-
-        if isinstance(block, str):
-            block = Block(block)
-        return translated_coords, block
-
-    def get_block(self, coords: XYZ) -> BlockName | Block | None:
-        x, y, z = coords
-        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else "air")
-
+    def translate_block(self, block: BlockType, z: int) -> Block | None:
         if block is None:
             return None
 
         if isinstance(block, Block):
             # apply rotation to directional properties (e.g. "west"), if any
-            block.properties = self.translate_properties(block.properties)
-            return block
+            properties = self.translate_properties(block.properties)
+            return Block(block.name, properties)
 
         if block == 0:  # magic value for theme block
-            return self.get_theme_block(z)
+            return Block(self.get_theme(z))
 
-        return block
+        return Block(block)
 
-    def get_theme_block(self, z: int) -> BlockName:
+    def get_theme(self, z: int) -> BlockName:
         max_z = self.width - 1
         if z == 0:
             return self.theme[0]

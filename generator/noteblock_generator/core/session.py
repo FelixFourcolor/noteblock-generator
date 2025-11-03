@@ -6,7 +6,6 @@ import signal
 from pathlib import Path
 from typing import final
 
-import typer
 from click import UsageError
 
 from .utils.console import Console
@@ -90,7 +89,7 @@ class GeneratingSession:
 
     def _setup_signal_handlers(self):
         def handle_interrupt(sig: int, _):
-            Console.newline()
+            Console.print()
             self._cleanup(commit=False)
             os._exit(130 if sig == signal.SIGINT else 143)
 
@@ -131,19 +130,13 @@ class GeneratingSession:
         if not self.world:
             return
 
-        self.world.close()
-
         if self._externally_modified():
-            Console.warn(
+            Console.success(
                 "It looks like you were inside the world while generating.\n"
-                + "To keep this generation, all of your changes since the program started must be discarded.",
-                important=True,
+                + "Exit and re-enter to see the result."
             )
-            if not Console.confirm("Confirm to proceed?", default=False):
-                Console.success(cancelled_message)
-                raise typer.Exit()
-            Console.success("Exit and re-enter to see the result.")
 
+        self.world.close()
         with IgnoreInterrupt():
             # This section is critical but should be very fast (< 0.1s)
             # No need to handle signals, just ignore them

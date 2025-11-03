@@ -8,7 +8,7 @@ type BlockData = {
 	name: BlockName;
 	properties: BlockProperties;
 };
-export type BlockType = BlockName | BlockData | 0;
+export type BlockType = BlockName | BlockData | null | 0;
 
 export function Block(name: BlockName, properties: BlockProperties): BlockType {
 	if (!properties) {

@@ -10,8 +10,12 @@ from rich.panel import Panel
 @final
 class Console:
     @staticmethod
-    def newline():
-        _print()
+    def print(*args, **kwargs):
+        with _capture_lock:
+            if _is_capturing:
+                _capture_buffer.append((args, kwargs))
+                return
+        _print(*args, **kwargs)
 
     @staticmethod
     def confirm(text: str, *, default: bool) -> bool:
@@ -40,33 +44,33 @@ class Console:
                 k: f"[bold blue]{v}[/bold blue]" for k, v in kwargs.items()
             })
         if important:
-            _print(Panel(text, expand=False, border_style="blue"))
+            Console.print(Panel(text, expand=False, border_style="blue"))
         else:
-            _print(text, style="dim")
+            Console.print(text, style="dim")
 
     @staticmethod
     def success(text: str, *, important=False, **kwargs):
         if not important:
-            _print(text, style="green")
+            Console.print(text, style="green")
             return
 
         if kwargs:
             text = text.format(**{
                 k: f"[bold green]{v}[/bold green]" for k, v in kwargs.items()
             })
-        _print(Panel(text, expand=False, border_style="green"))
+        Console.print(Panel(text, expand=False, border_style="green"))
 
     @staticmethod
     def warn(text: str, *, important=False, **kwargs):
         if not important:
-            _print(text, style="red")
+            Console.print(text, style="red")
             return
 
         if kwargs:
             text = text.format(**{
                 k: f"[bold red]{v}[/bold red]" for k, v in kwargs.items()
             })
-        _print(Panel(text, expand=False, border_style="red"))
+        Console.print(Panel(text, expand=False, border_style="red"))
 
 
 _console = _Console()
@@ -75,16 +79,8 @@ _is_capturing = False
 _capture_buffer: list[tuple[tuple, dict]] = []
 
 
-def _raw_print(*args, **kwargs):
-    _console.print(*args, **kwargs)
-
-
 def _print(*args, **kwargs):
-    with _capture_lock:
-        if _is_capturing:
-            _capture_buffer.append((args, kwargs))
-            return
-    _raw_print(*args, **kwargs)
+    _console.print(*args, **kwargs)
 
 
 def _start_capture():
@@ -111,5 +107,5 @@ def _flush_capture():
 
     with _capture_lock:
         for args, kwargs in _capture_buffer:
-            _raw_print(*args, **kwargs)
+            _print(*args, **kwargs)
         _capture_buffer = []
