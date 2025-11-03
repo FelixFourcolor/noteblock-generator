@@ -8,7 +8,7 @@ from .cache import Cache
 from .chunks import ChunkProcessor
 from .session import GeneratingSession, UserCancelled
 from .structure import Structure
-from .utils.console import CancellableProgress
+from .utils.progress_bar import CancellableProgress
 
 if TYPE_CHECKING:
     from ..api.types import BlockName, Building

@@ -1,36 +1,37 @@
-from collections.abc import Iterable
-from threading import Thread
+from threading import Lock
 from typing import final
 
 import typer
 from click import Abort
-from rich import progress
 from rich.console import Console as _Console
 from rich.panel import Panel
 
-from .iter import exhaust
 
-_console = _Console()
-_print = _console.print
-
-_console.line
-
-
+@final
 class Console:
     @staticmethod
     def newline():
         _print()
 
     @staticmethod
-    def confirm(text: str, *, default: bool | None) -> bool:
+    def confirm(text: str, *, default: bool) -> bool:
+        _start_capture()
         try:
-            return typer.confirm(text, default=default)
+            result = typer.confirm(text, default=default)
         except Abort:
+            _stop_capture(flush=False)
             Console.info(
                 "\nNo input received, used {choice} by default.",
                 choice="Y" if default else "N",
             )
-            return default or False
+            _flush_capture()
+            return default
+        except Exception:
+            _stop_capture(flush=True)
+            raise
+        else:
+            _stop_capture(flush=True)
+            return result
 
     @staticmethod
     def info(text: str, *, important=False, **kwargs):
@@ -68,65 +69,47 @@ class Console:
         _print(Panel(text, expand=False, border_style="red"))
 
 
-@final
-class CancellableProgress:
-    def __init__(self, text: str, *, default: bool | None):
-        self.text = text
-        self.default = default
+_console = _Console()
+_capture_lock = Lock()
+_is_capturing = False
+_capture_buffer: list[tuple[tuple, dict]] = []
 
-        self._thread: Thread | None = None
-        self._user_response: bool | None = None
 
-    def __enter__(self):
-        self._thread = Thread(target=self._input_worker, daemon=True)
-        self._thread.start()
-        return self
+def _raw_print(*args, **kwargs):
+    _console.print(*args, **kwargs)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._thread:
-            self._thread.join()
 
-    def run(
-        self,
-        jobs_iter: Iterable,
-        *,
-        jobs_count: int,
-        description: str,
-        cancellable=True,
-    ) -> bool:
-        if not self.result_ready:
-            for _ in jobs_iter:
-                jobs_count -= 1
-                if self.result_ready:
-                    break
-            else:  #  all jobs finish before user responds
-                if not cancellable:
-                    return True
+def _print(*args, **kwargs):
+    with _capture_lock:
+        if _is_capturing:
+            _capture_buffer.append((args, kwargs))
+            return
+    _raw_print(*args, **kwargs)
 
-        if self.cancelled:
-            return False
 
-        exhaust(
-            progress.track(
-                jobs_iter,
-                total=jobs_count,
-                description=description,
-                transient=not cancellable,
-            )
-        )
-        return True
+def _start_capture():
+    global _is_capturing
 
-    @property
-    def result_ready(self) -> bool:
-        return self._user_response is not None
+    with _capture_lock:
+        _is_capturing = True
 
-    @property
-    def cancelled(self) -> bool:
-        if not self._thread:
-            return False
 
-        self._thread.join()
-        return not self._user_response
+def _stop_capture(*, flush: bool):
+    global _is_capturing
 
-    def _input_worker(self):
-        self._user_response = Console.confirm(self.text, default=self.default)
+    with _capture_lock:
+        _is_capturing = False
+    if flush:
+        _flush_capture()
+
+
+def _flush_capture():
+    global _capture_buffer
+
+    if not _capture_buffer:
+        return
+
+    with _capture_lock:
+        for args, kwargs in _capture_buffer:
+            _raw_print(*args, **kwargs)
+        _capture_buffer = []
