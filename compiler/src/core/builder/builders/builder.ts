@@ -1,4 +1,4 @@
-import { forEachRight } from "lodash";
+import { forEachRight, range } from "lodash";
 import type { Slice, SongLayout } from "#core/assembler/@";
 import type { NoteBlock } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
@@ -29,7 +29,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	build(): Building {
-		this.buildWalkSpace();
+		this.buildSpace();
 		this.buildSong();
 		return { size: this.size, blocks: this.exportBlocks() };
 	}
@@ -72,15 +72,38 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		this.cursor = newCursor;
 	}
 
-	private buildWalkSpace() {
+	private buildSpace() {
 		const { height, width, length } = this.size;
-		for (let x = 0; x < length - 1; x++) {
-			for (let z = 1; z < width - 1; z++) {
-				this.set([x, height - 3, z], "glass");
-				this.set([x, height - 2, z], "air");
-				this.set([x, height - 1, z], "air");
+
+		const isPadding = (x: number, z: number) => {
+			return [0, length - 1].includes(x) || [0, width - 1].includes(z);
+		};
+
+		const isMidpoint = (z: number) => {
+			if (width % 2 === 1) {
+				return z === Math.floor(width / 2);
+			} else {
+				const mid = width / 2;
+				return z === mid - 1 || z === mid;
 			}
-		}
+		};
+
+		range(0, length).forEach((x) => {
+			range(0, width).forEach((z) => {
+				if (isPadding(x, z)) {
+					range(0, height).forEach((y) => {
+						this.set([x, y, z], "air");
+					});
+				}
+				if (isMidpoint(z)) {
+					this.set([x, height - 1, z], "air");
+					this.set([x, height - 2, z], "air");
+					this.set([x, height - 3, z], "glass");
+				} else if (x > 0) {
+					this.set([x, height - 3, z], "glass");
+				}
+			});
+		});
 	}
 
 	private buildSong() {

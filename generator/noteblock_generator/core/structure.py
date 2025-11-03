@@ -4,7 +4,7 @@ import math
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
-from ..api.types import Block, BlockName, BlockProperties, BlockType, Building
+from ..api.types import Block, BlockName, BlockProperties, Building
 from .blend import DANGER_LIST
 from .cache import Cache
 from .coordinates import DIRECTION_NAMES, Direction
@@ -75,10 +75,7 @@ class Structure:
 
     def get_block(self, coords: XYZ) -> BlockName | Block | None:
         x, y, z = coords
-        block: BlockType | None = self.blocks.get(
-            f"{x} {y} {z}",
-            "air" if not self.blend or self._is_boundary(coords) else None,
-        )
+        block = self.blocks.get(f"{x} {y} {z}", None if self.blend else "air")
 
         if block is None:
             return None
@@ -152,10 +149,6 @@ class Structure:
             translated[key] = value
 
         return translated
-
-    def _is_boundary(self, coords: XYZ) -> bool:
-        x, _, z = coords
-        return x in (0, self.length - 1) or z in (0, self.width - 1)
 
     def _get_bounds(self) -> Bounds:
         start_x, start_y, start_z = self.translate_position((0, 0, 0))
