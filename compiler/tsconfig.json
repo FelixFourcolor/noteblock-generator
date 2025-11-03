@@ -7,7 +7,6 @@
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
 		"skipDefaultLibCheck": true,
-		"sourceMap": true,
 
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
