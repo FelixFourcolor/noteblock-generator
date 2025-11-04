@@ -90,7 +90,7 @@ class GeneratingSession:
 
     def _setup_signal_handlers(self):
         def handle_interrupt(sig: int, _):
-            Console.print()
+            Console.newline()
             self._cleanup(commit=False)
             os._exit(130 if sig == signal.SIGINT else 143)
 
