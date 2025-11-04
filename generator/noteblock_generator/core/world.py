@@ -31,7 +31,7 @@ class ChunkLoadError(Exception):
     def __init__(self, chunk_coords: XZ):
         super().__init__("")
         cx, cz = chunk_coords
-        self.coordinates = [cx << 4, cz << 4]
+        self.coordinates = (cx << 4, cz << 4)
 
 
 @final

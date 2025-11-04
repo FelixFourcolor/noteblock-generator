@@ -45,13 +45,13 @@ cancelled_message = "Generation cancelled. No changes were made."
 @final
 class GeneratingSession:
     def __init__(self, path: Path):
-        self.original_path = path
-        self.working_path: str | None = None
-        self.world: World | None = None
-        self.world_hash: int | None = None
+        self._original_path = path
+        self._working_path: str | None = None
+        self._world: World | None = None
+        self._world_hash: int | None = None
 
     def load_world(self):
-        if not self.working_path:
+        if not self._working_path:
             # clone unsuccessful, must generate in-place
             Console.warn(
                 "To prevent data corruption, if you are inside the world,\n{highlighted}.",
@@ -61,13 +61,13 @@ class GeneratingSession:
             if not Console.confirm("Confirm to proceed?", default=False):
                 raise UserCancelled
 
-        world_path = self.working_path or self.original_path
-        self.world = World.load(world_path)
-        return self.world
+        world_path = self._working_path or self._original_path
+        self._world = World.load(world_path)
+        return self._world
 
     def __enter__(self):
-        self.world_hash = self._compute_hash()
-        self.working_path = self._create_shadow_copy()
+        self._world_hash = self._compute_hash()
+        self._working_path = self._create_shadow_copy()
         self._setup_signal_handlers()
         return self
 
@@ -79,10 +79,11 @@ class GeneratingSession:
             os._exit(0)
 
         if isinstance(exc_value, ChunkLoadError):
+            x, z = exc_value.coordinates
             Console.warn(
                 "Failed to load chunk at {coordinates}.\n"
                 + "Load the chunk at this position in-game and try again.",
-                coordinates=exc_value.coordinates,
+                coordinates=f"({x=}, {z=})",
                 important=True,
             )
             os._exit(1)
@@ -98,13 +99,13 @@ class GeneratingSession:
 
     def _compute_hash(self) -> int | None:
         try:
-            return hash_files(self.original_path)
+            return hash_files(self._original_path)
         except FileNotFoundError:
-            raise UsageError(f"World path '{self.original_path}' does not exist.")
+            raise UsageError(f"World path '{self._original_path}' does not exist.")
 
     def _create_shadow_copy(self):
         try:
-            return backup_files(self.original_path)
+            return backup_files(self._original_path)
         except PermissionError:
             raise UsageError(
                 "Permission denied to read save files. "
@@ -112,22 +113,22 @@ class GeneratingSession:
             )
 
     def _cleanup(self, *, commit: bool):
-        if not self.working_path:
+        if not self._working_path:
             return
         try:
             if commit:
                 self._commit()
         finally:
-            shutil.rmtree(self.working_path, ignore_errors=True)
+            shutil.rmtree(self._working_path, ignore_errors=True)
 
     def _externally_modified(self) -> bool:
         try:
-            return self.world_hash is None or self.world_hash != self._compute_hash()
+            return self._world_hash is None or self._world_hash != self._compute_hash()
         except FileNotFoundError:
             return True
 
     def _commit(self):
-        if not self.world:
+        if not self._world:
             return
 
         if self._externally_modified():
@@ -136,10 +137,10 @@ class GeneratingSession:
                 + "Exit and re-enter to see the result."
             )
 
-        self.world.close()
+        self._world.close()
         with IgnoreInterrupt():
             # This section is critical but should be very fast (< 0.1s)
             # No need to handle signals, just ignore them
-            if self.working_path:
-                shutil.rmtree(self.original_path, ignore_errors=True)
-                shutil.move(self.working_path, self.original_path)
+            if self._working_path:
+                shutil.rmtree(self._original_path, ignore_errors=True)
+                shutil.move(self._working_path, self._original_path)
