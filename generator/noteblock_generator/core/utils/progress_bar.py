@@ -8,40 +8,26 @@ from .console import Console
 from .iter import exhaust
 
 
-def progress_bar(
-    jobs_iter: Iterable,
-    *,
-    jobs_count: int,
-    description: str,
-    transient=False,
-):
-    exhaust(
-        progress.track(
-            jobs_iter,
-            total=jobs_count,
-            description=description,
-            transient=transient,
-        )
-    )
-
-
 @final
-class CancellableProgress:
-    def __init__(self, text: str, *, default: bool):
-        self.text = text
-        self.default = default
-
-        self._thread: Thread | None = None
+class Progress:
+    def __init__(self, cancellable: bool):
+        if cancellable:
+            self._thread = Thread(target=self._prompt_worker, daemon=True)
+        else:
+            self._thread = None
         self._user_response: bool | None = None
 
     def __enter__(self):
-        self._thread = Thread(target=self._input_worker, daemon=True)
-        self._thread.start()
+        if self._thread:
+            self._thread.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._thread:
             self._thread.join()
+
+    def _prompt_worker(self):
+        self._user_response = Console.confirm("Confirm to proceed?", default=True)
 
     def run(
         self,
@@ -49,7 +35,7 @@ class CancellableProgress:
         *,
         jobs_count: int,
         description: str,
-        cancellable=True,
+        transient: bool,
     ) -> bool:
         if not self.result_ready:
             for _ in jobs_iter:
@@ -57,17 +43,19 @@ class CancellableProgress:
                 if self.result_ready:
                     break
             else:  #  all jobs finish before user responds
-                if not cancellable:
+                if transient:
                     return True
 
         if self.cancelled:
             return False
 
-        progress_bar(
-            jobs_iter,
-            jobs_count=jobs_count,
-            description=description,
-            transient=not cancellable,
+        exhaust(
+            progress.track(
+                jobs_iter,
+                total=jobs_count,
+                description=description,
+                transient=transient,
+            )
         )
         return True
 
@@ -82,6 +70,3 @@ class CancellableProgress:
 
         self._thread.join()
         return not self._user_response
-
-    def _input_worker(self):
-        self._user_response = Console.confirm(self.text, default=self.default)

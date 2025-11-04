@@ -8,7 +8,7 @@ from .cache import Cache
 from .chunks import ChunkProcessor
 from .session import GeneratingSession, UserCancelled
 from .structure import Structure
-from .utils.progress_bar import CancellableProgress, progress_bar
+from .utils.progress_bar import Progress
 
 if TYPE_CHECKING:
     from ..api.types import BlockName, Building
@@ -78,36 +78,24 @@ def generate(
             )
             chunks = ChunkProcessor(structure)
 
-            if partial:
-                # no need to validate bounds or confirm for partial updates,
-                # because boundaries already validated and user already confirmed last time
-                progress_bar(
-                    chunks.process(),
-                    jobs_count=structure.blocks_count,
-                    description="Calculating",
-                    transient=True,
-                )
-                progress_bar(
-                    world.write(chunks, dimension),
-                    jobs_count=2 * chunks.count,  # write + save
-                    description="Generating the difference",
-                )
-                return
+            # no need to validate bounds or confirm for partial updates,
+            # because boundaries already validated and user already confirmed last time
+            if not partial:
+                world.validate_bounds(structure.bounds, dimension)
 
-            world.validate_bounds(structure.bounds, dimension)
-
-            with CancellableProgress("Confirm to proceed?", default=True) as progress:
+            with Progress(cancellable=not partial) as progress:
                 if not progress.run(
                     chunks.process(),
                     jobs_count=structure.blocks_count,
                     description="Calculating",
-                    cancellable=False,
+                    transient=True,
                 ):
                     raise UserCancelled
 
                 if not progress.run(
                     world.write(chunks, dimension),
                     jobs_count=2 * chunks.count,
-                    description="Generating",
+                    description="Generating" + (" the difference" if partial else ""),
+                    transient=False,
                 ):
                     raise UserCancelled
