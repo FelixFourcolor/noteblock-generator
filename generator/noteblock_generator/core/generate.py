@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING
 
 from .cache import Cache
 from .chunks import ChunkProcessor
@@ -14,14 +14,6 @@ if TYPE_CHECKING:
     from ..api.types import BlockName, Building
     from .coordinates import XYZ, DirectionName
     from .structure import AlignName, TiltName
-
-    class Customization(TypedDict):
-        coordinates: XYZ
-        facing: DirectionName
-        tilt: TiltName
-        align: AlignName
-        theme: list[BlockName]
-        blend: bool
 
 
 def generate(
