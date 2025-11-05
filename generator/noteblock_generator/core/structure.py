@@ -4,11 +4,11 @@ import math
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
-from ..api.types import Block, BlockProperties
+from .api.types import Block, BlockProperties
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from ..api.types import BlockMap, BlockName, BlockType, Size
+    from .api.types import BlockMap, BlockName, BlockType, Size
     from .coordinates import XYZ, DirectionName
 
     TiltName = Literal["up", "down"]

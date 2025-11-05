@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from amulet.api.chunk import Chunk
 
     from .chunks import ChunkPlacement, ChunkProcessor
-    from .coordinates import XZ, DirectionName
+    from .coordinates import XYZ, XZ, DirectionName
     from .structure import Bounds, TiltName
 
 
@@ -65,14 +65,6 @@ class World(BaseWorld):
         return hash(self.path)
 
     def validate_bounds(self, bounds: Bounds, dimension: str):
-        Console.info(
-            "Structure will occupy the space\n{start} to {end} in {dimension}.",
-            start=(bounds.min_x, bounds.min_y, bounds.min_z),
-            end=(bounds.max_x, bounds.max_y, bounds.max_z),
-            dimension=dimension,
-            important=True,
-        )
-
         world_bounds = self.bounds("minecraft:" + dimension)
         for coord, limit, axis in [
             (bounds.min_x, world_bounds.min_x, "min_x"),
@@ -97,7 +89,7 @@ class World(BaseWorld):
         yield from self._save(dimension=dimension)
 
     @cached_property
-    def player_coordinates(self):
+    def player_coordinates(self) -> XYZ:
         if self.player:
             [x, y, z] = tuple(map(math.floor, self.player.location))
             Console.info("Using player's coordinates: {location}", location=(x, y, z))
@@ -111,7 +103,7 @@ class World(BaseWorld):
         return default
 
     @cached_property
-    def player_dimension(self):
+    def player_dimension(self) -> str:
         if self.player:
             dimension = self.player.dimension[len("minecraft:") :]
             Console.info("Using player's dimension: {dimension}", dimension=dimension)

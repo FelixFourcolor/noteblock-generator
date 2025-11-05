@@ -6,13 +6,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 import typer
-from click import UsageError
 from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
 
-from .api.loader import load
-from .api.types import BlockName
+from .core.api.types import BlockName
 from .core.coordinates import XYZ
 
 if TYPE_CHECKING:
@@ -43,10 +41,10 @@ class Alignment(Enum):
     right = "right"
 
 
-def _show_version(value: bool):
+def _show_version(ctx: Context, value: bool):
     if value:
         print(VERSION)
-        raise typer.Exit()
+        ctx.exit()
 
 
 def _show_help(ctx: Context, value: bool):
@@ -84,7 +82,7 @@ def run(
         Option(
             "--in",
             "-i",
-            help="Compiled music source",
+            help="Input data (noteblock compiler's output)",
             show_default="read from stdin",
             metavar="file",
             rich_help_panel="Input & output",
@@ -93,8 +91,16 @@ def run(
             dir_okay=False,
         ),
     ] = None,
+    watch: Annotated[
+        bool,
+        Option(
+            "--watch",
+            help="Watch input file and regenerate on changes",
+            rich_help_panel="Input & output",
+        ),
+    ] = False,
     theme: Annotated[
-        list[BlockName] | None,
+        list[BlockName],
         Option(
             "--theme",
             "-t",
@@ -106,8 +112,9 @@ def run(
     blend: Annotated[
         bool,
         Option(
-            "--blend/--clear",
-            help="Preserve existing world blocks for a more natural look",
+            "--blend",
+            help="Preserve existing world blocks where possible",
+            show_default="preemptively clear entire area",
             rich_help_panel="Customization",
         ),
     ] = False,
@@ -159,14 +166,6 @@ def run(
             rich_help_panel="Positioning",
         ),
     ] = Alignment.center,
-    partial: Annotated[
-        bool,
-        Option(
-            "--partial/--full",
-            help="Generate only changed blocks since last run",
-            rich_help_panel="Advanced options",
-        ),
-    ] = False,
     _version: Annotated[
         bool,
         Option("--version", is_eager=True, hidden=True, callback=_show_version),
@@ -176,27 +175,19 @@ def run(
         Option("--help", is_eager=True, hidden=True, callback=_show_help),
     ] = False,
 ):
-    try:
-        data = load(input_path)
-    except Exception:
-        raise UsageError("Invalid input data.")
-    if not data:
-        raise UsageError(
-            "Missing input: Either provide file path with --in, or pipe content to stdin.",
-        )
+    # disable amulet's logging
+    logging.disable()
+    # importing amulet is slow, this lets the help message show up quickly
+    from .core.generator import Generator
 
-    logging.disable()  # disable amulet's logging
-    from .core.generate import generate
-
-    generate(
-        data=data,
+    Generator(
         world_path=world_path,
+        input_path=input_path,
         coordinates=coordinates,
         dimension=dimension.name if dimension else None,
         facing=facing.name if facing else None,
         tilt=tilt.name if tilt else None,
         align=align.name,
-        theme=theme or ["stone"],
+        theme=theme,
         blend=blend,
-        partial=partial,
-    )
+    ).run(watch=watch)
