@@ -3,31 +3,26 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-import watchfiles
-from click import UsageError
-
-from .api.loader import load
 from .chunks import ChunkProcessor
-from .session import GeneratingSession, UserCancelled
 from .structure import Structure
 from .utils.console import Console
 from .utils.progress_bar import Progress
 
 if TYPE_CHECKING:
-    from .api.types import BlockMap, BlockName, Size
+    from .api.types import BlockMap, BlockName, Building, Size
     from .coordinates import XYZ, DirectionName
     from .structure import AlignName, TiltName
 
 
 @final
 class Generator:
-    _cache: BlockMap = {}
+    _cached_size: Size | None = None
+    _cached_blocks: BlockMap = {}
 
     def __init__(
         self,
         *,
         world_path: Path,
-        input_path: Path | None,
         coordinates: XYZ | None,
         dimension: str | None,
         facing: DirectionName | None,
@@ -36,7 +31,6 @@ class Generator:
         theme: list[BlockName],
         blend: bool,
     ):
-        self.input_path = input_path
         self.world_path = world_path
         self.coordinates = coordinates
         self.dimension = dimension
@@ -46,60 +40,37 @@ class Generator:
         self.theme = theme
         self.blend = blend
 
-    def run(self, *, watch: bool):
-        if not watch:
-            self._run_once()
+    def run(self, *, data: Building, partial: bool):
+        if not partial:
+            self._generate(data.size, data.blocks)
             return
 
-        if not self.input_path:
-            raise UsageError("--watch requires input file path.")
-
-        self._cache = self._run_once()
-        Console.info("Watching for changes...")
-        for _ in watchfiles.watch(self.input_path):
-            self._run_with_cache()
-
-    def _run_once(self):
-        data = self._load()
-        self._generate(data.size, data.blocks)
-        return data.blocks
-
-    def _run_with_cache(self):
-        try:
-            data = self._load()
-        except Exception:
-            # in case file temporarily becomes invalid, just skip this change
+        if not self._cached_blocks:
+            self._generate(data.size, data.blocks)
+            self._cached_blocks = data.blocks
+            Console.info("Watching for changes...")
             return
 
         changed_blocks: BlockMap = {
             k: v
             for k, v in data.blocks.items()
-            if k not in self._cache or self._cache[k] != v
+            if k not in self._cached_blocks or self._cached_blocks[k] != v
         }
         if not changed_blocks:
             return
 
-        Console.clear()
         Console.info(
-            "{blocks} changed from last generation.",
+            "\n{blocks} changed from last generation.",
             blocks=f"{len(changed_blocks)} blocks",
         )
         self._generate(data.size, changed_blocks)
-        self._cache.update(changed_blocks)
+        self._cached_blocks.update(changed_blocks)
         Console.info("Watching for changes...")
 
-    def _load(self):
-        try:
-            data = load(self.input_path)
-        except Exception:
-            raise UsageError("Invalid input data.")
-        if not data:
-            raise UsageError(
-                "Missing input: Either provide file path with --in, or pipe content to stdin.",
-            )
-        return data
-
     def _generate(self, size: Size, blocks: BlockMap):
+        # importing amulet is slow, delay it until needed
+        from .session import GeneratingSession, UserCancelled
+
         with GeneratingSession(self.world_path) as session:
             world = session.load_world()
 
@@ -116,7 +87,7 @@ class Generator:
             structure = Structure(
                 size=size,
                 blocks=blocks,
-                partial=bool(self._cache),
+                partial=bool(self._cached_blocks),
                 coordinates=self.coordinates,
                 facing=self.facing,
                 tilt=self.tilt,
@@ -125,21 +96,27 @@ class Generator:
                 blend=self.blend,
             )
 
-            bounds = structure.bounds
-            Console.info(
-                "Structure will occupy the space"
-                + ("\n" if not self._cache else " ")
-                + "{start} to {end} in {dimension}.",
-                start=(bounds.min_x, bounds.min_y, bounds.min_z),
-                end=(bounds.max_x, bounds.max_y, bounds.max_z),
-                dimension=self.dimension,
-                important=not self._cache,
-            )
-            world.validate_bounds(structure.bounds, self.dimension)
+            if size == self._cached_size:
+                Console.info("Location unchanged.")
+            else:
+                bounds = structure.bounds
+                Console.info(
+                    (
+                        "Location: "
+                        if self._cached_size
+                        else "Structure will occupy the space\n"
+                    )  # simpler message on subsequent runs
+                    + "{start} to {end} in {dimension}",
+                    start=(bounds.min_x, bounds.min_y, bounds.min_z),
+                    end=(bounds.max_x, bounds.max_y, bounds.max_z),
+                    dimension=self.dimension,
+                    important=not self._cached_size,
+                )
+                world.validate_bounds(bounds, self.dimension)
+                self._cached_size = size
 
-            with Progress(
-                cancellable=not self._cache  # if watch, only prompt on first run
-            ) as progress:
+            # if watch, only prompt on first run
+            with Progress(cancellable=not self._cached_blocks) as progress:
                 chunks = ChunkProcessor(structure)
                 if not progress.run(
                     chunks.process(),
@@ -152,7 +129,9 @@ class Generator:
                 if not progress.run(
                     world.write(chunks, self.dimension),
                     jobs_count=2 * chunks.count,
-                    description="Generating" if not self._cache else "Updating",
+                    description=(
+                        "Generating" if not self._cached_blocks else "Regenerating"
+                    ),
                     transient=False,
                 ):
                     raise UserCancelled

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, final
 
 if TYPE_CHECKING:
-    from ..api.types import Block
+    from .api.types import Block
     from .coordinates import XYZ, XZ
     from .structure import Structure
 

@@ -6,15 +6,22 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
 import typer
+import watchfiles
+from click import UsageError
 from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
+from noteblock_generator.core.utils.console import Console
 
+from .core.api.loader import load
 from .core.api.types import BlockName
 from .core.coordinates import XYZ
+from .core.generator import Generator
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+logging.disable()  # disable amulet's logging
 
 
 class Dimension(Enum):
@@ -175,14 +182,8 @@ def run(
         Option("--help", is_eager=True, hidden=True, callback=_show_help),
     ] = False,
 ):
-    # disable amulet's logging
-    logging.disable()
-    # importing amulet is slow, this lets the help message show up quickly
-    from .core.generator import Generator
-
-    Generator(
+    generator = Generator(
         world_path=world_path,
-        input_path=input_path,
         coordinates=coordinates,
         dimension=dimension.name if dimension else None,
         facing=facing.name if facing else None,
@@ -190,4 +191,20 @@ def run(
         align=align.name,
         theme=theme,
         blend=blend,
-    ).run(watch=watch)
+    )
+
+    if not watch:
+        generator.run(data=load(input_path), partial=False)
+        return
+
+    if not input_path:
+        raise UsageError("--watch requires an input file.")
+
+    generator.run(data=load(input_path), partial=True)
+    for _ in watchfiles.watch(input_path):
+        try:
+            data = load(input_path)
+        except Exception as e:
+            Console.warn(str(e))
+        else:
+            generator.run(data=data, partial=True)

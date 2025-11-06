@@ -5,19 +5,23 @@ from pathlib import Path
 from sys import stdin
 from zipfile import ZipFile, is_zipfile
 
+from click import UsageError
 from msgspec import json
 
 from .types import Building
 
 
-def load(path: Path | None) -> Building | None:
-    if not (src := _load_source(path)):
-        return None
+def load(path: Path | None) -> Building:
+    try:
+        if src := _load_source(path):
+            if data := _read_source(src):
+                return json.decode(data, type=Building)
+    except Exception:
+        raise UsageError("Error reading input data.")
 
-    if not (data := _read_source(src)):
-        return None
-
-    return json.decode(data, type=Building)
+    raise UsageError(
+        "Missing input: Either provide file path with --in, or pipe content to stdin.",
+    )
 
 
 def _load_source(path: Path | None) -> Path | BytesIO | None:

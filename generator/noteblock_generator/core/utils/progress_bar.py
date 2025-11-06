@@ -13,9 +13,10 @@ class Progress:
     def __init__(self, cancellable: bool):
         if cancellable:
             self._thread = Thread(target=self._prompt_worker, daemon=True)
+            self._user_response = None
         else:
             self._thread = None
-        self._user_response: bool | None = None
+            self._user_response = True  # non-cancellable = auto confirm yes
 
     def __enter__(self):
         if self._thread:
