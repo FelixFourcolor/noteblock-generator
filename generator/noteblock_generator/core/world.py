@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from functools import cached_property
+from functools import cache, cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, cast, final
 
@@ -13,6 +13,8 @@ from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
 from typing_extensions import override
 
+from noteblock_generator.core.api.types import BlockName
+
 from .blend import blend_filter
 from .coordinates import Direction, get_nearest_direction
 from .utils.console import Console
@@ -21,7 +23,7 @@ from .utils.iter import exhaust
 if TYPE_CHECKING:
     from amulet.api.chunk import Chunk
 
-    from .chunks import ChunkPlacement, ChunkProcessor
+    from .chunks import ChunkPlacement, ChunksManager
     from .coordinates import XYZ, XZ, DirectionName
     from .structure import Bounds, TiltName
 
@@ -62,7 +64,7 @@ class World(BaseWorld):
 
     @override
     def __hash__(self):
-        return hash(self.path)
+        return 0
 
     def validate_bounds(self, bounds: Bounds, dimension: str):
         world_bounds = self.bounds("minecraft:" + dimension)
@@ -80,7 +82,7 @@ class World(BaseWorld):
                 f"Structure exceeds world boundary at {axis}: {coord} vs {limit=}.",
             )
 
-    def write(self, chunks: ChunkProcessor, dimension: str):
+    def write(self, chunks: ChunksManager, dimension: str):
         dimension = "minecraft:" + dimension
         for chunk_coords, data in chunks:
             self._modify_chunk(chunk_coords, data, dimension=dimension)
@@ -101,6 +103,9 @@ class World(BaseWorld):
             location=default,
         )
         return default
+
+    # These cached_property aren't for performance,
+    # but so that the Console.info are only printed once.
 
     @cached_property
     def player_dimension(self) -> str:
@@ -149,10 +154,9 @@ class World(BaseWorld):
         )
         return default
 
-    def create_block(self, name: str, **properties) -> Block:
-        properties = {k: StringTag(v) for k, v in properties.items()}
-        block = Block("minecraft", name, properties)
-        return self.block_translator.to_universal(block)[0]
+    @cache  # this one is actually for performance
+    def create_block(self, block: BlockName) -> Block:
+        return Block("minecraft", *parse_block(block))
 
     def _modify_chunk(
         self, chunk_coords: XZ, mods: ChunkPlacement, dimension: str
@@ -165,13 +169,13 @@ class World(BaseWorld):
         chunk.block_entities = {}
         self._modified_chunks[chunk_coords] = chunk
 
-        for coords, block_data in mods.items():
-            if block_data is None:
+        for coords, block_name in mods.items():
+            if block_name is None:
                 block = blend_filter(chunk, coords)
                 if isinstance(block, str):
                     block = self.create_block(block)
             else:
-                block = self.create_block(block_data.name, **block_data.properties)
+                block = self.create_block(block_name)
 
             if block is not None:
                 chunk.set_block(*coords, block)
@@ -189,3 +193,17 @@ class World(BaseWorld):
 
         self.history_manager.mark_saved()
         wrapper.save()
+
+
+def parse_block(block: BlockName) -> tuple[str, dict[str, StringTag]]:
+    if "[" not in block:
+        return block, {}
+
+    name, props_str = block.split("[", 1)
+    props_str = props_str.rstrip("]")
+    properties = {
+        key: StringTag(value)
+        for prop in props_str.split(",")
+        for key, value in [prop.split("=", 1)]
+    }
+    return name, properties

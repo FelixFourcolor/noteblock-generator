@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Iterator
+from functools import cache
+from itertools import product
 from typing import TYPE_CHECKING, Literal, NamedTuple, final
 
-from .api.types import Block, BlockProperties
+from typing_extensions import override
+
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
@@ -13,6 +17,9 @@ if TYPE_CHECKING:
 
     TiltName = Literal["up", "down"]
     AlignName = Literal["left", "center", "right"]
+
+
+DIRECTION_PATTERN = re.compile("|".join(DIRECTION_NAMES))
 
 
 @final
@@ -50,38 +57,38 @@ class Structure:
         # to alternate between rounding up and down in edge cases
         self._theme_should_round_up = True
 
-    def __iter__(self) -> Iterator[None | tuple[XYZ, Block | None]]:
+    @override
+    def __hash__(self):
+        return 1
+
+    def __iter__(self) -> Iterator[tuple[XYZ, BlockName | None]]:
         if self.partial:
             for str_coords, block in self.blocks.items():
                 x, y, z = map(int, str_coords.split(" "))
-                yield self.translate_position((x, y, z)), self.translate_block(block, z)
+                yield (
+                    self.translate_position((x, y, z)),
+                    self.translate_block(block, z),
+                )
             return
 
-        for x in range(self.length):
-            for y in range(self.height):
-                for z in range(self.width):
-                    str_coords = f"{x} {y} {z}"
-                    yield (
-                        self.translate_position((x, y, z)),
-                        self.translate_block(
-                            self.blocks.get(str_coords, None if self.blend else "air"),
-                            z,
-                        ),
-                    )
+        empty_block = None if self.blend else "air"
+        for x, y, z in product(
+            range(self.length), range(self.height), range(self.width)
+        ):
+            str_coords = f"{x} {y} {z}"
+            yield (
+                self.translate_position((x, y, z)),
+                self.translate_block(self.blocks.get(str_coords, empty_block), z),
+            )
 
-    def translate_block(self, block: BlockType, z: int) -> Block | None:
+    def translate_block(self, block: BlockType, z: int) -> BlockName | None:
         if block is None:
             return None
 
-        if isinstance(block, Block):
-            # apply rotation to directional properties (e.g. "west"), if any
-            properties = self.translate_properties(block.properties)
-            return Block(block.name, properties)
-
         if block == 0:  # magic value for theme block
-            return Block(self.get_theme(z))
+            block = self.get_theme(z)
 
-        return Block(block)
+        return self.translate_blockdata(block)
 
     def get_theme(self, z: int) -> BlockName:
         max_z = self.width - 1
@@ -126,22 +133,14 @@ class Structure:
 
         return translated_x, translated_y, translated_z
 
-    def translate_direction(self, name: DirectionName):
-        raw_dir = Direction[name]
-        rotated_dir = Direction(self.facing.rotate(raw_dir))
-        return rotated_dir.name
+    @cache
+    def translate_blockdata(self, block: BlockName) -> BlockName:
+        def translate_direction(match: re.Match) -> str:
+            raw_dir = Direction[match.group(0)]
+            rotated_dir = Direction(self.facing.rotate(raw_dir))
+            return rotated_dir.name
 
-    def translate_properties(self, data: BlockProperties):
-        translated: BlockProperties = {}
-
-        for key, value in data.items():
-            if key in DIRECTION_NAMES:
-                key = self.translate_direction(key)
-            if value in DIRECTION_NAMES:
-                value = self.translate_direction(value)
-            translated[key] = value
-
-        return translated
+        return DIRECTION_PATTERN.sub(translate_direction, block)
 
     def _get_bounds(self) -> Bounds:
         start_x, start_y, start_z = self.translate_position((0, 0, 0))

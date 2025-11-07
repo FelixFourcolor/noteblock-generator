@@ -133,8 +133,9 @@ class GeneratingSession:
 
         if self._externally_modified():
             Console.success(
-                "It looks like you were inside the world while generating.\n"
-                + "Exit and re-enter to see the result."
+                "It looks like you were inside the world while generating."
+                + "\nExit and re-enter to see the result.",
+                important=True,
             )
 
         self._world.close()

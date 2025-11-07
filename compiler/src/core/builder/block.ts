@@ -2,19 +2,17 @@ import type { NoteBlock } from "#core/resolver/@";
 import type { Delay } from "#schema/@";
 import { Direction } from "./direction.js";
 
-type BlockName = string;
-type BlockProperties = Record<string, string | number>;
-type BlockData = {
-	name: BlockName;
-	properties: BlockProperties;
-};
-export type BlockType = BlockName | BlockData | null | 0;
+export type BlockName = string;
+export type BlockType = BlockName | null | 0;
 
-export function Block(name: BlockName, properties: BlockProperties): BlockType {
-	if (!properties) {
-		return name;
-	}
-	return { name, properties };
+export function Block(
+	name: BlockName,
+	properties: Record<string, string | number>,
+): BlockName {
+	const strProperties = Object.entries(properties)
+		.map(([key, value]) => `${key}=${value}`)
+		.join(",");
+	return `${name}[${strProperties}]`;
 }
 
 export namespace Block {

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
-from .chunks import ChunkProcessor
+from .chunks import ChunksManager
 from .structure import Structure
 from .utils.console import Console
 from .utils.progress_bar import Progress
@@ -117,9 +117,9 @@ class Generator:
 
             # if watch, only prompt on first run
             with Progress(cancellable=not self._cached_blocks) as progress:
-                chunks = ChunkProcessor(structure)
+                chunks = ChunksManager()
                 if not progress.run(
-                    chunks.process(),
+                    chunks.process(structure),
                     jobs_count=structure.blocks_count,
                     description="Calculating",
                     transient=True,
@@ -128,7 +128,7 @@ class Generator:
 
                 if not progress.run(
                     world.write(chunks, self.dimension),
-                    jobs_count=2 * chunks.count,
+                    jobs_count=2 * chunks.count,  # write + save
                     description=(
                         "Generating" if not self._cached_blocks else "Regenerating"
                     ),

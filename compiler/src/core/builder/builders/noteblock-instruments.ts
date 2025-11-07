@@ -1,5 +1,5 @@
 import type { InstrumentName } from "#schema/@";
-import type { BlockType } from "../block.js";
+import type { BlockName } from "../block.js";
 
 export const instrumentBase = {
 	bass: "oak_log",
@@ -15,4 +15,4 @@ export const instrumentBase = {
 	bell: "gold_block",
 	chime: "packed_ice",
 	xylophone: "bone_block",
-} as const satisfies Record<InstrumentName, BlockType>;
+} as const satisfies Record<InstrumentName, BlockName>;

@@ -2,18 +2,12 @@ from typing import Literal
 
 from msgspec import Struct
 
-BlockName = str
-BlockProperties = dict[str, str | int]
-
-
-class Block(Struct):
-    name: BlockName
-    properties: BlockProperties = {}
-
-
+BlockName = str  # "note_block[note=5]"
 StrCoord = str  # f"{x} {y} {z}"
+
+
 ThemeBlock = Literal[0]
-BlockType = BlockName | ThemeBlock | Block | None
+BlockType = BlockName | ThemeBlock | None
 BlockMap = dict[StrCoord, BlockType]
 
 
