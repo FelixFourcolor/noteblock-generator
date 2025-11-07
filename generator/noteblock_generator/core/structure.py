@@ -43,8 +43,8 @@ class Structure:
         self.tilt = tilt
         self.align = align
         self.theme = theme
-        self.blend = blend
         self.partial = partial
+        self.empty_block = None if blend else "air"
 
         self.length = size.length
         self.width = size.width
@@ -71,19 +71,17 @@ class Structure:
                 )
             return
 
-        empty_block = None if self.blend else "air"
         for x, y, z in product(
             range(self.length), range(self.height), range(self.width)
         ):
-            str_coords = f"{x} {y} {z}"
             yield (
                 self.translate_position((x, y, z)),
-                self.translate_block(self.blocks.get(str_coords, empty_block), z),
+                self.translate_block(self.blocks.get(f"{x} {y} {z}"), z),
             )
 
     def translate_block(self, block: BlockType, z: int) -> BlockName | None:
         if block is None:
-            return None
+            return self.empty_block
 
         if block == 0:  # magic value for theme block
             block = self.get_theme(z)
