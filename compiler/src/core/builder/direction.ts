@@ -1,10 +1,10 @@
 import type { Compare } from "ts-arithmetic";
 
 export enum Direction {
-	north = 0,
-	south = 1,
-	east = 2,
-	west = 3,
+	north,
+	south,
+	east,
+	west,
 }
 
 export namespace Direction {
@@ -14,13 +14,6 @@ export namespace Direction {
 		[1, 0], //  east
 		[-1, 0], // west
 	] as const;
-
-	export const ALL = [
-		Direction.north,
-		Direction.south,
-		Direction.east,
-		Direction.west,
-	];
 
 	export function get(dir: Direction) {
 		return coords[dir]!;

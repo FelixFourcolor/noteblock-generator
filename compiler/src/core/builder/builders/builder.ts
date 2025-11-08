@@ -1,10 +1,11 @@
 import { forEachRight, range } from "lodash";
-import type { Slice, SongLayout } from "#core/assembler/@";
+import type { NoteCluster, Slice, SongLayout } from "#core/assembler/@";
 import type { NoteBlock } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";
+import { Direction } from "../direction.js";
 import { getSize, type Size, SLICE_SIZE } from "../size.js";
 import { instrumentBase } from "./noteblock-instruments.js";
 
@@ -56,7 +57,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		// based on whether the space above is occupied.
 		forEachRight(levels, (notes, level) => {
 			newCursor = this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
-				self.buildClusterStructure(delay);
+				self.buildClusterStructure(delay, notes);
 				if (notes) {
 					self.buildNotes(notes);
 				}
@@ -122,11 +123,12 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		});
 	}
 
-	private buildClusterStructure(delay: number) {
+	private buildClusterStructure(delay: number, notes: NoteCluster | undefined) {
+		const wireDirection = notes?.length ? [Direction.fromCoords(1, 0)] : [];
 		this.setOffset([0, 0, 0], Block.Generic);
 		this.setOffset([0, 1, 0], this.Repeater(delay));
 		this.setOffset([0, -1, 1], Block.Generic);
-		this.setOffset([0, 0, 1], Block.Redstone());
+		this.setOffset([0, 0, 1], Block.Redstone(...wireDirection));
 		this.setOffset([0, 1, 1], Block.Generic);
 		this.setOffset([0, 0, 2], Block.Generic);
 	}
