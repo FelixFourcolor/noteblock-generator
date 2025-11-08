@@ -1,6 +1,5 @@
 import type { IJsonSchemaUnit } from "typia";
 import { useAnyOf } from "./anyOf.js";
-import { chain } from "./chain.js";
 import { noAdditionalProperties } from "./properties.js";
 import { translateRefs } from "./refs.js";
 
@@ -19,3 +18,8 @@ function transform(value: unknown) {
 		.pipe(useAnyOf)
 		.get();
 }
+
+const chain = <T>(value: T) => ({
+	pipe: <U>(fn: (_: T) => U) => chain(fn(value)),
+	get: () => value,
+});
