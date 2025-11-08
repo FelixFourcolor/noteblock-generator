@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from .chunks import ChunksManager
 from .structure import Structure
 from .utils.console import Console
-from .utils.progress_bar import Progress
+from .utils.progress_bar import ProgressBar
 
 if TYPE_CHECKING:
     from .api.types import BlockMap, BlockName, Building, Size
@@ -51,9 +51,7 @@ class Generator:
             return
 
         changed_blocks: BlockMap = {
-            k: v
-            for k, v in data.blocks.items()
-            if k not in self._cached_blocks or self._cached_blocks[k] != v
+            k: v for k, v in data.blocks.items() if self._cached_blocks.get(k) != v
         }
         if not changed_blocks:
             return
@@ -68,7 +66,7 @@ class Generator:
 
     def _generate(self, size: Size, blocks: BlockMap):
         # importing amulet is slow, delay it until needed
-        from .session import GeneratingSession, UserCancelled
+        from .session import GeneratingSession
 
         with GeneratingSession(self.world_path) as session:
             world = session.load_world()
@@ -117,19 +115,15 @@ class Generator:
                 self._cached_size = size
 
             # if watch, only prompt on first run
-            with Progress(cancellable=not self._cached_blocks) as progress:
+            with ProgressBar(cancellable=not self._cached_blocks) as track:
                 description = "Regenerating" if self._cached_blocks else "Generating"
-
-                if not progress.run(
+                track(
                     chunks.process(structure),
                     description=description,
                     transient=True,
-                ):
-                    raise UserCancelled
-
-                if not progress.run(
+                )
+                track(
                     world.write(chunks, self.dimension),
-                    jobs_count=2 * chunks.count,  # write + save
                     description=description,
-                ):
-                    raise UserCancelled
+                    jobs_count=2 * chunks.count,  # write + save
+                )

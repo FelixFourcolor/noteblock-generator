@@ -7,8 +7,11 @@ from .console import Console
 from .iter import exhaust
 
 
-class Progress:
-    def __init__(self, cancellable: bool):
+class UserCancelled(Exception): ...
+
+
+class ProgressBar:
+    def __init__(self, *, cancellable: bool):
         if cancellable:
             self._thread = Thread(target=self._prompt_worker, daemon=True)
             self._user_response = None
@@ -19,7 +22,7 @@ class Progress:
     def __enter__(self):
         if self._thread:
             self._thread.start()
-        return self
+        return self._track
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._thread:
@@ -28,14 +31,14 @@ class Progress:
     def _prompt_worker(self):
         self._user_response = Console.confirm("Confirm to proceed?", default=True)
 
-    def run(
+    def _track(
         self,
         jobs_iter: Iterable,
         *,
-        jobs_count: int | None = None,
         description: str,
+        jobs_count: int | None = None,
         transient=False,
-    ) -> bool:
+    ):
         if not self.result_ready:
             for _ in jobs_iter:
                 if jobs_count is not None:
@@ -44,10 +47,10 @@ class Progress:
                     break
             else:  #  all jobs finish before user responds
                 if transient:
-                    return True
+                    return
 
         if self.cancelled:
-            return False
+            raise UserCancelled
 
         exhaust(
             progress.track(
@@ -58,7 +61,6 @@ class Progress:
                 show_speed=False,
             )
         )
-        return True
 
     @property
     def result_ready(self) -> bool:

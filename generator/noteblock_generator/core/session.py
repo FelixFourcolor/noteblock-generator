@@ -9,11 +9,8 @@ from click import UsageError
 
 from .utils.console import Console
 from .utils.files import backup_files, hash_files
+from .utils.progress_bar import UserCancelled
 from .world import ChunkLoadError, World
-
-
-class UserCancelled(Exception): ...
-
 
 _HANDLED_SIGNALS = set(signal.Signals) - {
     # uncatchable signals
@@ -37,9 +34,6 @@ class IgnoreInterrupt:
             signal.signal(sig, handler)
 
 
-cancelled_message = "Generation cancelled. No changes were made."
-
-
 class GeneratingSession:
     def __init__(self, path: Path):
         self._original_path = path
@@ -51,7 +45,7 @@ class GeneratingSession:
         if not self._working_path:
             # clone unsuccessful, must generate in-place
             Console.warn(
-                "To prevent data corruption, if you are inside the world,\n{highlighted}.",
+                "If you are inside the world, {highlighted}.",
                 highlighted="exit now before proceeding",
                 important=True,
             )
@@ -72,7 +66,6 @@ class GeneratingSession:
         self._cleanup(commit=exc_type is None)
 
         if exc_type is UserCancelled:
-            Console.success(cancelled_message)
             os._exit(0)
 
         if isinstance(exc_value, ChunkLoadError):
