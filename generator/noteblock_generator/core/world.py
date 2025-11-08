@@ -14,7 +14,7 @@ from click import UsageError
 
 from noteblock_generator.core.api.types import BlockName
 
-from .blend import blend_filter
+from .blend import get_blend_block
 from .coordinates import Direction, get_nearest_direction
 from .utils.console import Console
 from .utils.iter import exhaust
@@ -167,7 +167,7 @@ class World(BaseWorld):
 
         for coords, block_name in mods.items():
             if block_name is None:
-                block = blend_filter(chunk, coords)
+                block = get_blend_block(chunk, coords)
                 if isinstance(block, str):
                     block = self.create_block(block)
             else:

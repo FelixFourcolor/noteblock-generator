@@ -19,23 +19,36 @@ _LIQUID = {
     "tall_seagrass",
 }
 
-_GRAVITY_AFFECTED = {
+_FALLING = {
     "anvil",
     "chipped_anvil",
-    "concrete_powder",
     "damaged_anvil",
+    "white_concrete_powder",
+    "orange_concrete_powder",
+    "magenta_concrete_powder",
+    "light_blue_concrete_powder",
+    "yellow_concrete_powder",
+    "lime_concrete_powder",
+    "pink_concrete_powder",
+    "gray_concrete_powder",
+    "light_gray_concrete_powder",
+    "cyan_concrete_powder",
+    "purple_concrete_powder",
+    "blue_concrete_powder",
+    "brown_concrete_powder",
+    "green_concrete_powder",
+    "red_concrete_powder",
+    "black_concrete_powder",
     "dragon_egg",
     "gravel",
-    "pointed_dripstone",
-    "red_sand",
-    "sand",
-    "scaffolding",
-    "snow",
-    "suspicious_sand",
     "suspicious_gravel",
+    "sand",
+    "red_sand",
+    "suspicious_sand",
+    "scaffolding",
 }
 
-_REDSTONE_COMPONENTS = {
+_REDSTONES = {
     "calibrated_sculk_sensor",
     "comparator",
     "jukebox",
@@ -53,10 +66,10 @@ _REDSTONE_COMPONENTS = {
     "tnt_minecart",
 }
 
-DANGER_LIST = _LIQUID | _GRAVITY_AFFECTED | _REDSTONE_COMPONENTS
+DANGER_LIST = _LIQUID | _FALLING | _REDSTONES
 
 
-def blend_filter(chunk: Chunk, coords: XYZ):
+def get_blend_block(chunk: Chunk, coords: XYZ):
     block = chunk.get_block(*coords)
     name = block.base_name
     if name in DANGER_LIST:
