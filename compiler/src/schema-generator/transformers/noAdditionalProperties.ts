@@ -1,12 +1,12 @@
 import { mapValues } from "lodash";
 
-export function noAdditionalProperties(obj: unknown): unknown {
-	if (Array.isArray(obj)) {
-		return obj.map(noAdditionalProperties);
+export function noAdditionalProperties(node: unknown): unknown {
+	if (Array.isArray(node)) {
+		return node.map(noAdditionalProperties);
 	}
 
-	if (obj && typeof obj === "object") {
-		const mappedObj = mapValues(obj, noAdditionalProperties);
+	if (node && typeof node === "object") {
+		const mappedObj = mapValues(node, noAdditionalProperties);
 		if (
 			("type" in mappedObj && mappedObj.type === "object") ||
 			("properties" in mappedObj && mappedObj.properties)
@@ -16,5 +16,5 @@ export function noAdditionalProperties(obj: unknown): unknown {
 		return mappedObj;
 	}
 
-	return obj;
+	return node;
 }
