@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from functools import cache, cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, final
+from typing import TYPE_CHECKING, cast
 
 from amulet import StringTag, load_format
 from amulet.api import Block
@@ -11,7 +11,6 @@ from amulet.api.errors import LoaderNoneMatched
 from amulet.api.level import World as BaseWorld
 from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
-from typing_extensions import override
 
 from noteblock_generator.core.api.types import BlockName
 
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
     from .structure import Bounds, TiltName
 
 
-@final
 class ChunkLoadError(Exception):
     def __init__(self, chunk_coords: XZ):
         super().__init__("")
@@ -36,7 +34,6 @@ class ChunkLoadError(Exception):
         self.coordinates = (cx << 4, cz << 4)
 
 
-@final
 class World(BaseWorld):
     @classmethod
     def load(cls, world_path: str | Path) -> World:
@@ -62,7 +59,6 @@ class World(BaseWorld):
         self.player = players[0] if players else None
         self._modified_chunks: dict[XZ, Chunk] = {}
 
-    @override
     def __hash__(self):
         return 0
 
@@ -185,8 +181,8 @@ class World(BaseWorld):
         for (x, z), chunk in self._modified_chunks.items():
             dimension_chunk = (dimension, x, z)
             exhaust(
-                wrapper._calculate_height(self, [dimension_chunk]),  # pyright: ignore[reportPrivateUsage]
-                wrapper._calculate_light(self, [dimension_chunk]),  # pyright: ignore[reportPrivateUsage]
+                wrapper._calculate_height(self, [dimension_chunk]),
+                wrapper._calculate_light(self, [dimension_chunk]),
             )
             wrapper.commit_chunk(chunk, dimension)
             yield

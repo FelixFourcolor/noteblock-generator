@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .api.types import BlockName
@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     ChunksData = dict[XZ, ChunkPlacement]
 
 
-@final
 class ChunksManager:
     def __init__(self):
         self._chunks: ChunksData = {}

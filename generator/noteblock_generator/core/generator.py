@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING
 
 from .chunks import ChunksManager
 from .structure import Structure
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from .structure import AlignName, TiltName
 
 
-@final
 class Generator:
     _cached_size: Size | None = None
     _cached_blocks: BlockMap = {}

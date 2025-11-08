@@ -5,9 +5,8 @@ import re
 from collections.abc import Iterator
 from functools import cache
 from itertools import product
-from typing import TYPE_CHECKING, Literal, NamedTuple, final
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
-from typing_extensions import override
 
 from .coordinates import DIRECTION_NAMES, Direction
 
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
 DIRECTION_PATTERN = re.compile("|".join(DIRECTION_NAMES))
 
 
-@final
 class Structure:
     def __init__(
         self,
@@ -57,7 +55,6 @@ class Structure:
         # to alternate between rounding up and down in edge cases
         self._theme_should_round_up = True
 
-    @override
     def __hash__(self):
         return 1
 

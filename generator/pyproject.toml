@@ -35,11 +35,4 @@ extend-safe-fixes = ["ALL"]
 
 [tool.pyright]
 pythonVersion = "3.10"
-reportUnknownMemberType = "none"
-reportMissingParameterType = "none"
-reportUnknownParameterType = "none"
-reportUnknownArgumentType = "none"
-reportUnknownVariableType = "none"
-reportMissingTypeArgument = "none"
-reportMissingTypeStubs = "none"
-reportUnusedCallResult = "none"
+typeCheckingMode = "standard"

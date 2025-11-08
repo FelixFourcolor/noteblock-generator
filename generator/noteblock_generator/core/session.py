@@ -4,7 +4,6 @@ import os
 import shutil
 import signal
 from pathlib import Path
-from typing import final
 
 from click import UsageError
 
@@ -23,7 +22,6 @@ _HANDLED_SIGNALS = set(signal.Signals) - {
 }
 
 
-@final
 class IgnoreInterrupt:
     def __init__(self):
         self._original_handlers = {}
@@ -42,7 +40,6 @@ class IgnoreInterrupt:
 cancelled_message = "Generation cancelled. No changes were made."
 
 
-@final
 class GeneratingSession:
     def __init__(self, path: Path):
         self._original_path = path

@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 from threading import Thread
-from typing import final
 
 from rich import progress
 
@@ -8,7 +7,6 @@ from .console import Console
 from .iter import exhaust
 
 
-@final
 class Progress:
     def __init__(self, cancellable: bool):
         if cancellable:
