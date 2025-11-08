@@ -96,22 +96,23 @@ class Generator:
                 blend=self.blend,
             )
 
-            if size == self._cached_size:
-                Console.info("Location unchanged.")
-            else:
+            if size != self._cached_size:
                 bounds = structure.bounds
-                Console.info(
-                    (
-                        "Location: "
-                        if self._cached_size
-                        else "Structure will occupy the space\n"
-                    )  # simpler message on subsequent runs
-                    + "{start} to {end} in {dimension}",
-                    start=(bounds.min_x, bounds.min_y, bounds.min_z),
-                    end=(bounds.max_x, bounds.max_y, bounds.max_z),
-                    dimension=self.dimension,
-                    important=not self._cached_size,
-                )
+                start = (bounds.min_x, bounds.min_y, bounds.min_z)
+                end = (bounds.max_x, bounds.max_y, bounds.max_z)
+                if self._cached_size:
+                    # if watch, simpler message on subsequent runs
+                    Console.info(
+                        "Location changed: {start} to {end}", start=start, end=end
+                    )
+                else:
+                    Console.info(
+                        "Structure will occupy the space\n{start} to {end} in {dimension}.",
+                        start=start,
+                        end=end,
+                        dimension=self.dimension,
+                        important=True,
+                    )
                 world.validate_bounds(bounds, self.dimension)
                 self._cached_size = size
 
