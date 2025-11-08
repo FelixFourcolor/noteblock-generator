@@ -1,6 +1,5 @@
 import { forEachRight, range } from "lodash";
 import type { NoteCluster, Slice, SongLayout } from "#core/assembler/@";
-import type { NoteBlock } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";
@@ -55,12 +54,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		// Must build from top to bottom.
 		// Because the row below calculates where to place the noteblocks
 		// based on whether the space above is occupied.
-		forEachRight(levels, (notes, level) => {
+		forEachRight(levels, (notes = [], level) => {
 			newCursor = this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
 				self.buildClusterStructure(delay, notes);
-				if (notes) {
-					self.buildNotes(notes);
-				}
+				self.buildNotes(notes);
 				if (self.isEndOfRow && self.hasNext) {
 					self.buildRowBridge();
 				} else {
@@ -123,8 +120,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		});
 	}
 
-	private buildClusterStructure(delay: number, notes: NoteCluster | undefined) {
-		const wireDirection = notes?.length ? [Direction.fromCoords(1, 0)] : [];
+	private buildClusterStructure(delay: number, notes: NoteCluster) {
+		const wireDirection = notes.length ? [Direction.fromCoords(1, 0)] : [];
 		this.setOffset([0, 0, 0], Block.Generic);
 		this.setOffset([0, 1, 0], this.Repeater(delay));
 		this.setOffset([0, -1, 1], Block.Generic);
@@ -160,7 +157,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			return occupiedA === occupiedB ? 0 : occupiedA ? 1 : -1;
 		});
 	}
-	private buildNotes(notes: NoteBlock[]) {
+	private buildNotes(notes: NoteCluster) {
 		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
