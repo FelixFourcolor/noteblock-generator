@@ -32,13 +32,14 @@ class Progress:
         self,
         jobs_iter: Iterable,
         *,
-        jobs_count: int,
+        jobs_count: int | None = None,
         description: str,
-        transient: bool,
+        transient=False,
     ) -> bool:
         if not self.result_ready:
             for _ in jobs_iter:
-                jobs_count -= 1
+                if jobs_count is not None:
+                    jobs_count -= 1
                 if self.result_ready:
                     break
             else:  #  all jobs finish before user responds
@@ -54,6 +55,7 @@ class Progress:
                 total=jobs_count,
                 description=description,
                 transient=transient,
+                show_speed=False,
             )
         )
         return True

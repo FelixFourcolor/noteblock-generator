@@ -203,8 +203,6 @@ def run(
     generator.run(data=load(input_path), partial=True)
     for _ in watchfiles.watch(input_path):
         try:
-            data = load(input_path)
-        except Exception as e:
+            generator.run(data=load(input_path), partial=True)
+        except UsageError as e:
             Console.warn(str(e))
-        else:
-            generator.run(data=data, partial=True)

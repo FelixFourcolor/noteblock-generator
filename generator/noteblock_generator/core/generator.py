@@ -83,6 +83,7 @@ class Generator:
             if not self.tilt:
                 self.tilt = world.player_tilt
 
+            chunks = ChunksManager()
             structure = Structure(
                 size=size,
                 blocks=blocks,
@@ -116,11 +117,11 @@ class Generator:
 
             # if watch, only prompt on first run
             with Progress(cancellable=not self._cached_blocks) as progress:
-                chunks = ChunksManager()
+                description = "Regenerating" if self._cached_blocks else "Generating"
+
                 if not progress.run(
                     chunks.process(structure),
-                    jobs_count=structure.blocks_count,
-                    description="Calculating",
+                    description=description,
                     transient=True,
                 ):
                     raise UserCancelled
@@ -128,9 +129,6 @@ class Generator:
                 if not progress.run(
                     world.write(chunks, self.dimension),
                     jobs_count=2 * chunks.count,  # write + save
-                    description=(
-                        "Generating" if not self._cached_blocks else "Regenerating"
-                    ),
-                    transient=False,
+                    description=description,
                 ):
                     raise UserCancelled

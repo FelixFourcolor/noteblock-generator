@@ -7,7 +7,6 @@ from functools import cache
 from itertools import product
 from typing import TYPE_CHECKING, Literal, NamedTuple
 
-
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
@@ -47,9 +46,6 @@ class Structure:
         self.length = size.length
         self.width = size.width
         self.height = size.height
-        self.blocks_count = (
-            len(blocks) if partial else self.length * self.height * self.width
-        )
         self.bounds = self._get_bounds()
 
         # to alternate between rounding up and down in edge cases
