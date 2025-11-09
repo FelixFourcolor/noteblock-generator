@@ -6,11 +6,11 @@ import { ErrorTracker } from "./error-tracker.js";
 import { processSong } from "./song-processor.js";
 import type { SongLayout } from "./types.js";
 
-export async function assemble(song: SongResolution): Promise<SongLayout> {
+export function assemble(song: SongResolution): SongLayout {
 	const errorTracker = new ErrorTracker();
 	const boundTracker = new BoundsTracker();
 
-	const rawSlices = await Array.fromAsync(
+	const rawSlices = Array.from(
 		processSong({ song, errorTracker, boundTracker }),
 	);
 	if (rawSlices.length === 0) {

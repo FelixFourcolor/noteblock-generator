@@ -13,9 +13,9 @@ type SongProcessingContext = {
 	errorTracker: ErrorTracker;
 };
 
-export async function* processSong(
+export function* processSong(
 	ctx: SongProcessingContext,
-): AsyncGenerator<{ delay: number; levelMap: LevelMap }> {
+): Generator<{ delay: number; levelMap: LevelMap }> {
 	const { song, boundTracker, errorTracker } = ctx;
 	const { type, ticks } = song;
 	const { registerLevel } = boundTracker;
@@ -23,7 +23,7 @@ export async function* processSong(
 
 	let measure = { bar: 1, tick: 0 };
 
-	for await (const tick of ticks) {
+	for (const tick of ticks) {
 		const [errors, events] = partition(tick, (event) => "error" in event);
 
 		for (const { measure, voice, error } of errors) {

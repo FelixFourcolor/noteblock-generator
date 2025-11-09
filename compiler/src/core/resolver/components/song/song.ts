@@ -32,7 +32,7 @@ export async function resolveSong(
 	}
 	const width = resolveWidth({ time, type });
 
-	return { width, type, ticks };
+	return { ticks: Array.from(ticks), width, type };
 }
 
 function resolveWidth({ time, type }: { time: Time; type: TPosition }) {

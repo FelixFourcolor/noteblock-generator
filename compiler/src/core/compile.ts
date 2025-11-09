@@ -31,11 +31,10 @@ export async function compile(
 ) {
 	const resolution = await resolve(src);
 	if (mode === "resolve") {
-		const { ticks, ...rest } = resolution;
-		return { ticks: await Array.fromAsync(ticks), ...rest };
+		return resolution;
 	}
 
-	const layout = await assemble(resolution);
+	const layout = assemble(resolution);
 	if (mode === "assemble") {
 		return layout;
 	}
