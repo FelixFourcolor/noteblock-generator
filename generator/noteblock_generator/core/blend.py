@@ -41,10 +41,8 @@ _FALLING = {
     "black_concrete_powder",
     "dragon_egg",
     "gravel",
-    "suspicious_gravel",
     "sand",
     "red_sand",
-    "suspicious_sand",
     "scaffolding",
 }
 
