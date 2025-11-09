@@ -18,6 +18,10 @@ class Generator:
     _cached_size: Size | None = None
     _cached_blocks: BlockMap = {}
 
+    @property
+    def _has_cache(self):
+        return bool(self._cached_blocks)
+
     def __init__(
         self,
         *,
@@ -39,7 +43,7 @@ class Generator:
         self.theme = theme
         self.blend = blend
 
-    def run(self, *, data: Building, partial: bool):
+    def generate(self, data: Building, *, partial: bool):
         if not partial:
             self._generate(data.size, data.blocks)
             return
@@ -57,7 +61,7 @@ class Generator:
             return
 
         Console.info(
-            "\n{blocks} changed from last generation.",
+            "\n\n{blocks} changed from last generation.",
             blocks=f"{len(changed_blocks)} blocks",
         )
         self._generate(data.size, changed_blocks)
@@ -71,7 +75,7 @@ class Generator:
         with GeneratingSession(self.world_path) as session:
             world = session.load_world()
 
-            # if watch, use the same world params on every run
+            # so that if watch, use the same world params on every run
             if not self.dimension:
                 self.dimension = world.player_dimension
             if not self.coordinates:
@@ -81,11 +85,10 @@ class Generator:
             if not self.tilt:
                 self.tilt = world.player_tilt
 
-            chunks = ChunksManager()
             structure = Structure(
                 size=size,
                 blocks=blocks,
-                partial=bool(self._cached_blocks),
+                partial=self._has_cache,
                 coordinates=self.coordinates,
                 facing=self.facing,
                 tilt=self.tilt,
@@ -98,10 +101,11 @@ class Generator:
                 bounds = structure.bounds
                 start = (bounds.min_x, bounds.min_y, bounds.min_z)
                 end = (bounds.max_x, bounds.max_y, bounds.max_z)
-                if self._cached_size:
-                    # if watch, simpler message on subsequent runs
-                    Console.info(
-                        "Location changed: {start} to {end}", start=start, end=end
+                if self._has_cache:
+                    Console.success(
+                        "New location: {start} to {end}",
+                        start=start,
+                        end=end,
                     )
                 else:
                     Console.info(
@@ -114,9 +118,9 @@ class Generator:
                 world.validate_bounds(bounds, self.dimension)
                 self._cached_size = size
 
-            # if watch, only prompt on first run
-            with ProgressBar(cancellable=not self._cached_blocks) as track:
-                description = "Regenerating" if self._cached_blocks else "Generating"
+            with ProgressBar(cancellable=not self._has_cache) as track:
+                chunks = ChunksManager()
+                description = "Updating" if self._cached_blocks else "Generating"
                 track(
                     chunks.process(structure),
                     description=description,
@@ -125,5 +129,6 @@ class Generator:
                 track(
                     world.write(chunks, self.dimension),
                     description=description,
-                    jobs_count=2 * chunks.count,  # write + save
+                    jobs_count=2 * chunks.count,  # write + save,
+                    transient=self._has_cache,
                 )

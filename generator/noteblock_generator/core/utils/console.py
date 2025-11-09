@@ -35,24 +35,23 @@ class Console:
 
     @staticmethod
     def success(text: str, *, important=False, **kwargs):
-        if not important:
-            _print(text, style="green")
-            return
-
         if kwargs:
             text = text.format(**{
                 k: f"[bold green]{v}[/bold green]" for k, v in kwargs.items()
             })
-        _print(Panel(text, expand=False, border_style="green"))
+        if important:
+            _print(Panel(text, expand=False, border_style="green"))
+
+        else:
+            _print(text, style="dim green")
 
     @staticmethod
     def warn(text: str, *, important=False, **kwargs):
-        if not important:
-            _print(text, style="red")
-            return
-
         if kwargs:
             text = text.format(**{
                 k: f"[bold red]{v}[/bold red]" for k, v in kwargs.items()
             })
-        _print(Panel(text, expand=False, border_style="red"))
+        if important:
+            _print(Panel(text, expand=False, border_style="red"))
+        else:
+            _print(text, style="dim red")

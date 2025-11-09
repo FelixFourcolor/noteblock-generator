@@ -194,15 +194,15 @@ def run(
     )
 
     if not watch:
-        generator.run(data=load(input_path), partial=False)
+        generator.generate(data=load(input_path), partial=False)
         return
 
     if not input_path:
         raise UsageError("--watch requires an input file.")
 
-    generator.run(data=load(input_path), partial=True)
+    generator.generate(data=load(input_path), partial=True)
     for _ in watchfiles.watch(input_path):
         try:
-            generator.run(data=load(input_path), partial=True)
+            generator.generate(data=load(input_path), partial=True)
         except UsageError as e:
             Console.warn(str(e))
