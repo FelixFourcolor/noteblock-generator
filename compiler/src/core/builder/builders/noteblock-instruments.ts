@@ -3,7 +3,7 @@ import type { BlockName } from "../block.js";
 
 export const instrumentBase = {
 	bass: "oak_log",
-	didgeridoo: "pumpkpin",
+	didgeridoo: "pumpkin",
 	guitar: "white_wool",
 	banjo: "hay_block",
 	bit: "emerald_block",
