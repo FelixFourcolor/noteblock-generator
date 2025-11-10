@@ -9,7 +9,7 @@ from .utils.console import Console
 from .utils.progress_bar import ProgressBar
 
 if TYPE_CHECKING:
-    from .api.types import BlockMap, BlockName, Building, Size
+    from .api.types import BlockMap, BlockState, Building, Size
     from .coordinates import XYZ, DirectionName
     from .structure import AlignName, TiltName
 
@@ -31,7 +31,7 @@ class Generator:
         facing: DirectionName | None,
         tilt: TiltName | None,
         align: AlignName,
-        theme: list[BlockName],
+        theme: list[BlockState],
         blend: bool,
     ):
         self.world_path = world_path
@@ -129,6 +129,6 @@ class Generator:
                 track(
                     world.write(chunks, self.dimension),
                     description=description,
-                    jobs_count=2 * chunks.count,  # write + save,
+                    jobs_count=chunks.count,
                     transient=self._has_cache,
                 )

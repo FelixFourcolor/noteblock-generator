@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Literal, NamedTuple
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from .api.types import BlockMap, BlockName, BlockType, Size
+    from .api.types import BlockMap, BlockState, BlockType, Size
     from .coordinates import XYZ, DirectionName
 
     TiltName = Literal["up", "down"]
@@ -30,7 +30,7 @@ class Structure:
         facing: DirectionName,
         tilt: TiltName,
         align: AlignName,
-        theme: list[BlockName],
+        theme: list[BlockState],
         blend: bool,
         partial: bool,
     ):
@@ -54,7 +54,7 @@ class Structure:
     def __hash__(self):
         return 1
 
-    def __iter__(self) -> Iterator[tuple[XYZ, BlockName | None]]:
+    def __iter__(self) -> Iterator[tuple[XYZ, BlockState | None]]:
         if self.partial:
             for str_coords, block in self.blocks.items():
                 x, y, z = map(int, str_coords.split(" "))
@@ -72,16 +72,16 @@ class Structure:
                 self.translate_block(self.blocks.get(f"{x} {y} {z}"), z),
             )
 
-    def translate_block(self, block: BlockType, z: int) -> BlockName | None:
+    def translate_block(self, block: BlockType, z: int) -> BlockState | None:
         if block is None:
             return self.empty_block
 
         if block == 0:  # magic value for theme block
             block = self.get_theme(z)
 
-        return self.translate_blockdata(block)
+        return self.translate_blockstate(block)
 
-    def get_theme(self, z: int) -> BlockName:
+    def get_theme(self, z: int) -> BlockState:
         max_z = self.width - 1
         if z == 0:
             return self.theme[0]
@@ -125,7 +125,7 @@ class Structure:
         return translated_x, translated_y, translated_z
 
     @cache
-    def translate_blockdata(self, block: BlockName) -> BlockName:
+    def translate_blockstate(self, block: BlockState) -> BlockState:
         def translate_direction(match: re.Match) -> str:
             raw_dir = Direction[match.group(0)]
             rotated_dir = Direction(self.facing.rotate(raw_dir))

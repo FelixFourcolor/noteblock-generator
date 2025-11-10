@@ -70,6 +70,7 @@ DANGER_LIST = _LIQUID | _FALLING | _REDSTONES
 def get_blend_block(chunk: Chunk, coords: XYZ):
     block = chunk.get_block(*coords)
     name = block.base_name
+
     if name in DANGER_LIST:
         return "air"
 
