@@ -43,8 +43,8 @@ class Generator:
         self.theme = theme
         self.blend = blend
 
-    def generate(self, data: Building, *, partial: bool):
-        if not partial:
+    def generate(self, data: Building, *, cache: bool):
+        if not cache:
             self._generate(data.size, data.blocks)
             return
 

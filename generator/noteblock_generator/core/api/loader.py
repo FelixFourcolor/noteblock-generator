@@ -14,8 +14,8 @@ from .types import Building
 def load(path: Path | None) -> Building:
     try:
         if src := _load_source(path):
-            if data := _read_source(src):
-                return json.decode(data, type=Building)
+            data = _read_source(src)
+            return json.decode(data, type=Building)
     except Exception:
         raise UsageError("Error reading input data.")
 
@@ -36,7 +36,7 @@ def _load_source(path: Path | None) -> Path | BytesIO | None:
     return BytesIO(stdin.buffer.read(MAX_SIZE))
 
 
-def _read_source(src: Path | BytesIO) -> bytes | None:
+def _read_source(src: Path | BytesIO) -> bytes:
     if is_zipfile(src):
         return _unzip(src)
 

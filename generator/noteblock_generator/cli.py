@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import logging
+import os
+import time
 from enum import Enum
 from pathlib import Path
+from threading import Thread
 from typing import TYPE_CHECKING, Annotated
 
 import typer
@@ -11,7 +14,6 @@ from click import UsageError
 from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
-from noteblock_generator.core.utils.console import Console
 
 from .core.api.loader import load
 from .core.api.types import BlockName
@@ -194,15 +196,29 @@ def run(
     )
 
     if not watch:
-        generator.generate(data=load(input_path), partial=False)
+        generator.generate(data=load(input_path), cache=False)
         return
 
     if not input_path:
         raise UsageError("--watch requires an input file.")
 
-    generator.generate(data=load(input_path), partial=True)
-    for _ in watchfiles.watch(input_path):
+    # Artificially triggers a file change to get watchfiles started.
+    # Alternative would be to call another generate() before the watch loop;
+    # but then changes during the initial run would be missed.
+    def trigger_initial_run():
+        time.sleep(0.2)
+        os.utime(input_path)
+
+    trigger_thread = Thread(target=trigger_initial_run, daemon=True)
+    trigger_thread.start()
+
+    is_first_call = True
+    for _ in watchfiles.watch(input_path, debounce=0, rust_timeout=0):
         try:
-            generator.generate(data=load(input_path), partial=True)
+            data = load(input_path)
         except UsageError as e:
-            Console.warn(str(e))
+            if is_first_call:
+                raise e
+        else:
+            generator.generate(data, cache=True)
+            is_first_call = False
