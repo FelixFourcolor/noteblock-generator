@@ -1,10 +1,10 @@
+from collections import deque
 from collections.abc import Iterable
 from threading import Thread
 
 from rich import progress
 
 from .console import Console
-from .iter import exhaust
 
 
 class UserCancelled(Exception): ...
@@ -52,14 +52,15 @@ class ProgressBar:
         if self.cancelled:
             raise UserCancelled
 
-        exhaust(
+        deque(
             progress.track(
                 jobs_iter,
                 total=jobs_count,
                 description=description,
                 transient=transient,
                 show_speed=False,
-            )
+            ),
+            maxlen=0,
         )
 
     @property

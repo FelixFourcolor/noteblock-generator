@@ -15,7 +15,6 @@ from click import UsageError
 from .blend import get_blend_block
 from .coordinates import Direction, get_nearest_direction
 from .utils.console import Console
-from .utils.iter import exhaust
 
 if TYPE_CHECKING:
     from .chunks import ChunkEdits, ChunksManager
@@ -155,9 +154,9 @@ class World(BaseWorld):
                 block = Block.from_string_blockstate(f"minecraft:{block}")
             chunk.set_block(*coords, block)
 
-        dimension_chunk = (dimension, *chunk_coords)
-        exhaust(
-            self._wrapper._calculate_height(self, [dimension_chunk]),
-            self._wrapper._calculate_light(self, [dimension_chunk]),
-        )
-        self._wrapper.commit_chunk(chunk, dimension)
+        chunk.misc.pop("height_mapC", None)
+        chunk.misc.pop("height_map256IA", None)
+        chunk.misc.pop("block_light", None)
+        chunk.misc.pop("sky_light", None)
+        chunk.misc.pop("isLightOn", None)
+        self._wrapper._commit_chunk(chunk, dimension)
