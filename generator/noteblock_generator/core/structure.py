@@ -48,7 +48,7 @@ class Structure:
         self.height = size.height
         self.bounds = self._get_bounds()
 
-        # to alternate between rounding up and down in edge cases
+        # to alternate between rounding up and down in boyndary cases
         self._theme_should_round_up = True
 
     def __hash__(self):
@@ -82,25 +82,18 @@ class Structure:
         return self.translate_blockstate(block)
 
     def get_theme(self, z: int) -> BlockState:
-        max_z = self.width - 1
-        if z == 0:
-            return self.theme[0]
-        if z == max_z:
-            return self.theme[-1]
+        theme_float_index = ((z + 0.5) * len(self.theme)) / self.width
+        theme_index = int(theme_float_index)
 
-        themes_count = len(self.theme)
-        theme_index = (z * themes_count) / max_z
+        # Boundary cases are when z is exactly between two themes
+        # -> theme_float_index is an integer
+        if theme_index == theme_float_index:
+            if self._theme_should_round_up:
+                self._theme_should_round_up = False
+            else:
+                self._theme_should_round_up = True
+                theme_index -= 1
 
-        if int(theme_index) != theme_index:
-            return self.theme[int(theme_index)]
-
-        # Edge case: when the index is a whole number
-        if self._theme_should_round_up:
-            self._theme_should_round_up = False
-            theme_index = int(theme_index)
-        else:
-            self._theme_should_round_up = True
-            theme_index = int(theme_index) - 1
         return self.theme[theme_index]
 
     def translate_position(self, coords: XYZ):

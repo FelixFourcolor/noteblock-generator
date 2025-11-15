@@ -212,7 +212,7 @@ namespace pitches {
 namespace instrument {
 	export type NoteValue = Int<0, 24>;
 
-	export const octaves: Record<Exclude<InstrumentName, "null">, number> = {
+	export const octaves: Record<InstrumentName, number> = {
 		bass: 2,
 		didgeridoo: 2,
 		guitar: 3,
