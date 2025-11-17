@@ -19,8 +19,9 @@ export function validateConsistency<
 		const voices = entries.map(({ voice }) => voice);
 		const values = entries.map(({ value }) => value);
 		return {
-			error: `${voices.join(", ")}: Inconsistent ${property}: 
-            ${values.map((v) => JSON.stringify(v)).join(", ")}`,
+			error:
+				`${voices.join(", ")}: Inconsistent ${property}s: ` +
+				`${values.map((v) => JSON.stringify(v)).join(", ")}`,
 		};
 	}
 
