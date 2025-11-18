@@ -7,7 +7,7 @@ import {
 	useAnyOf,
 } from "#schema-generator/transformers/@";
 
-export function generate() {
+export function generateSchema() {
 	const schema = json.schema<Song>();
 	return transform({
 		$schema: "http://json-schema.org/draft-07/schema",

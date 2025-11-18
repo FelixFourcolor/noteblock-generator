@@ -41,6 +41,10 @@ export class CLI {
 				type: "boolean",
 				describe: "Generate schema for music source",
 			})
+			.option("init", {
+				type: "array",
+				hidden: true,
+			})
 			.option("debug", {
 				choices: ["resolve", "assemble", "compile", true] as const,
 				hidden: true,
@@ -48,9 +52,15 @@ export class CLI {
 	}
 
 	private handler = withOutput(async (args) => {
+		if (args.init) {
+			const { initProject } = await import("#init/init.js");
+			const voiceNames = args.init.map(String);
+			return initProject(voiceNames, args.out);
+		}
+
 		if (args.schema) {
-			const { generate } = await import("#schema-generator/generate.js");
-			return generate();
+			const { generateSchema } = await import("#schema-generator/generate.js");
+			return generateSchema();
 		}
 
 		const src = await getInput(args);
