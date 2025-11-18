@@ -6,7 +6,7 @@ import type {
 	IStaticProperties,
 	TPosition,
 } from "#schema/properties/@";
-import type { DistributiveOmit, Modified, WithDoc } from "#schema/utils/@";
+import type { DistributiveOmit, Modified } from "#schema/utils/@";
 
 type RestModifier = Omit<IStaticProperties, "time">;
 
@@ -48,12 +48,11 @@ export namespace Note {
 		NoteModifier<T>
 	>;
 	export namespace Compound {
-		export type Value<T extends TPosition = TPosition> = WithDoc<
-			(Simple<T> | Chord<T> | Quaver<T>)[] & tags.MinItems<2>,
-			{
-				title: "Compound note";
-				description: "Multiple notes played sequentially, but treated as one for the purpose of phrasing. Roughly equivalent to a glissando.";
-			}
-		>;
+		export type Value<T extends TPosition = TPosition> = (
+			| Simple<T>
+			| Chord<T>
+			| Quaver<T>
+		)[] &
+			tags.MinItems<2>;
 	}
 }

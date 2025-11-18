@@ -39,7 +39,7 @@ export function resolveNote(note: Note, voiceContext: Context): ResolvedNote {
 		const fastContext = context.fork({ beat: halfBeat });
 
 		function resolveItem(value: NoteValue.Quaver.Item, context = noteContext) {
-			return match(value)
+			return match(value as unknown) // weird ts-pattern issue
 				.with(P.when(isSimple), (v) => resolveSimple(v, context, false))
 				.with(P.when(isChord), (v) => resolveChord(v, context, false))
 				.otherwise((value) => {

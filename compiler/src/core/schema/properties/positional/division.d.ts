@@ -13,8 +13,5 @@ export namespace Division {
 }
 
 export type IDivision = {
-	/**
-	 * Where to place the note horizontally relative to the player (left, right, or both sides).
-	 */
 	division?: Positional<Division>;
 };

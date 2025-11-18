@@ -1,5 +1,3 @@
-import type { ExtractDoc, WithDoc } from "./doc.ts";
-
 export type DistributiveOmit<T extends object, K extends string> = T extends T
 	? Omit<T, K>
 	: never;
@@ -13,7 +11,4 @@ export type Modified<
 	Modifier extends object,
 > =
 	| Target[keyof Target]
-	| WithDoc<
-			{ [K in string & keyof Target]: Target[K] } & Modifier,
-			ExtractDoc<Target[keyof Target]>
-	  >;
+	| ({ [K in string & keyof Target]: Target[K] } & Modifier);

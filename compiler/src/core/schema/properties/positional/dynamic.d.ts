@@ -14,9 +14,5 @@ export namespace Dynamic {
 }
 
 export type IDynamic = {
-	/**
-	 * How many note blocks used to produce each note (default 1). Each redstone dust can power upto 6 note blocks.
-	 * This is one way to control volume, level being the other one. A +1 in dynamic has much more effect than a +1 in level.
-	 */
 	dynamic?: Positional<Dynamic>;
 };
