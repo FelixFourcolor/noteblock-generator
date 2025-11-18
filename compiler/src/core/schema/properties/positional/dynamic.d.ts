@@ -1,5 +1,5 @@
 import type { Variable } from "#schema/duration.ts";
-import type { Int, Re, Token } from "#utils/@";
+import type { Int, Re, Token } from "#schema/utils/@";
 import type { Positional } from "../meta.ts";
 
 export type Dynamic = Int<0, 6> | Dynamic.variable;

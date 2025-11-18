@@ -1,16 +1,15 @@
 import { match, P } from "ts-pattern";
 import { assert, is } from "typia";
 import type { Beat, Duration } from "#schema/@";
-import type { Int } from "#utils/@";
 
 export function parseDuration(
 	duration: Duration.determinate,
 	beat: Beat,
-): Int<0>;
+): number;
 export function parseDuration(
 	duration: Duration,
 	beat: Beat,
-): Int<0> | undefined;
+): number | undefined;
 export function parseDuration(duration: Duration, beat: Beat) {
 	if (is<Duration.indeterminate>(duration)) {
 		return undefined;

@@ -1,4 +1,4 @@
-import type { Int, Re, Token } from "#utils/@";
+import type { Int, Re, Token } from "#schema/utils/@";
 import type { IPositional, Positional } from "../meta.ts";
 
 export type Transpose = {

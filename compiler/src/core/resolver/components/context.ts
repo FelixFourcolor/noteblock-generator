@@ -1,12 +1,9 @@
 import { isEmpty } from "lodash";
 import { Properties } from "#core/resolver/properties/@";
 import type { IProperties } from "#schema/@";
-import type { DistributiveOmit } from "#utils/@";
-import { Measure, type MeasureModifier } from "./measure.js";
+import { type IMeasure, Measure } from "./measure.js";
 
-type TransformModifier =
-	| DistributiveOmit<MeasureModifier, "time">
-	| IProperties;
+type TransformModifier = IMeasure | { noteDuration: number } | IProperties;
 
 class ContextClass extends Properties {
 	private _measure = new Measure();

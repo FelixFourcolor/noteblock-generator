@@ -9,7 +9,7 @@ import type {
 	Instrument as T_Instrument,
 	Trill,
 } from "#schema/@";
-import type { Int } from "#utils/@";
+import type { Int } from "#schema/utils/@";
 import { Positional } from "../positional.js";
 import { Transpose } from "./transpose.js";
 

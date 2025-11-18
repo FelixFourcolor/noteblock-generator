@@ -1,4 +1,4 @@
-import type { Int } from "#utils/@";
+import type { Int } from "#schema/utils/@";
 import type { Static } from "../meta.ts";
 
 export type Time = Int<6, 32>;

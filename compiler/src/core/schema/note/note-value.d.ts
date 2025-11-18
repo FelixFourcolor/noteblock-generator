@@ -1,5 +1,5 @@
 import type { Timed } from "#schema/duration.ts";
-import type { Re, Repeat, WithDoc } from "#utils/@";
+import type { Re, Repeat, WithDoc } from "#schema/utils/@";
 import type { Pitch } from "./pitch.ts";
 
 export type NoteValue = NoteValue.Simple | NoteValue.Chord | NoteValue.Quaver;

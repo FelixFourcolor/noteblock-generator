@@ -1,4 +1,4 @@
-import type { Re, Repeat, Token } from "#utils/@";
+import type { Re, Repeat, Token } from "#schema/utils/@";
 
 export type Timed<Value> = Re<Value, Duration.optional>;
 export type Untimed<T> = T extends Timed<infer V> ? Re<V> : never;

@@ -16,10 +16,9 @@
 		"noUncheckedSideEffectImports": true,
 
 		"paths": {
-			"#utils/@": ["./src/core/types/utils/index.ts"],
-			"#schema/@": ["./src/core/types/schema/index.ts"],
-			"#schema/*/@": ["./src/core/types/schema/*/index.ts"],
-			"#schema/*": ["./src/core/types/schema/*"],
+			"#schema/@": ["./src/core/schema/index.ts"],
+			"#schema/*/@": ["./src/core/schema/*/index.ts"],
+			"#schema/*": ["./src/core/schema/*"],
 			"#*/@": ["./src/*/index.ts"],
 			"#*": ["./src/*"]
 		},

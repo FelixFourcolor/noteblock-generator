@@ -1,4 +1,4 @@
-import type { Re } from "#utils/@";
+import type { Re } from "#schema/utils/@";
 
 export type Pitch = Pitch.absolute | Pitch.relative | Pitch.implied;
 export namespace Pitch {

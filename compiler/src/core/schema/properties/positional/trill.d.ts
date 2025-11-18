@@ -1,6 +1,6 @@
 import type { Duration } from "#schema/duration.js";
 import type { Pitch } from "#schema/note/@";
-import type { Int, Modified } from "#utils/@";
+import type { Int, Modified } from "#schema/utils/@";
 import type { IPositional, Positional } from "../meta.js";
 
 export namespace Trill {
