@@ -37,10 +37,6 @@ export class CLI {
 				describe: "Path to output file",
 				defaultDescription: "write to stdout",
 			})
-			.option("schema", {
-				type: "boolean",
-				describe: "Generate schema for music source",
-			})
 			.option("init", {
 				type: "array",
 				hidden: true,
@@ -56,11 +52,6 @@ export class CLI {
 			const { initProject } = await import("#init/init.js");
 			const voiceNames = args.init.map(String);
 			return initProject(voiceNames, args.out);
-		}
-
-		if (args.schema) {
-			const { generateSchema } = await import("#schema-generator/generate.js");
-			return generateSchema();
 		}
 
 		const src = await getInput(args);

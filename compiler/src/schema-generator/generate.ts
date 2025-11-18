@@ -1,3 +1,4 @@
+import type { SchemaObject } from "ajv";
 import { json } from "typia";
 import type { Song } from "#schema/@";
 import {
@@ -7,7 +8,7 @@ import {
 	useAnyOf,
 } from "#schema-generator/transformers/@";
 
-export function generateSchema() {
+export function generateSchema(): SchemaObject {
 	const schema = json.schema<Song>();
 	return transform({
 		$schema: "http://json-schema.org/draft-07/schema",
@@ -16,13 +17,13 @@ export function generateSchema() {
 	});
 }
 
-function transform(value: unknown) {
+function transform(value: SchemaObject) {
 	return chain(value)
 		.pipe(translateRefs)
 		.pipe(minimizeRefs)
 		.pipe(noAdditionalProperties)
 		.pipe(useAnyOf)
-		.get();
+		.get() as SchemaObject;
 }
 
 const chain = <T>(value: T) => ({

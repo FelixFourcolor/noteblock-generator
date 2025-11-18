@@ -1,21 +1,17 @@
-import { readdir, readFile, unlink } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import Ajv from "ajv";
-import { afterAll, expect, test } from "vitest";
+import { expect, test } from "vitest";
 import { parse as parseYAML } from "yaml";
-import { CLI } from "#cli";
+import { generateSchema } from "#schema-generator/generate";
 import { forEachProject } from "./shared";
 
-const schemaFile = join(__dirname, "schema.json");
-const validatePromise = CLI.run(["--schema", "--out", schemaFile])
-	.then(() => readFile(schemaFile, "utf-8"))
-	.then(JSON.parse)
-	.then((schema) => new Ajv({ unicodeRegExp: false }).compile(schema));
+const schema = generateSchema();
+const validate = new Ajv({ unicodeRegExp: false }).compile(schema);
 
 forEachProject("Schema tests", async (projectDir) => {
 	const srcDir = join(projectDir, "repo", "src");
 	for (const srcFile of await findSourceFiles(srcDir)) {
-		const validate = await validatePromise;
 		test(srcFile, () => {
 			return readFile(srcFile, "utf-8")
 				.then(parseYAML)
@@ -24,8 +20,6 @@ forEachProject("Schema tests", async (projectDir) => {
 		});
 	}
 });
-
-afterAll(() => unlink(schemaFile));
 
 async function findSourceFiles(dir: string): Promise<string[]> {
 	const files = [];
