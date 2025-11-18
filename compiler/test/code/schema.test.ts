@@ -3,7 +3,7 @@ import { join } from "node:path";
 import Ajv from "ajv";
 import { expect, test } from "vitest";
 import { parse as parseYAML } from "yaml";
-import { generateSchema } from "#schema-generator/generate";
+import { generateSchema } from "#utils/schema-generator";
 import { forEachProject } from "./shared";
 
 const schema = generateSchema();

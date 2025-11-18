@@ -2,10 +2,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ArgumentsCamelCase } from "yargs";
-import type { CLIOptions } from "./cli.js";
-import { handleError } from "./error.js";
+import type { CompileOptions } from "./cli.js";
+import { handleError, UserError } from "./error.js";
 
-export async function getInput(args: CLIOptions) {
+export async function getInput(args: CompileOptions) {
 	if (args.in) {
 		const path = await getEntryPath(args.in);
 		return `file://${path}` as const;
@@ -15,22 +15,25 @@ export async function getInput(args: CLIOptions) {
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
+	if (args.out) {
+		throw new UserError(
+			"Missing input: Either provide file path with --in, or pipe content to stdin.",
+		);
+	}
 }
 
-export function withOutput<T extends ArgumentsCamelCase<CLIOptions>>(
+export function withOutput<T extends ArgumentsCamelCase>(
 	handler: (args: T) => Promise<unknown>,
 ) {
 	return async (args: T) => {
 		const result = await handler(args).catch(handleError);
-		if (!result) {
+		if (result == null) {
 			return;
 		}
 
-		const stringified = args.debug
-			? JSON.stringify(result, null, 2)
-			: JSON.stringify(result);
+		const stringified = JSON.stringify(result);
 
-		if (args.out) {
+		if (typeof args.out === "string") {
 			mkdirSync(dirname(args.out), { recursive: true });
 			writeFileSync(args.out, `${stringified}\n`);
 		} else {

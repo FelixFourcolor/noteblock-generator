@@ -1,37 +1,35 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { unlink } from "node:fs/promises";
+import { unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fromPairs, orderBy, toPairs } from "lodash";
 import { expect, test } from "vitest";
-import { CLI } from "#cli";
+import { compileAll } from "#core/compile";
 import { forEachProject } from "./shared";
 
-const COMPILE_MODES = [
-	{ mode: "resolve", output: "resolved" },
-	{ mode: "assemble", output: "assembled" },
-	{ mode: "compile", output: "compiled" },
-] as const;
+const COMPILE_MODES = ["resolved", "assembled", "compiled"] as const;
 
 forEachProject("Compile tests", async (projectDir) => {
-	for (const { mode, output } of COMPILE_MODES) {
-		const expectedFile = join(projectDir, "build", `${output}.json`);
+	const entryFile = join(projectDir, "repo", "src", "index.yaml");
+	const compiledResult = await compileAll(`file://${entryFile}`);
+
+	for (const outputMode of COMPILE_MODES) {
+		const expectedFile = join(projectDir, "build", `${outputMode}.json`);
 		const expectedHash = await getFileHash(expectedFile).catch(() => null);
 		if (!expectedHash) {
-			test.skip(`expected ${output} output not found`);
+			test.skip(`expected ${outputMode} output not found`);
 			continue;
 		}
 
-		test(`${mode}`, async () => {
-			const entryPoint = join(projectDir, "repo", "src");
-			const receivedFile = join(projectDir, "build", `${output}.received.json`);
+		const receivedFile = join(
+			projectDir,
+			"build",
+			`${outputMode}.received.json`,
+		);
+		serialize(compiledResult[outputMode], receivedFile);
+		const receivedHash = await getFileHash(receivedFile);
 
-			await CLI.run([
-				...["--in", entryPoint],
-				...["--out", receivedFile],
-				...["--debug", mode],
-			]);
-
-			const receivedHash = await getFileHash(receivedFile);
+		test(`${outputMode}`, async () => {
 			expect(receivedHash).toBe(expectedHash);
 			await unlink(receivedFile);
 		});
@@ -46,4 +44,24 @@ async function getFileHash(filePath: string): Promise<string> {
 		stream.on("end", () => resolve(hash.digest("hex")));
 		stream.on("error", reject);
 	});
+}
+
+async function serialize(object: object, file: string) {
+	const sortKeys = (value: unknown): unknown => {
+		if (Array.isArray(value)) {
+			return value.map(sortKeys);
+		}
+		if (value && typeof value === "object") {
+			return fromPairs(
+				orderBy(toPairs(value), ([key]) => key).map(([key, val]) => [
+					key,
+					sortKeys(val),
+				]),
+			);
+		}
+		return value;
+	};
+
+	const content = JSON.stringify(sortKeys(object), null, 2);
+	await writeFile(file, content);
 }

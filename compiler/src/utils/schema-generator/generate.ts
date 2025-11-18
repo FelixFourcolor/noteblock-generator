@@ -1,12 +1,10 @@
 import type { SchemaObject } from "ajv";
 import { json } from "typia";
 import type { Song } from "#schema/@";
-import {
-	minimizeRefs,
-	noAdditionalProperties,
-	translateRefs,
-	useAnyOf,
-} from "#schema-generator/transformers/@";
+import { minimizeRefs } from "./transformers/minimizeRefs.js";
+import { noAdditionalProperties } from "./transformers/noAdditionalProperties.js";
+import { translateRefs } from "./transformers/translateRefs.js";
+import { useAnyOf } from "./transformers/useAnyOf.js";
 
 export function generateSchema(): SchemaObject {
 	const schema = json.schema<Song>();
