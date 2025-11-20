@@ -4,14 +4,23 @@ import { unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fromPairs, orderBy, toPairs } from "lodash";
 import { expect, test } from "vitest";
-import { compileAll } from "#core/compile";
+import { assemble } from "#core/assembler";
+import { build } from "#core/builder";
+import { resolve } from "#core/resolver";
 import { forEachProject } from "./shared";
 
 const COMPILE_MODES = ["resolved", "assembled", "compiled"] as const;
 
+async function compile(src: string) {
+	const resolved = await resolve(`file://${src}`);
+	const assembled = assemble(resolved);
+	const compiled = build(assembled);
+	return { resolved, assembled, compiled };
+}
+
 forEachProject("Compile tests", async (projectDir) => {
 	const entryFile = join(projectDir, "repo", "src", "index.yaml");
-	const compiledResult = await compileAll(`file://${entryFile}`);
+	const compiledResult = await compile(entryFile);
 
 	for (const outputMode of COMPILE_MODES) {
 		const expectedFile = join(projectDir, "build", `${outputMode}.json`);
