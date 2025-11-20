@@ -15,29 +15,47 @@ export async function getInput(args: CompileOptions) {
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
-	if (args.out) {
-		throw new UserError(
-			"Missing input: Either provide file path with --in, or pipe content to stdin.",
-		);
-	}
 }
 
 export function withOutput<T extends ArgumentsCamelCase>(
 	handler: (args: T) => Promise<unknown>,
 ) {
-	return async (args: T) => {
-		const result = await handler(args).catch(handleError);
+	function isAsyncGenerator(val: any): val is AsyncGenerator {
+		return val && typeof val[Symbol.asyncIterator] === "function";
+	}
+
+	function output(result: unknown, args: T) {
 		if (result == null) {
 			return;
 		}
 
-		const stringified = JSON.stringify(result);
+		if (result instanceof UserError) {
+			console.error(result.message);
+			return;
+		}
 
+		const stringified = JSON.stringify(result);
 		if (typeof args.out === "string") {
 			mkdirSync(dirname(args.out), { recursive: true });
 			writeFileSync(args.out, `${stringified}\n`);
 		} else {
 			process.stdout.write(`${stringified}\n`);
+		}
+	}
+
+	return async (args: T) => {
+		try {
+			const resultOrGen = await handler(args);
+
+			if (isAsyncGenerator(resultOrGen)) {
+				for await (const result of resultOrGen) {
+					output(result, args);
+				}
+			} else {
+				output(resultOrGen, args);
+			}
+		} catch (error) {
+			handleError(error);
 		}
 	};
 }

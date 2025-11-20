@@ -9,6 +9,7 @@
 		"node": ">=20"
 	},
 	"dependencies": {
+		"chokidar": "^4.0.3",
 		"lodash": "npm:lodash-es@^4.17.21",
 		"ts-pattern": "^5.9.0",
 		"typia": "^9.7.2",

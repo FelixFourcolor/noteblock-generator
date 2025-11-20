@@ -1,5 +1,6 @@
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
+import type { ResolutionCache } from "#core/resolver/cache.js";
 import { validateSong } from "#core/validator/@";
 import type { Deferred, IProperties, Song, Time, TPosition } from "#schema/@";
 import type { SongResolution } from "../resolution.js";
@@ -7,6 +8,7 @@ import { resolveVoices } from "./voices.js";
 
 export async function resolveSong(
 	song: Deferred<Song, { allowJson: true }>,
+	cache?: ResolutionCache,
 ): Promise<SongResolution> {
 	const validated = await validateSong(song);
 	if ("error" in validated) {
@@ -14,12 +16,12 @@ export async function resolveSong(
 	}
 
 	const { voices, modifier: songModifier, cwd } = validated;
-	const voicesResolution = await resolveVoices(voices, { songModifier, cwd });
+	const context = { songModifier, cwd };
+	const voicesResolution = await resolveVoices(voices, context, cache);
 
 	let { type } = voicesResolution;
 	if (type === "single") {
-		// Must check "is not single" instead of "is double"
-		// because single extends double
+		// Must check "is not single" instead of "is double", because single is a subset of double
 		if (!is<IProperties<"single">>(songModifier)) {
 			type = "double";
 		}
