@@ -220,5 +220,7 @@ def run(
             if is_first_call:
                 raise e
         else:
+            # nbc's protocol: clearing the input file is the signal to recompile
+            input_path.write_bytes(b"")
             generator.generate(data, cache=True)
             is_first_call = False

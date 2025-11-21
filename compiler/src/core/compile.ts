@@ -1,3 +1,4 @@
+import { isEmpty } from "lodash";
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
 import { assemble } from "#core/assembler/@";
@@ -23,7 +24,10 @@ export function compile(src: FileRef | JsonData, option?: { watch: true }) {
 		for await (const res of resolve(src, { watch: true })) {
 			try {
 				const song = assemble(res);
-				yield build(song, builderCache);
+				const building = build(song, builderCache);
+				if (!isEmpty(building.blocks)) {
+					yield building;
+				}
 			} catch (error) {
 				if (error instanceof UserError) {
 					yield error;

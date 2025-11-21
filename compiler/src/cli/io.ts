@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { watch } from "chokidar";
 import type { ArgumentsCamelCase } from "yargs";
 import type { CompileOptions } from "./cli.js";
 import { handleError, UserError } from "./error.js";
@@ -17,7 +18,7 @@ export async function getInput(args: CompileOptions) {
 	}
 }
 
-export function withOutput<T extends ArgumentsCamelCase>(
+export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
 	handler: (args: T) => Promise<unknown>,
 ) {
 	function isAsyncGenerator(val: any): val is AsyncGenerator {
@@ -35,7 +36,7 @@ export function withOutput<T extends ArgumentsCamelCase>(
 		}
 
 		const stringified = JSON.stringify(result);
-		if (typeof args.out === "string") {
+		if (args.out) {
 			mkdirSync(dirname(args.out), { recursive: true });
 			writeFileSync(args.out, `${stringified}\n`);
 		} else {
@@ -46,14 +47,30 @@ export function withOutput<T extends ArgumentsCamelCase>(
 	return async (args: T) => {
 		try {
 			const resultOrGen = await handler(args);
-
-			if (isAsyncGenerator(resultOrGen)) {
-				for await (const result of resultOrGen) {
-					output(result, args);
-				}
-			} else {
+			if (!isAsyncGenerator(resultOrGen)) {
 				output(resultOrGen, args);
+				return;
 			}
+			if (!args.out) {
+				throw new Error("Cannot handle generator output without output file");
+			}
+
+			const watcher = watch(args.out, { alwaysStat: true });
+			const processNext = async () => {
+				const { value, done } = await resultOrGen.next();
+				if (done) {
+					watcher.close();
+				} else {
+					output(value, args);
+				}
+			};
+			processNext();
+			watcher.on("change", (_, stats) => {
+				// clearing output file is the signal to write new data
+				if (stats?.size === 0) {
+					processNext();
+				}
+			});
 		} catch (error) {
 			handleError(error);
 		}
