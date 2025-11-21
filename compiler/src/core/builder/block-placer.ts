@@ -53,7 +53,7 @@ export class BlockPlacer {
 		coords: { x?: number; y?: number; z?: number },
 		callback: (self: this) => T,
 	): T {
-		return this.withCursor(this.cursor.at(coords), callback);
+		return this.withCursor(this.cursor.clone(coords), callback);
 	}
 
 	protected offset<T = void>(

@@ -4,6 +4,7 @@ import { assemble } from "#core/assembler/@";
 import { type Building, build } from "#core/builder/@";
 import { resolve } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
+import { BuilderCache } from "./builder/cache.js";
 
 export function compile(
 	src: FileRef,
@@ -18,9 +19,11 @@ export function compile(src: FileRef | JsonData, option?: { watch: true }) {
 	}
 
 	return (async function* () {
-		for await (const resolution of resolve(src, { watch: true })) {
+		const builderCache = new BuilderCache();
+		for await (const res of resolve(src, { watch: true })) {
 			try {
-				yield build(assemble(resolution));
+				const song = assemble(res);
+				yield build(song, builderCache);
 			} catch (error) {
 				if (error instanceof UserError) {
 					yield error;

@@ -8,9 +8,9 @@ export class SingleBuilder extends Builder<"single"> {
 		this.buildSingleSlice(slice);
 	}
 
-	protected buildPlayButton(index: number) {
+	protected buildPlayButton() {
 		this.at({ y: this.size.height - 2 }, (self) => {
-			if (index === 0) {
+			if (this.rowCounter === 0) {
 				self.at({ z: 0 }, (self) => self.initialPlayButton());
 			} else {
 				self.offset({ dz: -2 }, (self) => self.recurringPlayButton());

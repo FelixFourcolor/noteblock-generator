@@ -4,6 +4,8 @@ import type { TPosition } from "#schema/@";
 import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";
 import { addBuffer } from "../buffer.js";
+import type { BuilderCache } from "../cache.js";
+import type { Cursor } from "../cursor.js";
 import { Direction } from "../direction.js";
 import { getSize, type Size, SLICE_SIZE } from "../size.js";
 import { instrumentBase } from "./noteblock-instruments.js";
@@ -14,18 +16,25 @@ export type Building = {
 };
 
 export abstract class Builder<T extends TPosition> extends BlockPlacer {
-	protected abstract buildPlayButton(index: number): void;
+	protected abstract buildPlayButton(): void;
 	protected abstract buildSlice(slice: Slice<T>): void;
 
 	protected readonly song: SongLayout<T>;
 	protected readonly size: Size;
+	protected get rowCounter() {
+		return Math.floor(this.stepCounter / this.song.width);
+	}
 
 	private stepCounter = 0;
 
-	constructor(song: SongLayout<T>) {
+	constructor(
+		song: SongLayout<T>,
+		private cache?: BuilderCache,
+	) {
 		super();
 		this.song = addBuffer(song);
 		this.size = getSize(this.song);
+		cache?.invalidate(song.type, this.size);
 	}
 
 	build(): Building {
@@ -86,7 +95,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			}
 		};
 
-		range(0, length).forEach((x) => {
+		range(this.cache?.length ?? 0, length).forEach((x) => {
 			range(0, width).forEach((z) => {
 				if (isPadding(x, z)) {
 					range(0, height).forEach((y) => {
@@ -106,17 +115,37 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private buildSong() {
 		let previousDelay = 1;
+		let lastCachedCursor: Cursor | undefined;
 
 		this.at({ x: 3, z: 2 }, (self) => {
-			let rowCounter = 0;
-			for (const { delay, levels } of this.song.slices) {
-				if (this.isStartOfRow) {
-					self.buildPlayButton(rowCounter++);
-				}
-				self.buildSlice({ delay: previousDelay, levels });
+			this.song.slices.forEach(({ delay, levels }, index) => {
+				this.stepCounter = index;
+				const slice = { delay: previousDelay, levels };
 				previousDelay = delay;
-				this.stepCounter += 1;
-			}
+
+				const cachedCursor = this.cache?.match(index, slice);
+				if (cachedCursor) {
+					// cache hit
+					lastCachedCursor = cachedCursor;
+					return;
+				}
+				if (lastCachedCursor) {
+					// cache miss, update cursor to last time cache hit
+					this.cursor = lastCachedCursor.clone();
+				}
+
+				if (this.isStartOfRow) {
+					self.buildPlayButton();
+				}
+				self.buildSlice(slice);
+
+				if (this.cache) {
+					this.cache.set(index, {
+						slice,
+						cursor: self.cursor.clone(),
+					});
+				}
+			});
 		});
 	}
 
@@ -165,13 +194,16 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			this.setOffset([dx, 0, dz], Block.Note(note));
 			this.setOffset([dx, 1, dz], "air");
 		});
-		// clear unused placements (necessary for partial updates)
-		notePlacements.slice(notes.length).forEach(([dx, dz]) => {
-			this.setOffset([dx, 0, dz], null);
-		});
 
-		// If x=-2 or x=2 has a noteblock,
-		// x=-1 or x=1 (respectively) must be present to conduct redstone.
+		if (this.cache) {
+			// clear unused placements for partial update
+			notePlacements.slice(notes.length).forEach(([dx, dz]) => {
+				this.setOffset([dx, 0, dz], null);
+			});
+		}
+
+		// If x = -2 or 2 has a noteblock,
+		// x = -1 or 1 (respectively) must be present to conduct redstone.
 		if (this.getOffset([-2, 1, 1])) {
 			if (!this.getOffset([-1, 0, 1])) {
 				this.setOffset([-1, 0, 1], Block.Generic);

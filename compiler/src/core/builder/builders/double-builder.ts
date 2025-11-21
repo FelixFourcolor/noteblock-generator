@@ -14,9 +14,10 @@ export class DoubleBuilder extends Builder<"double"> {
 		this.buildSingleSlice(left);
 	}
 
-	protected override buildPlayButton(index: number) {
-		const isFirst = index === 0;
-		const isLeftSide = index % 2 === 0;
+	protected override buildPlayButton() {
+		const { rowCounter } = this;
+		const isFirst = rowCounter === 0;
+		const isLeftSide = rowCounter % 2 === 0;
 		const isRightSide = !isLeftSide;
 
 		const { height, width } = this.size;
@@ -24,8 +25,8 @@ export class DoubleBuilder extends Builder<"double"> {
 		const junction = Math.ceil(midpoint / 2);
 
 		const cursor = isLeftSide
-			? this.cursor.at({ y: height - 2 }).offset({ dz: -2 })
-			: this.cursor.at({ y: height - 2, z: midpoint - 1 }).flipDirection();
+			? this.cursor.clone({ y: height - 2 }).offset({ dz: -2 })
+			: this.cursor.clone({ y: height - 2, z: midpoint - 1 }).flipDirection();
 
 		this.withCursor(cursor, (self) => {
 			// left connector

@@ -13,7 +13,7 @@ export class Cursor {
 		return Direction.fromCoords(0, this.zSign);
 	}
 
-	at({ x = this.x, y = this.y, z = this.z }): Cursor {
+	clone({ x = this.x, y = this.y, z = this.z } = {}): Cursor {
 		return new Cursor(x, y, z, this.zSign);
 	}
 
@@ -26,7 +26,7 @@ export class Cursor {
 
 	offset({ dx = 0, dy = 0, dz = 0, respectDirection = true }): Cursor {
 		const [newX, newY, newZ] = this.getOffset({ dx, dy, dz, respectDirection });
-		return this.at({ x: newX, y: newY, z: newZ });
+		return this.clone({ x: newX, y: newY, z: newZ });
 	}
 
 	flipDirection(): this {
