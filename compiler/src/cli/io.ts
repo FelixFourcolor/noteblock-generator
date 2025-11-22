@@ -26,8 +26,6 @@ export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
 		return val && typeof val[Symbol.asyncIterator] === "function";
 	}
 
-	let isBufferFull = false;
-
 	async function emit(payload: unknown, { out }: T) {
 		if (payload == null) {
 			return;
@@ -41,18 +39,17 @@ export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
 			return;
 		}
 
-		if (isBufferFull) {
+		if (stdout.writableNeedDrain) {
 			await new Promise((res) => stdout.once("drain", res));
 		}
-		isBufferFull = !stdout.write(stringified);
+		stdout.write(stringified);
 	}
 
 	async function executorHandler(args: T) {
 		const result = await executor(args);
 
 		if (!isAsyncGenerator(result)) {
-			emit(result, args);
-			return;
+			return emit(result, args);
 		}
 
 		for await (const payload of result) {
