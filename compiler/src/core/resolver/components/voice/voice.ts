@@ -43,7 +43,7 @@ export async function resolveVoice(
 
 		for (const item of notes) {
 			// must check "equals" instead of "is"
-			// because IProperties is a subtype of Note
+			// because a Note is also an IProperties
 			if (equals<IProperties>(item)) {
 				context.transform(item);
 				continue;
@@ -55,7 +55,7 @@ export async function resolveVoice(
 				continue;
 			}
 
-			if (is<Note>(item)) {
+			if (equals<Note>(item)) {
 				for (const tick of resolveNote(item, context)) {
 					// The barline yields a tick to indicate success/failure.
 					// If no barline is placed at the start of the bar,
