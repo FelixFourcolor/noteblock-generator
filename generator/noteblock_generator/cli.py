@@ -1,21 +1,16 @@
 from __future__ import annotations
 
 import logging
-import os
-import time
 from enum import Enum
 from pathlib import Path
-from threading import Thread
 from typing import TYPE_CHECKING, Annotated
 
 import typer
-import watchfiles
-from click import UsageError
 from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
 
-from .core.api.loader import load
+from .core.api.loader import load, load_stream
 from .core.api.types import BlockState
 from .core.coordinates import XYZ
 from .core.generator import Generator
@@ -104,7 +99,7 @@ def run(
         bool,
         Option(
             "--watch",
-            help="Watch input file and regenerate on changes",
+            help="Watch input and regenerate on changes",
             rich_help_panel="Input & output",
         ),
     ] = False,
@@ -199,28 +194,5 @@ def run(
         generator.generate(data=load(input_path), cache=False)
         return
 
-    if not input_path:
-        raise UsageError("--watch requires an input file.")
-
-    # Artificially triggers a file change to get watchfiles started.
-    # Alternative would be to call another generate() before the watch loop;
-    # but then changes during the initial run would be missed.
-    def trigger_initial_run():
-        time.sleep(0.2)
-        os.utime(input_path)
-
-    trigger_thread = Thread(target=trigger_initial_run, daemon=True)
-    trigger_thread.start()
-
-    is_first_call = True
-    for _ in watchfiles.watch(input_path, debounce=0, rust_timeout=0):
-        try:
-            data = load(input_path)
-        except UsageError as e:
-            if is_first_call:
-                raise e
-        else:
-            # nbc's protocol: clearing the input file is the signal to recompile
-            input_path.write_bytes(b"")
-            generator.generate(data, cache=True)
-            is_first_call = False
+    for data in load_stream(input_path):
+        generator.generate(data, cache=True)

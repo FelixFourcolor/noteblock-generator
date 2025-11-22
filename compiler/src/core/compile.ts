@@ -7,26 +7,34 @@ import { resolve } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
 import { BuilderCache } from "./builder/cache.js";
 
-export function compile(
-	src: FileRef,
-	option: { watch: true },
-): AsyncGenerator<Building | UserError>;
+interface Compiler {
+	(src: FileRef | JsonData, watch?: undefined): Promise<Building>;
+	(
+		src: FileRef,
+		watch: { watch: true; output: "full" | "diff" },
+	): AsyncGenerator<Building | UserError>;
+}
 
-export function compile(src: FileRef | JsonData): Promise<Building>;
-
-export function compile(src: FileRef | JsonData, option?: { watch: true }) {
-	if (!option?.watch || !is<FileRef>(src)) {
+export const compile = ((src, watch) => {
+	if (!watch || !is<FileRef>(src)) {
 		return resolve(src).then(assemble).then(build);
 	}
 
-	return (async function* () {
+	return (async function* (): AsyncGenerator<Building | UserError> {
 		const builderCache = new BuilderCache();
+
 		for await (const res of resolve(src, { watch: true })) {
 			try {
 				const song = assemble(res);
 				const building = build(song, builderCache);
-				if (!isEmpty(building.blocks)) {
+				if (isEmpty(building.blocks)) {
+					continue;
+				}
+
+				if (watch.output === "diff") {
 					yield building;
+				} else {
+					yield builderCache.update(building);
 				}
 			} catch (error) {
 				if (error instanceof UserError) {
@@ -37,4 +45,4 @@ export function compile(src: FileRef | JsonData, option?: { watch: true }) {
 			}
 		}
 	})();
-}
+}) as Compiler;

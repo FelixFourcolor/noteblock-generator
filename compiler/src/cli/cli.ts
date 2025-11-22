@@ -44,7 +44,7 @@ export class CLI {
 				})
 				.option("watch", {
 					type: "boolean",
-					describe: "Watch input recompile on changes; requires --in and --out",
+					describe: "Watch input file and recompile on changes",
 					default: false,
 				});
 		},
@@ -54,29 +54,25 @@ export class CLI {
 				return;
 			}
 
+			const { compile } = await import("#core/compile.js");
 			const src = await getInput(args);
+
+			if (args.watch) {
+				if (!is<FileRef>(src)) {
+					throw new UserError("Cannot watch stdin; file input is required.");
+				}
+				return compile(src, {
+					watch: true,
+					output: args.out ? "full" : "diff",
+				});
+			}
+
 			if (!src) {
 				throw new UserError(
 					"Missing input: Either provide file path with --in, or pipe content to stdin.",
 				);
 			}
-
-			if (!args.watch) {
-				const { compile } = await import("#core/compile.js");
-				return compile(src);
-			}
-
-			if (!is<FileRef>(src)) {
-				yargs.showHelp();
-				throw new UserError("\n--in is required when using --watch");
-			}
-			if (!args.out) {
-				yargs.showHelp();
-				throw new UserError("\n--out is required when using --watch");
-			}
-
-			const { compile } = await import("#core/compile.js");
-			return compile(src, { watch: true });
+			return compile(src);
 		},
 	});
 

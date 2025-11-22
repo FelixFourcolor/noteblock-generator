@@ -1,6 +1,8 @@
 import { isEqual } from "lodash";
 import type { Slice } from "#core/assembler/@";
 import type { TPosition } from "#schema/@";
+import type { BlockMap } from "./block-placer.js";
+import type { Building } from "./builders/builder.js";
 import type { Cursor } from "./cursor.js";
 import type { Size } from "./size.js";
 
@@ -13,6 +15,7 @@ export class BuilderCache {
 	private type: TPosition | undefined;
 	private size: Size | undefined;
 	private slices: SliceCache[] = [];
+	private blocks: BlockMap = {};
 
 	get length() {
 		return this.size?.length;
@@ -44,5 +47,10 @@ export class BuilderCache {
 			this.slices = [];
 		}
 		this.size = size;
+	}
+
+	update(building: Building) {
+		Object.assign(this.blocks, building.blocks);
+		return { size: building.size, blocks: this.blocks };
 	}
 }

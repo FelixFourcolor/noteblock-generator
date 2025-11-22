@@ -1,39 +1,106 @@
 from __future__ import annotations
 
+import os
+import sys
+import time
 from io import BytesIO
 from pathlib import Path
 from sys import stdin
+from threading import Thread
+from typing import Generator
 from zipfile import ZipFile, is_zipfile
 
 from click import UsageError
 from msgspec import json
+from watchfiles import watch
 
 from .types import Building
 
+# prevent infinite loop on infinite input (like `yes | nbg`)
+MAX_INPUT_SIZE = 100 * 1024 * 1024  # 100 MB
 
-def load(path: Path | None) -> Building:
+
+def load_stream(path: Path | None) -> Generator[Building]:
     try:
-        if src := _load_source(path):
-            data = _read_source(src)
-            return json.decode(data, type=Building)
-    except Exception:
-        raise UsageError("Error reading input data.")
+        if path:
+            yield from _load_on_change(path)
+        else:
+            yield from _load_stdin_stream()
+    except UsageError:
+        raise
+    except Exception as e:
+        raise UsageError("Error loading input") from e
 
-    raise UsageError(
-        "Missing input: Either provide file path with --in, or pipe content to stdin.",
-    )
+
+def _load_on_change(path: Path) -> Generator[Building]:
+    def trigger_initial_run():
+        # Need a way to trigger the first read.
+        # Alternative would be to call another generate() before the watch loop;
+        # but then changes during the initial run would be missed.
+        # Ugly but no other way.
+        time.sleep(0.25)
+        os.utime(path)
+
+    trigger_thread = Thread(target=trigger_initial_run, daemon=True)
+    trigger_thread.start()
+
+    isFirstRun = True
+    for _ in watch(path, debounce=0, rust_timeout=0):
+        if isFirstRun:
+            isFirstRun = False
+            yield load(path)
+        else:
+            # defensive for temporary invalid data
+            try:
+                yield load(path)
+            except Exception:
+                continue
 
 
-def _load_source(path: Path | None) -> Path | BytesIO | None:
+def _load_stdin_stream() -> Generator[Building]:
+    if stdin.isatty():
+        raise UsageError(
+            "Missing input: Either provide file path with --in, or pipe content to stdin.",
+        )
+
+    TERMINATOR = b"\n"
+    CHUNK_SIZE = 1024 * 1024  # 1 MB
+    buffer = bytearray()
+
+    while True:
+        if TERMINATOR not in buffer:
+            while len(buffer) < MAX_INPUT_SIZE:
+                if not (chunk := sys.stdin.buffer.read(CHUNK_SIZE)):
+                    break
+                buffer.extend(chunk)
+                if TERMINATOR in chunk:
+                    break
+
+        newline_idx = buffer.index(TERMINATOR)
+        data = buffer[:newline_idx]
+        del buffer[: newline_idx + 1]
+        yield json.decode(data, type=Building)
+
+
+def load(path: Path | None):  # type: ignore
+    try:
+        src = _load_source(path)
+        data = _read_source(src)
+        return json.decode(data, type=Building)
+    except Exception as e:
+        raise UsageError("Error loading input") from e
+
+
+def _load_source(path: Path | None) -> Path | BytesIO:
     if path:
         return path
 
     if stdin.isatty():
-        return None
+        raise UsageError(
+            "Missing input: Either provide file path with --in, or pipe content to stdin.",
+        )
 
-    # prevent an infinite loop in case user does something like "yes | nbg"
-    MAX_SIZE = 100 * 1024 * 1024  # 100 MB
-    return BytesIO(stdin.buffer.read(MAX_SIZE))
+    return BytesIO(stdin.buffer.read(MAX_INPUT_SIZE))
 
 
 def _read_source(src: Path | BytesIO) -> bytes:
