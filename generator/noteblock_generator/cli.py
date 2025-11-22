@@ -13,7 +13,7 @@ from noteblock_generator import VERSION
 from .core.api.loader import load
 from .core.api.types import BlockState
 from .core.coordinates import XYZ
-from .core.generator import Generator
+from .core.generator import Console, Generator
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -196,3 +196,4 @@ def run(
 
     for data in load(input_path, watch=True):
         generator.generate(data, cache=True)
+        Console.info("Watching for changes...")

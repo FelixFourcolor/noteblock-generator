@@ -1,40 +1,43 @@
-import { isEmpty } from "lodash";
 import { UserError } from "#cli/error.js";
 import { assemble } from "#core/assembler/@";
-import { type Building, build } from "#core/builder/@";
-import { resolve, resolveWatch } from "#core/resolver/@";
+import { type Building, build, cachedBuilder } from "#core/builder/@";
+import { liveResolver, resolve } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
-import { BuilderCache } from "./builder/cache.js";
 
-export function compile(src: FileRef | JsonData): Promise<Building> {
-	return resolve(src).then(assemble).then(build);
-}
+export function compile(src: FileRef | JsonData): Promise<Building>;
 
-export async function* compileWatch(
+export function compile(
 	src: FileRef,
-	output: "full" | "diff",
-): AsyncGenerator<Building> {
-	const cache = new BuilderCache();
-	for await (const resolve of resolveWatch(src)) {
-		const building = await resolve()
-			.then(assemble)
-			.then((song) => build(song, cache))
-			.catch((error) => {
-				if (error instanceof UserError) {
+	watch: { watchMode: "full" | "diff" },
+): AsyncGenerator<Building>;
+
+export function compile(
+	src: FileRef | JsonData,
+	watch?: { watchMode: "full" | "diff" },
+) {
+	if (!watch) {
+		return resolve(src).then(assemble).then(build);
+	}
+
+	const liveCompiler = async function* () {
+		const build = cachedBuilder(watch.watchMode);
+
+		for await (const resolve of liveResolver(src as FileRef)) {
+			const building = await resolve()
+				.then(assemble)
+				.then(build)
+				.catch((error) => {
+					if (!(error instanceof UserError)) {
+						throw error;
+					}
 					console.error(error.message);
 					return undefined;
-				}
-				throw error;
-			});
+				});
 
-		if (!building || isEmpty(building.blocks)) {
-			continue;
+			if (building) {
+				yield building;
+			}
 		}
-
-		if (output === "diff") {
-			yield building;
-		} else {
-			yield cache.update(building);
-		}
-	}
+	};
+	return liveCompiler();
 }

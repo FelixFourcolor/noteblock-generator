@@ -74,15 +74,14 @@ def _load_stdin_stream() -> Generator[Building]:
 
     buffer = bytearray()
     while True:
-        if DELIMITER not in buffer:
-            chunk = b"\0"
-            while chunk and DELIMITER not in chunk and len(buffer) < MAX_PIPE_SIZE:
-                chunk = os.read(stdin.fileno(), CHUNK_SIZE)
-                buffer.extend(chunk)
+        chunk = b""
+        while DELIMITER not in chunk and len(buffer) < MAX_PIPE_SIZE:
+            chunk = os.read(stdin.fileno(), CHUNK_SIZE)
+            if not chunk:
+                raise UsageError("Input pipe closed.")
+            buffer.extend(chunk)
 
-        if not buffer:
-            continue
-
+        # If multiple updates come in one chunk, combine them
         building: Building | None = None
         while True:
             try:

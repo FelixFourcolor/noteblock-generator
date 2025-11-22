@@ -62,8 +62,8 @@ export class CLI {
 						"Missing input: --watch requires a file path with --in.",
 					);
 				}
-				const { compileWatch } = await import("#core/compile.js");
-				return compileWatch(src, args.out ? "full" : "diff");
+				const { compile } = await import("#core/compile.js");
+				return compile(src, { watchMode: args.out ? "full" : "diff" });
 			}
 
 			if (!src) {

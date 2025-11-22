@@ -10,7 +10,7 @@ export function resolve(src: FileRef | JsonData): Promise<SongResolution> {
 
 type Resolver = () => Promise<SongResolution>;
 
-export async function* resolveWatch(src: FileRef): AsyncGenerator<Resolver> {
+export async function* liveResolver(src: FileRef): AsyncGenerator<Resolver> {
 	const entryFilePath = src.slice(7);
 	const trackedDependencies = new Set<string>();
 	const changedFiles = new Set([entryFilePath]);

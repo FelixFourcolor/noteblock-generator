@@ -51,7 +51,6 @@ class Generator:
         if not self._cached_blocks:
             self._generate(data.size, data.blocks)
             self._cached_blocks = data.blocks
-            Console.info("Watching for changes...")
             return
 
         changed_blocks: BlockMap = {
@@ -66,7 +65,6 @@ class Generator:
         )
         self._generate(data.size, changed_blocks)
         self._cached_blocks.update(changed_blocks)
-        Console.info("Watching for changes...")
 
     def _generate(self, size: Size, blocks: BlockMap):
         # importing amulet is slow, delay it until needed

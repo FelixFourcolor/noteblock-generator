@@ -1,11 +1,32 @@
+import { isEmpty } from "lodash";
 import { match } from "ts-pattern";
 import type { SongLayout } from "#core/assembler/@";
 import type { Building } from "./builders/builder.js";
 import { DoubleBuilder } from "./builders/double-builder.js";
 import { SingleBuilder } from "./builders/single-builder.js";
-import type { BuilderCache } from "./cache.js";
+import { BuilderCache } from "./cache.js";
 
-export function build(song: SongLayout, cache?: BuilderCache): Building {
+export function build(song: SongLayout): Building {
+	return _build(song);
+}
+
+type Builder = (song: SongLayout) => Building | undefined;
+
+export function cachedBuilder(emitMode: "full" | "diff"): Builder {
+	const cache = new BuilderCache();
+
+	return (song: SongLayout): Building | undefined => {
+		const building = _build(song, cache);
+		if (emitMode === "full") {
+			return cache.update(building);
+		}
+		if (!isEmpty(building.blocks)) {
+			return building;
+		}
+	};
+}
+
+function _build(song: SongLayout, cache?: BuilderCache) {
 	return match(song)
 		.with({ type: "single" }, (song) => new SingleBuilder(song, cache))
 		.with({ type: "double" }, (song) => new DoubleBuilder(song, cache))
