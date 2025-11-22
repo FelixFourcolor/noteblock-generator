@@ -5,13 +5,15 @@ import type { ArgumentsCamelCase } from "yargs";
 import type { CompileOptions } from "./cli.js";
 import { handleError } from "./error.js";
 
+const { stdout, stdin } = process;
+
 export async function getInput(args: CompileOptions) {
 	if (args.in) {
 		const path = await getEntryPath(args.in);
 		return `file://${path}` as const;
 	}
-	if (!process.stdin.isTTY) {
-		const chunks = await Array.fromAsync(process.stdin);
+	if (!stdin.isTTY) {
+		const chunks = await Array.fromAsync(stdin);
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
@@ -24,18 +26,25 @@ export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
 		return val && typeof val[Symbol.asyncIterator] === "function";
 	}
 
-	function emit(payload: unknown, { out }: T) {
+	let isBufferFull = false;
+
+	async function emit(payload: unknown, { out }: T) {
 		if (payload == null) {
 			return;
 		}
 		// In watch mode, generator treats \n as payload separator.
 		const stringified = `${JSON.stringify(payload)}\n`;
-		if (!out) {
-			const flushed = process.stdout.write(stringified);
-			return !flushed;
+
+		if (out) {
+			mkdirSync(dirname(out), { recursive: true });
+			writeFileSync(out, stringified);
+			return;
 		}
-		mkdirSync(dirname(out), { recursive: true });
-		writeFileSync(out, stringified);
+
+		if (isBufferFull) {
+			await new Promise((res) => stdout.once("drain", res));
+		}
+		isBufferFull = !stdout.write(stringified);
 	}
 
 	async function executorHandler(args: T) {
@@ -46,22 +55,8 @@ export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
 			return;
 		}
 
-		process.stdout.on("error", (err) => {
-			if (err.code === "EPIPE") {
-				process.exit(0);
-			}
-			throw err;
-		});
-
 		for await (const payload of result) {
-			if (payload instanceof Error) {
-				console.error(payload.message);
-				continue;
-			}
-			const isBufferFull = emit(payload, args);
-			if (isBufferFull) {
-				await new Promise((res) => process.stdout.once("drain", res));
-			}
+			await emit(payload, args);
 		}
 	}
 

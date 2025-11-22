@@ -3,7 +3,7 @@ from typing import Literal
 from msgspec import Struct
 
 BlockState = str  # "note_block[note=5]"
-StrCoord = str  # f"{x} {y} {z}"
+StrCoord = str  # "{x} {y} {z}"
 
 
 ThemeBlock = Literal[0]

@@ -1,35 +1,42 @@
 from __future__ import annotations
 
 import os
-import sys
 import time
 from io import BytesIO
 from pathlib import Path
 from sys import stdin
 from threading import Thread
-from typing import Generator
+from typing import Generator, Literal, overload
 from zipfile import ZipFile, is_zipfile
 
 from click import UsageError
-from msgspec import json
+from msgspec import DecodeError, json
 from watchfiles import watch
 
 from .types import Building
 
 # prevent infinite loop on infinite input (like `yes | nbg`)
-MAX_INPUT_SIZE = 100 * 1024 * 1024  # 100 MB
+MAX_PIPE_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
-def load_stream(path: Path | None) -> Generator[Building]:
-    try:
-        if path:
-            yield from _load_on_change(path)
-        else:
-            yield from _load_stdin_stream()
-    except UsageError:
-        raise
-    except Exception as e:
-        raise UsageError("Error loading input") from e
+@overload
+def load(path: Path | None) -> Building: ...
+
+
+@overload
+def load(path: Path | None, *, watch: Literal[True]) -> Generator[Building]: ...
+
+
+def load(path: Path | None, *, watch: bool = False) -> Building | Generator[Building]:
+    if not watch:
+        src = _load_source(path)
+        data = _read_source(src)
+        return _decode(data)
+
+    if path:
+        return _load_on_change(path)
+    else:
+        return _load_stdin_stream()
 
 
 def _load_on_change(path: Path) -> Generator[Building]:
@@ -49,8 +56,7 @@ def _load_on_change(path: Path) -> Generator[Building]:
         if isFirstRun:
             isFirstRun = False
             yield load(path)
-        else:
-            # defensive for temporary invalid data
+        else:  # defensive for temporary invalid data
             try:
                 yield load(path)
             except Exception:
@@ -63,32 +69,46 @@ def _load_stdin_stream() -> Generator[Building]:
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
         )
 
-    TERMINATOR = b"\n"
+    DELIMITER = b"\n"
     CHUNK_SIZE = 1024 * 1024  # 1 MB
+
     buffer = bytearray()
-
     while True:
-        if TERMINATOR not in buffer:
-            while len(buffer) < MAX_INPUT_SIZE:
-                if not (chunk := sys.stdin.buffer.read(CHUNK_SIZE)):
-                    break
+        if DELIMITER not in buffer:
+            chunk = b"\0"
+            while chunk and DELIMITER not in chunk and len(buffer) < MAX_PIPE_SIZE:
+                chunk = os.read(stdin.fileno(), CHUNK_SIZE)
                 buffer.extend(chunk)
-                if TERMINATOR in chunk:
-                    break
 
-        newline_idx = buffer.index(TERMINATOR)
-        data = buffer[:newline_idx]
-        del buffer[: newline_idx + 1]
-        yield json.decode(data, type=Building)
+        if not buffer:
+            continue
+
+        building: Building | None = None
+        while True:
+            try:
+                delimiter = buffer.index(DELIMITER)
+            except ValueError:
+                break
+
+            payload = buffer[:delimiter]
+            del buffer[: delimiter + 1]
+
+            update = _decode(payload)
+            if not building:
+                building = update
+            else:  # only need to update blocks; size doesn't matter for partial update
+                building.blocks.update(update.blocks)
+
+        if not building:
+            raise UsageError("Input data does not match expected format.")
+        yield building
 
 
-def load(path: Path | None):  # type: ignore
+def _decode(data: bytes | bytearray) -> Building:
     try:
-        src = _load_source(path)
-        data = _read_source(src)
         return json.decode(data, type=Building)
-    except Exception as e:
-        raise UsageError("Error loading input") from e
+    except DecodeError:
+        raise UsageError("Input data does not match expected format.")
 
 
 def _load_source(path: Path | None) -> Path | BytesIO:
@@ -100,7 +120,7 @@ def _load_source(path: Path | None) -> Path | BytesIO:
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
         )
 
-    return BytesIO(stdin.buffer.read(MAX_INPUT_SIZE))
+    return BytesIO(stdin.buffer.read(MAX_PIPE_SIZE))
 
 
 def _read_source(src: Path | BytesIO) -> bytes:
@@ -117,5 +137,5 @@ def _unzip(src: Path | BytesIO) -> bytes:
     with ZipFile(src) as zf:
         files = [n for n in zf.namelist() if not n.endswith("/")]
         if len(files) != 1:
-            raise ValueError
+            raise UsageError("Input data does not match expected format.")
         return zf.read(files[0])

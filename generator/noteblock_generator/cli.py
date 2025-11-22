@@ -10,7 +10,7 @@ from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
 
-from .core.api.loader import load, load_stream
+from .core.api.loader import load
 from .core.api.types import BlockState
 from .core.coordinates import XYZ
 from .core.generator import Generator
@@ -194,5 +194,5 @@ def run(
         generator.generate(data=load(input_path), cache=False)
         return
 
-    for data in load_stream(input_path):
+    for data in load(input_path, watch=True):
         generator.generate(data, cache=True)

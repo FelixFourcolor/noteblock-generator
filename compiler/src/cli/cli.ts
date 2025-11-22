@@ -44,7 +44,7 @@ export class CLI {
 				})
 				.option("watch", {
 					type: "boolean",
-					describe: "Watch input file and recompile on changes",
+					describe: "Watch input and recompile on changes",
 					default: false,
 				});
 		},
@@ -54,24 +54,24 @@ export class CLI {
 				return;
 			}
 
-			const { compile } = await import("#core/compile.js");
 			const src = await getInput(args);
 
 			if (args.watch) {
 				if (!is<FileRef>(src)) {
-					throw new UserError("Cannot watch stdin; file input is required.");
+					throw new UserError(
+						"Missing input: --watch requires a file path with --in.",
+					);
 				}
-				return compile(src, {
-					watch: true,
-					output: args.out ? "full" : "diff",
-				});
+				const { compileWatch } = await import("#core/compile.js");
+				return compileWatch(src, args.out ? "full" : "diff");
 			}
 
 			if (!src) {
 				throw new UserError(
-					"Missing input: Either provide file path with --in, or pipe content to stdin.",
+					"Missing input: Either provide a file path with --in, or pipe content to stdin.",
 				);
 			}
+			const { compile } = await import("#core/compile.js");
 			return compile(src);
 		},
 	});
@@ -89,7 +89,7 @@ export class CLI {
 					alias: "o",
 					type: "string",
 					describe: "Path to project root",
-					default: ".",
+					defaultDescription: "cwd",
 				});
 		},
 		async execute(args) {
@@ -105,7 +105,7 @@ export class CLI {
 		await this.yargs
 			.command({
 				command: "$0",
-				describe: "Compile music source",
+				describe: "Compile",
 				builder: compile.buildOptions,
 				handler: compile.execute,
 			})
