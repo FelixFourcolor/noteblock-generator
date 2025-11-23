@@ -16,28 +16,26 @@ export async function* liveResolver(src: FileRef): AsyncGenerator<Resolver> {
 	const changedFiles = new Set([entryFilePath]);
 	const cache = new ResolutionCache();
 
-	let changeSignal: (() => void) | null = null;
+	let { nextChange, signalChange } = createChangeSignal();
 	const watcher = watch(basename(entryFilePath), {
 		cwd: dirname(entryFilePath),
 	});
 	watcher.on("change", (filePath) => {
 		changedFiles.add(filePath);
-		changeSignal?.();
-		changeSignal = null;
+		signalChange();
 	});
 
 	try {
 		while (true) {
-			while (changedFiles.size === 0) {
-				await new Promise<void>((resolve) => {
-					changeSignal = resolve;
-				});
+			if (changedFiles.size === 0) {
+				await nextChange;
+				({ nextChange, signalChange } = createChangeSignal());
 			}
 
 			changedFiles.forEach((filePath) => {
-				changedFiles.delete(filePath);
 				cache.invalidate(filePath);
 			});
+			changedFiles.clear();
 
 			yield async () => {
 				const resolution = await resolveSong(src, cache);
@@ -53,4 +51,9 @@ export async function* liveResolver(src: FileRef): AsyncGenerator<Resolver> {
 	} finally {
 		watcher.close();
 	}
+}
+
+function createChangeSignal() {
+	const { promise, resolve } = Promise.withResolvers<void>();
+	return { nextChange: promise, signalChange: resolve };
 }
