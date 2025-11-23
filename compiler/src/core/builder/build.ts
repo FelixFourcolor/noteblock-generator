@@ -12,12 +12,12 @@ export function build(song: SongLayout): Building {
 
 type Builder = (song: SongLayout) => Building | undefined;
 
-export function cachedBuilder(emitMode: "full" | "diff"): Builder {
+export function cachedBuilder(options: { emit: "full" | "diff" }): Builder {
 	const cache = new BuilderCache();
 
 	return (song: SongLayout): Building | undefined => {
 		const building = _build(song, cache);
-		if (emitMode === "full") {
+		if (options.emit === "full") {
 			return cache.update(building);
 		}
 		if (!isEmpty(building.blocks)) {

@@ -12,10 +12,10 @@ type Payload = Building | { error: string };
 
 export async function* liveCompiler(
 	src: FileRef,
-	emitMode: "full" | "diff",
+	options: { debounce: number; emit: "full" | "diff" },
 ): AsyncGenerator<Payload> {
-	const build = cachedBuilder(emitMode);
-	for await (const resolve of liveResolver(src as FileRef)) {
+	const build = cachedBuilder(options);
+	for await (const resolve of liveResolver(src, options)) {
 		const payload = await resolve()
 			.then(assemble)
 			.then(build)

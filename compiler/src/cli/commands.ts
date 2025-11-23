@@ -1,5 +1,7 @@
+import { assert } from "typia";
 import type { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
+import type { FileRef } from "#schema/@";
 import { UserError } from "./error.js";
 import { getInput, withOutput } from "./io.js";
 
@@ -36,9 +38,10 @@ export const compileCommand = command({
 				defaultDescription: "stdout",
 			})
 			.option("watch", {
-				type: "boolean",
-				describe: "Watch input and recompile on changes",
-				default: false,
+				describe:
+					"Watch source and recompile on changes; accept an optional debounce time in ms",
+				implies: "in",
+				defaultDescription: "off / 1000ms",
 			});
 	},
 	async execute(args, yargs) {
@@ -47,17 +50,29 @@ export const compileCommand = command({
 			return;
 		}
 
-		if (!args.watch) {
-			const src = await getInput(args);
+		const src = await getInput(args);
+		const { watch, out } = args;
+
+		if (watch === undefined) {
 			const { compile } = await import("#core/compile.js");
 			return compile(src);
 		}
 
-		if (!args.in) {
-			throw new UserError("Input required: Provide file path with --in.");
-		}
+		const debounce = (() => {
+			if (watch === true) {
+				return 1000;
+			}
+			if (typeof watch !== "number") {
+				throw new UserError(`Invalid debounce value: ${watch}`);
+			}
+			return Math.max(0, watch);
+		})();
 		const { liveCompiler } = await import("#core/compile.js");
-		return liveCompiler(`file://${args.in}`, args.out ? "full" : "diff");
+		return liveCompiler(
+			// src is FileRef guaranteed by `implies: "in"`
+			assert<FileRef>(src),
+			{ debounce, emit: out ? "full" : "diff" },
+		);
 	},
 });
 
