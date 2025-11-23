@@ -8,7 +8,7 @@ export function handleError(error: unknown) {
 		})
 		.otherwise((error) => {
 			const details = error instanceof Error ? error.stack : String(error);
-			process.stderr.write(`Unhandled error:\n${details}\n`);
+			process.stderr.write(`[Unhandled error] ${details}\n`);
 			process.exitCode = 3;
 		});
 }

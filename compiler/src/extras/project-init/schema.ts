@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { generateSchema } from "#utils/schema-generator/@";
+import { generateSchema } from "#extras/schema-generator/@";
 
 export function setupSchema(root: string) {
 	const schema = generateSchema();

@@ -1,13 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { ArgumentsCamelCase } from "yargs";
-import type { CompileOptions } from "./cli.js";
+import type { CommandOptions } from "./commands.js";
 import { handleError } from "./error.js";
 
 const { stdout, stdin } = process;
 
-export async function getInput(args: CompileOptions) {
+export async function getInput(
+	args: CommandOptions<{ in: string | undefined }>,
+) {
 	if (args.in) {
 		const path = await getEntryPath(args.in);
 		return `file://${path}` as const;
@@ -17,9 +18,12 @@ export async function getInput(args: CompileOptions) {
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
+	throw new Error(
+		"Input required: Provide file path with --in, or pipe data to stdin.",
+	);
 }
 
-export function withOutput<T extends ArgumentsCamelCase<{ out?: string }>>(
+export function withOutput<T extends CommandOptions<{ out?: string }>>(
 	executor: (args: T) => Promise<unknown>,
 ) {
 	function isAsyncGenerator(val: any): val is AsyncGenerator {
