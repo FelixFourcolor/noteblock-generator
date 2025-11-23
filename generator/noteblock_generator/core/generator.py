@@ -60,7 +60,7 @@ class Generator:
             return
 
         Console.info(
-            "\n\n{blocks} changed from last generation.",
+            "{blocks} changed from last generation.",
             blocks=f"{len(changed_blocks)} blocks",
         )
         self._generate(data.size, changed_blocks)

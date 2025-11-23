@@ -4,12 +4,18 @@ import { type Building, build, cachedBuilder } from "#core/builder/@";
 import { liveResolver, resolve } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
 
+type Payload = {
+	blocks?: Building["blocks"];
+	size?: Building["size"];
+	error?: string;
+};
+
 export function compile(src: FileRef | JsonData): Promise<Building>;
 
 export function compile(
 	src: FileRef,
 	watch: { watchMode: "full" | "diff" },
-): AsyncGenerator<Building>;
+): AsyncGenerator<Payload>;
 
 export function compile(
 	src: FileRef | JsonData,
@@ -19,23 +25,22 @@ export function compile(
 		return resolve(src).then(assemble).then(build);
 	}
 
-	const liveCompiler = async function* () {
+	const liveCompiler = async function* (): AsyncGenerator<Payload> {
 		const build = cachedBuilder(watch.watchMode);
 
 		for await (const resolve of liveResolver(src as FileRef)) {
-			const building = await resolve()
+			const payload = await resolve()
 				.then(assemble)
 				.then(build)
 				.catch((error) => {
-					if (!(error instanceof UserError)) {
-						throw error;
+					if (error instanceof UserError) {
+						return { error: error.message };
 					}
-					console.error(error.message);
-					return undefined;
+					throw error;
 				});
 
-			if (building) {
-				yield building;
+			if (payload) {
+				yield payload;
 			}
 		}
 	};

@@ -10,10 +10,11 @@ from typer import Context, Option, Typer
 
 from noteblock_generator import VERSION
 
-from .core.api.loader import load
+from .core.api.loader import live_loader, load
 from .core.api.types import BlockState
 from .core.coordinates import XYZ
-from .core.generator import Console, Generator
+from .core.generator import Generator
+from .core.utils.console import Console
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -191,9 +192,10 @@ def run(
     )
 
     if not watch:
-        generator.generate(data=load(input_path), cache=False)
+        data = load(input_path)
+        generator.generate(data, cache=False)
         return
 
-    for data in load(input_path, watch=True):
+    for data in live_loader(input_path):
         generator.generate(data, cache=True)
-        Console.info("Watching for changes...")
+        Console.info("Watching for changes...\n")

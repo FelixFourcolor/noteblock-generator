@@ -18,5 +18,11 @@ class Size(Struct):
 
 
 class Building(Struct):
-    size: Size
     blocks: BlockMap
+    size: Size
+
+
+class Payload(Struct):
+    blocks: BlockMap | None = None
+    size: Size | None = None
+    error: str | None = None

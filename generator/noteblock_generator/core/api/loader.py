@@ -6,64 +6,66 @@ from io import BytesIO
 from pathlib import Path
 from sys import stdin
 from threading import Thread
-from typing import Generator, Literal, overload
+from typing import Generator, TypeVar
 from zipfile import ZipFile, is_zipfile
 
 from click import UsageError
 from msgspec import DecodeError, json
 from watchfiles import watch
 
-from .types import Building
+from ..utils.console import Console
+from .types import Building, Payload
 
 # prevent infinite loop on infinite input (like `yes | nbg`)
 MAX_PIPE_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
-@overload
-def load(path: Path | None) -> Building: ...
+def load(path: Path | None) -> Building:
+    src = _load_source(path)
+    data = _read_source(src)
+    return _decode(data, Building)
 
 
-@overload
-def load(path: Path | None, *, watch: Literal[True]) -> Generator[Building]: ...
-
-
-def load(path: Path | None, *, watch: bool = False) -> Building | Generator[Building]:
-    if not watch:
-        src = _load_source(path)
-        data = _read_source(src)
-        return _decode(data)
-
+def live_loader(path: Path | None) -> Generator[Building]:
     if path:
-        return _load_on_change(path)
-    else:
-        return _load_stdin_stream()
+        yield from _load_on_change(path)
+        return
+
+    for payload in _load_stdin_stream():
+        if payload.error:
+            Console.warn(payload.error, important=True)
+            Console.newline()
+        elif payload.blocks and payload.size:
+            yield Building(blocks=payload.blocks, size=payload.size)
 
 
 def _load_on_change(path: Path) -> Generator[Building]:
     def trigger_initial_run():
-        # Need a way to trigger the first read.
-        # Alternative would be to call another generate() before the watch loop;
+        # Need a way to trigger the first run.
+        # Only alternative to yield once before the watch loop;
         # but then changes during the initial run would be missed.
-        # Ugly but no other way.
-        time.sleep(0.25)
-        os.utime(path)
+        while not triggered:
+            time.sleep(0.2)
+            os.utime(path)
 
+    triggered = False
     trigger_thread = Thread(target=trigger_initial_run, daemon=True)
     trigger_thread.start()
 
     isFirstRun = True
     for _ in watch(path, debounce=0, rust_timeout=0):
-        if isFirstRun:
-            isFirstRun = False
+        triggered = True
+        try:
             yield load(path)
-        else:  # defensive for temporary invalid data
-            try:
-                yield load(path)
-            except Exception:
-                continue
+            isFirstRun = False
+        except UsageError:
+            # Ignore read errors on subsequent runs
+            # because file may temporarily be in an invalid state
+            if isFirstRun:
+                raise
 
 
-def _load_stdin_stream() -> Generator[Building]:
+def _load_stdin_stream() -> Generator[Payload]:
     if stdin.isatty():
         raise UsageError(
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
@@ -82,30 +84,36 @@ def _load_stdin_stream() -> Generator[Building]:
             buffer.extend(chunk)
 
         # If multiple updates come in one chunk, combine them
-        building: Building | None = None
+        payload: Payload | None = None
         while True:
             try:
                 delimiter = buffer.index(DELIMITER)
             except ValueError:
                 break
 
-            payload = buffer[:delimiter]
+            chunk = buffer[:delimiter]
             del buffer[: delimiter + 1]
+            payload_chunk = _decode(chunk, Payload)
 
-            update = _decode(payload)
-            if not building:
-                building = update
-            else:  # only need to update blocks; size doesn't matter for partial update
-                building.blocks.update(update.blocks)
+            if not payload:
+                payload = payload_chunk
+            elif payload_chunk.error:
+                payload.error = payload_chunk.error
+            elif payload.blocks and payload_chunk.blocks:
+                # only need to update blocks; size doesn't matter for partial update
+                payload.blocks.update(payload_chunk.blocks)
 
-        if not building:
+        if not payload:
             raise UsageError("Input data does not match expected format.")
-        yield building
+        yield payload
 
 
-def _decode(data: bytes | bytearray) -> Building:
+T = TypeVar("T")
+
+
+def _decode(data: bytes | bytearray, type: type[T]) -> T:
     try:
-        return json.decode(data, type=Building)
+        return json.decode(data, type=type)
     except DecodeError:
         raise UsageError("Input data does not match expected format.")
 
