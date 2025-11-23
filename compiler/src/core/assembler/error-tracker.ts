@@ -4,13 +4,7 @@ import type { IMeasure } from "#core/resolver/@";
 export class ErrorTracker {
 	private readonly errors = new Map<string, Set<string>>();
 
-	registerError = ({
-		measure,
-		error,
-	}: {
-		measure: IMeasure;
-		error: string | Error;
-	}) => {
+	registerError = (error: string | Error, measure: IMeasure) => {
 		const key = JSON.stringify(measure);
 		const message = typeof error === "string" ? error : error.message;
 

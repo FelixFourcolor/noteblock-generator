@@ -1,86 +1,69 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
-import type { IMeasure } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import type { ErrorTracker } from "./error-tracker.js";
 import type { LevelEntry, LevelMap, NoteEvent } from "./types.js";
-import { checkOverflow } from "./validation.js";
+import { validateClusterSize } from "./validation.js";
 
-type MapperContext = {
-	notes: NoteEvent[];
-	type: TPosition;
-	errorTracker: ErrorTracker;
-};
-
-export abstract class LevelMapper<T extends TPosition> {
-	static map(ctx: MapperContext): LevelMap {
-		return match(ctx)
-			.with({ notes: [] }, () => ({}))
-			.with({ type: "single" }, () => new SingleMapper(ctx).getLevelMap())
-			.with({ type: "double" }, () => new DoubleMapper(ctx).getLevelMap())
-			.exhaustive();
+export function mapLevels(
+	notes: NoteEvent[],
+	type: TPosition,
+	errorTracker: ErrorTracker,
+): LevelMap {
+	if (notes.length === 0) {
+		return {};
 	}
 
-	abstract getLevelMap(): LevelMap<T>;
+	// Already validated consistency, so just take the first's
+	const measure = notes[0]!.measure;
+	const onError = (error: string) => {
+		errorTracker.registerError(error, measure);
+	};
 
-	protected notes: NoteEvent[];
-	private errorTracker: ErrorTracker;
-	private measure: IMeasure;
-
-	constructor({ notes, errorTracker }: MapperContext) {
-		this.notes = notes;
-		this.errorTracker = errorTracker;
-		// We already validated measure consistency, so the first index can represent all
-		this.measure = notes[0]!.measure;
-	}
-
-	protected registerError(error: string) {
-		this.errorTracker.registerError({ measure: this.measure, error });
-	}
+	return match(type)
+		.with("single", () => mapSingle(notes, onError))
+		.with("double", () => mapDouble(notes, onError))
+		.exhaustive();
 }
-class SingleMapper extends LevelMapper<"single"> {
-	override getLevelMap() {
-		// For single builds, L and R are be duplicate, so just take the L
-		const singleNotes = this.notes.filter(({ division }) => division === "L");
-		const levelGroups = groupBy(singleNotes, ({ level }) => level);
 
-		checkOverflow({
-			noteGroups: levelGroups,
-			onError: ({ groupKey: level, voices, count }) => {
-				this.registerError(`${voices.join(", ")}: Overflow @${level}=${count}`);
-			},
+function mapSingle(
+	notes: NoteEvent[],
+	onError: (error: string) => void,
+): LevelMap<"single"> {
+	// For single builds, L and R are be duplicate, so just take the L
+	const singleNotes = notes.filter((note) => note.division === "L");
+	const levelGroups = groupBy(singleNotes, (note) => note.level);
+
+	validateClusterSize(levelGroups, ([level, { voices, size }]) => {
+		onError(`${voices.join(", ")}: Overflow @${level}=${size}`);
+	});
+
+	return mapValues(
+		levelGroups,
+		(notes): LevelEntry<"single"> => notes.map((note) => note.noteblock),
+	);
+}
+
+function mapDouble(
+	notes: NoteEvent[],
+	onError: (error: string) => void,
+): LevelMap<"double"> {
+	const levelGroups = groupBy(notes, (note) => note.level);
+	const positionGroups = mapValues(levelGroups, (notes) =>
+		groupBy(notes, ({ division }) => division),
+	);
+
+	for (const [level, divisionGroups] of Object.entries(positionGroups)) {
+		validateClusterSize(divisionGroups, ([division, { voices, size }]) => {
+			onError(`${voices.join(", ")}: Overflow @${division}${level}=${size}`);
 		});
-
-		return mapValues(levelGroups, (notes) =>
-			notes.map(({ noteblock }) => noteblock),
-		);
 	}
-}
 
-class DoubleMapper extends LevelMapper<"double"> {
-	override getLevelMap() {
-		const levelGroups = groupBy(this.notes, ({ level }) => level);
-		const positionGroups = mapValues(levelGroups, (notes) =>
-			groupBy(notes, ({ division }) => division),
-		);
-
-		for (const [level, divisionGroups] of Object.entries(positionGroups)) {
-			checkOverflow({
-				noteGroups: divisionGroups,
-				onError: ({ groupKey: division, voices, count }) => {
-					this.registerError(
-						`${voices.join(", ")}: Overflow @${division}${level}=${count}`,
-					);
-				},
-			});
-		}
-
-		return mapValues(
-			positionGroups,
-			({ L, R }): LevelEntry<"double"> => [
-				L?.map(({ noteblock }) => noteblock) ?? [],
-				R?.map(({ noteblock }) => noteblock) ?? [],
-			],
-		);
-	}
+	return mapValues(
+		positionGroups,
+		({ L, R }): LevelEntry<"double"> => [
+			L?.map((note) => note.noteblock) ?? [],
+			R?.map((note) => note.noteblock) ?? [],
+		],
+	);
 }

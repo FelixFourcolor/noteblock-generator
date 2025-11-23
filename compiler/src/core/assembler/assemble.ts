@@ -10,9 +10,8 @@ export function assemble(song: SongResolution): SongLayout {
 	const errorTracker = new ErrorTracker();
 	const boundTracker = new BoundsTracker();
 
-	const rawSlices = Array.from(
-		processSong({ song, errorTracker, boundTracker }),
-	);
+	const sliceGenerator = processSong(song, boundTracker, errorTracker);
+	const rawSlices = Array.from(sliceGenerator);
 	if (rawSlices.length === 0) {
 		throw new UserError("Song is empty.");
 	}

@@ -28,18 +28,15 @@ export function validateConsistency<
 	return { value: events[0]![property] };
 }
 
-export function checkOverflow({
-	noteGroups,
-	onError,
-}: {
-	noteGroups: Record<string, NoteEvent[]>;
-	onError: (_: { groupKey: string; voices: string[]; count: number }) => void;
-}) {
+export function validateClusterSize(
+	noteGroups: Record<string, NoteEvent[]>,
+	onError: (e: [string, { voices: string[]; size: number }]) => void,
+) {
 	for (const [groupKey, notes] of Object.entries(noteGroups)) {
-		const count = notes.length;
-		if (count > 6) {
+		const size = notes.length;
+		if (size > 6) {
 			const voices = Array.from(new Set(notes.map(({ voice }) => voice)));
-			onError({ groupKey, voices, count });
+			onError([groupKey, { voices, size }]);
 		}
 	}
 }
