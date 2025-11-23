@@ -1,46 +1,54 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { unlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fromPairs, orderBy, toPairs } from "lodash";
+import {
+	createReadStream,
+	mkdirSync,
+	unlinkSync,
+	writeFileSync,
+} from "node:fs";
+import { dirname, join, parse } from "node:path";
+import { fromPairs, mapKeys, orderBy, toPairs } from "lodash";
 import { expect, test } from "vitest";
 import { assemble } from "#core/assembler";
 import { build } from "#core/builder";
-import { resolve } from "#core/resolver";
+import { ResolutionCache } from "#core/resolver/cache.js";
+import { resolveSong } from "#core/resolver/components";
 import { forEachProject } from "./shared";
 
-const COMPILE_MODES = ["resolved", "assembled", "compiled"] as const;
-
-async function compile(src: string) {
-	const resolved = await resolve(`file://${src}`);
+async function getCompiledData(src: string): Promise<Record<string, object>> {
+	const cache = new ResolutionCache();
+	const rawResolved = await resolveSong(`file://${src}`, cache);
+	const resolved = { ...rawResolved, ticks: Array.from(rawResolved.ticks) };
 	const assembled = assemble(resolved);
 	const compiled = build(assembled);
-	return { resolved, assembled, compiled };
+	const voices = mapKeys(
+		cache.exportData(),
+		(_, path) => `resolved.${parse(path).name}`,
+	);
+	return { ...voices, resolved, assembled, compiled };
 }
 
 forEachProject("Compile tests", async (projectDir) => {
 	const entryFile = join(projectDir, "repo", "src", "index.yaml");
-	const compiledResult = await compile(entryFile);
+	const buildDir = join(projectDir, "build");
+	const results = await getCompiledData(entryFile);
 
-	for (const outputMode of COMPILE_MODES) {
-		const expectedFile = join(projectDir, "build", `${outputMode}.json`);
+	for (const [name, data] of Object.entries(results)) {
+		const receivedFile = join(buildDir, "received", `${name}.json`);
+		serialize(data, receivedFile);
+		// If expected file doesn't exist, still write the received file.
+		// Convenient to generate initial snapshot.
+
+		const expectedFile = join(buildDir, `${name}.json`);
 		const expectedHash = await getFileHash(expectedFile).catch(() => null);
 		if (!expectedHash) {
-			test.skip(`expected ${outputMode} output not found`);
+			test.skip(`expected ${name} output not found`);
 			continue;
 		}
 
-		const receivedFile = join(
-			projectDir,
-			"build",
-			`${outputMode}.received.json`,
-		);
-		serialize(compiledResult[outputMode], receivedFile);
 		const receivedHash = await getFileHash(receivedFile);
-
-		test(`${outputMode}`, async () => {
+		test(name, () => {
 			expect(receivedHash).toBe(expectedHash);
-			await unlink(receivedFile);
+			unlinkSync(receivedFile);
 		});
 	}
 });
@@ -55,7 +63,7 @@ async function getFileHash(filePath: string): Promise<string> {
 	});
 }
 
-async function serialize(object: object, file: string) {
+function serialize(object: object, file: string) {
 	const sortKeys = (value: unknown): unknown => {
 		if (Array.isArray(value)) {
 			return value.map(sortKeys);
@@ -72,5 +80,6 @@ async function serialize(object: object, file: string) {
 	};
 
 	const content = JSON.stringify(sortKeys(object), null, 2);
-	await writeFile(file, content);
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, content);
 }

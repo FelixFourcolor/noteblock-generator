@@ -33,8 +33,7 @@ export async function resolveSong(
 		time = voiceTime;
 	}
 	const width = resolveWidth({ time, type });
-
-	return { ticks: Array.from(ticks), width, type };
+	return { ticks, width, type };
 }
 
 function resolveWidth({ time, type }: { time: Time; type: TPosition }) {

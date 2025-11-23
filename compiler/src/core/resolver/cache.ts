@@ -2,52 +2,65 @@ import type { Tick, VoiceContext, VoiceResolution } from "#core/resolver/@";
 import type { FileRef } from "#schema/@";
 
 type CacheKey = VoiceContext & { voice: FileRef };
+type SerializedResolution = Omit<VoiceResolution, "ticks"> & { ticks: Tick[] };
 
 export class ResolutionCache {
 	dependencies = new Set<string>();
 
-	private data = new Map<
-		string,
-		Omit<VoiceResolution, "ticks"> & { ticks: Tick[] }
-	>();
-	private cacheKeyMap = new Map<string, string>();
+	private cacheKeys = new Map<FileRef, string>();
+	private cache = new Map<string, SerializedResolution>();
 
 	get(key: CacheKey): VoiceResolution | undefined {
-		const cached = this.data.get(JSON.stringify(key));
+		const cached = this.cache.get(JSON.stringify(key));
 		if (!cached) {
 			return undefined;
 		}
-		return {
-			...cached,
-			// biome-ignore format: prettier in one line
-			ticks: (function* () { yield* cached.ticks; })(),
-		};
+		return { ...cached, ticks: toGenerator(cached.ticks) };
 	}
 
 	set(key: CacheKey, value: VoiceResolution): VoiceResolution {
 		const ticks = Array.from(value.ticks);
 
 		const serializedKey = JSON.stringify(key);
-		this.data.set(serializedKey, { ...value, ticks });
-		this.cacheKeyMap.set(key.voice, serializedKey);
+		this.cache.set(serializedKey, { ...value, ticks });
+		this.cacheKeys.set(key.voice, serializedKey);
 		this.dependencies.add(key.voice.slice(7));
 
-		return {
-			...value,
-			// biome-ignore format: prettier in one line
-			ticks: (function* () { yield* ticks; })(),
-		};
+		return { ...value, ticks: toGenerator(ticks) };
 	}
 
 	async invalidate(filePath: string) {
-		if (!filePath.match(/^\.*\//)) {
-			filePath = `./${filePath}`;
-		}
-		const voice = `file://${filePath}`;
-		const key = this.cacheKeyMap.get(voice);
+		const voice = toFileRef(filePath);
+		const key = this.cacheKeys.get(voice);
 		if (key) {
-			this.cacheKeyMap.delete(voice);
-			this.data.delete(key);
+			this.cacheKeys.delete(voice);
+			this.cache.delete(key);
 		}
 	}
+
+	/** For integration tests only */
+	exportData() {
+		return Object.fromEntries(
+			this.dependencies
+				.values()
+				.map((filePath) => [
+					filePath,
+					this.cache.get(this.cacheKeys.get(toFileRef(filePath))!)!,
+				]),
+		);
+	}
+}
+
+function toFileRef(filePath: string): FileRef {
+	if (!filePath.match(/^\.*\//)) {
+		filePath = `./${filePath}`;
+	}
+	return `file://${filePath}`;
+}
+
+function toGenerator<T>(array: T[]): Generator<T> {
+	function* generator() {
+		yield* array;
+	}
+	return generator();
 }

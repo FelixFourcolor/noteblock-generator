@@ -4,7 +4,7 @@ import { describe } from "vitest";
 
 export async function forEachProject(
 	testName: string,
-	testFn: (projectPath: string) => Promise<void>,
+	testFn: (projectPath: string) => void,
 ) {
 	describe(testName, async () => {
 		const projectsDir = join(__dirname, "..", "data", "projects");

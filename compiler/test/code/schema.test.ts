@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import Ajv from "ajv";
 import { expect, test } from "vitest";
@@ -9,26 +9,27 @@ import { forEachProject } from "./shared";
 const schema = generateSchema();
 const validate = new Ajv({ unicodeRegExp: false }).compile(schema);
 
-forEachProject("Schema tests", async (projectDir) => {
-	const srcDir = join(projectDir, "repo", "src");
-	for (const srcFile of await findSourceFiles(srcDir)) {
-		test(srcFile, () => {
-			return readFile(srcFile, "utf-8")
-				.then(parseYAML)
-				.then(validate)
-				.then((valid) => expect(valid).toBe(true));
+forEachProject("Schema tests", (projectDir) => {
+	const sourceDir = join(projectDir, "repo", "src");
+	const sourceFiles = findSourceFiles(sourceDir);
+	sourceFiles.forEach((file) => {
+		test(file, () => {
+			const content = readFileSync(file, "utf-8");
+			const parsed = parseYAML(content);
+			const valid = validate(parsed);
+			expect(valid).toBe(true);
 		});
-	}
+	});
 });
 
-async function findSourceFiles(dir: string): Promise<string[]> {
+function findSourceFiles(dir: string): string[] {
 	const files = [];
-	const entries = await readdir(dir, { withFileTypes: true });
+	const entries = readdirSync(dir, { withFileTypes: true });
 
 	for (const entry of entries) {
 		const fullPath = join(dir, entry.name);
 		if (entry.isDirectory()) {
-			files.push(...(await findSourceFiles(fullPath)));
+			files.push(...findSourceFiles(fullPath));
 		} else if (entry.name.endsWith(".yaml")) {
 			files.push(fullPath);
 		}

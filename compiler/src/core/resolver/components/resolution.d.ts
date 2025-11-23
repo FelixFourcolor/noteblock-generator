@@ -11,6 +11,6 @@ export type VoiceResolution = {
 };
 export type SongResolution = {
 	type: TPosition;
-	ticks: Tick[];
+	ticks: Iterable<Tick>;
 	width: number;
 };
