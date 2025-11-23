@@ -1,5 +1,6 @@
 import { basename, dirname } from "node:path";
 import { watch } from "chokidar";
+import { debounce } from "lodash";
 import { resolveSong, type SongResolution } from "#core/resolver/components/@";
 import type { FileRef, JsonData } from "#schema/@";
 import { ResolutionCache } from "./cache.js";
@@ -16,7 +17,12 @@ export async function* liveResolver(src: FileRef): AsyncGenerator<Resolver> {
 	const changedFiles = new Set([entryFilePath]);
 	const cache = new ResolutionCache();
 
-	let { nextChange, signalChange } = createChangeSignal();
+	const createChangeSignal = () => {
+		const { promise, resolve } = Promise.withResolvers<void>();
+		return [promise, debounce(resolve, 500)] as const;
+	};
+	let [nextChange, signalChange] = createChangeSignal();
+
 	const watcher = watch(basename(entryFilePath), {
 		cwd: dirname(entryFilePath),
 	});
@@ -25,35 +31,33 @@ export async function* liveResolver(src: FileRef): AsyncGenerator<Resolver> {
 		signalChange();
 	});
 
+	const refresh = async () => {
+		if (!changedFiles.size) {
+			await nextChange;
+			[nextChange, signalChange] = createChangeSignal();
+		}
+		changedFiles.forEach((filePath) => {
+			cache.invalidate(filePath);
+		});
+		changedFiles.clear();
+
+		return async () => {
+			const resolution = await resolveSong(src, cache);
+			cache.dependencies.forEach((path) => {
+				if (!trackedDependencies.has(path)) {
+					watcher.add(path);
+					trackedDependencies.add(path);
+				}
+			});
+			return resolution;
+		};
+	};
+
 	try {
 		while (true) {
-			if (changedFiles.size === 0) {
-				await nextChange;
-				({ nextChange, signalChange } = createChangeSignal());
-			}
-
-			changedFiles.forEach((filePath) => {
-				cache.invalidate(filePath);
-			});
-			changedFiles.clear();
-
-			yield async () => {
-				const resolution = await resolveSong(src, cache);
-				cache.dependencies.forEach((path) => {
-					if (!trackedDependencies.has(path)) {
-						watcher.add(path);
-						trackedDependencies.add(path);
-					}
-				});
-				return resolution;
-			};
+			yield await refresh();
 		}
 	} finally {
 		watcher.close();
 	}
-}
-
-function createChangeSignal() {
-	const { promise, resolve } = Promise.withResolvers<void>();
-	return { nextChange: promise, signalChange: resolve };
 }
