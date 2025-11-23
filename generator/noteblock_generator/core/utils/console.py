@@ -1,9 +1,15 @@
+from collections.abc import Callable
+from typing import TypeVar
+
 import typer
 from click import Abort
 from rich.console import Console as _Console
 from rich.panel import Panel
 
-_print = _Console().print
+_console = _Console()
+_print = _console.print
+
+T = TypeVar("T")
 
 
 class Console:
@@ -19,17 +25,18 @@ class Console:
             Console.info(
                 "\nNo input received, used {choice} by default.",
                 choice="Y" if default else "N",
+                accent="green" if default else "red",
             )
             return default
 
     @staticmethod
-    def info(text: str, *, important=False, **kwargs):
+    def info(text: str, *, important=False, accent="blue", **kwargs):
         if kwargs:
             text = text.format(**{
-                k: f"[bold blue]{v}[/bold blue]" for k, v in kwargs.items()
+                k: f"[bold {accent}]{v}[/bold {accent}]" for k, v in kwargs.items()
             })
         if important:
-            _print(Panel(text, expand=False, border_style="blue"))
+            _print(Panel(text, expand=False, border_style=accent))
         else:
             _print(text, style="dim")
 
@@ -41,7 +48,6 @@ class Console:
             })
         if important:
             _print(Panel(text, expand=False, border_style="green"))
-
         else:
             _print(text, style="dim green")
 
@@ -55,3 +61,11 @@ class Console:
             _print(Panel(text, expand=False, border_style="red"))
         else:
             _print(text, style="dim red")
+
+    @staticmethod
+    def status(text: str, callback: Callable[[], T]) -> T:
+        style = "dim"
+        with _console.status(
+            f"[{style}]{text}[/{style}]", spinner="line", spinner_style=style, speed=0.7
+        ):
+            return callback()

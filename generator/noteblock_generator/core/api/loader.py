@@ -28,22 +28,34 @@ def load(path: Path | None, *, watch: bool = False):
     if not watch:
         return _load(path, Building)
 
-    def live_loader():
-        for payload in _load_on_change(path) if path else _load_stdin_stream():
+    def live_loader() -> Generator[Building]:
+        data_stream = _file_stream(path) if path else _stdin_stream()
+        is_first_run = True
+
+        def refresh():
+            if is_first_run:
+                if path:
+                    return next(data_stream)
+                return Console.status("Compiling", data_stream.__next__)
+
+            Console.newline()
+            return Console.status("Waiting for changes", data_stream.__next__)
+
+        while True:
+            payload = refresh()
+            is_first_run = False
+
             if payload.error:
                 Console.warn(payload.error, important=True)
-            elif not payload.blocks or not payload.size:
+                continue
+            if not payload.blocks or not payload.size:
                 raise UsageError("Input data does not match expected format.")
-            else:
-                yield Building(blocks=payload.blocks, size=payload.size)
-
-            Console.info("Waiting for changes...")
-            Console.newline()
+            yield Building(blocks=payload.blocks, size=payload.size)
 
     return live_loader()
 
 
-def _load_on_change(path: Path) -> Generator[Payload]:
+def _file_stream(path: Path) -> Generator[Payload]:
     def trigger_initial_run():
         # Need a way to trigger the first run.
         # Only alternative to yield once before the watch loop;
@@ -56,20 +68,20 @@ def _load_on_change(path: Path) -> Generator[Payload]:
     trigger_thread = Thread(target=trigger_initial_run, daemon=True)
     trigger_thread.start()
 
-    isFirstRun = True
+    is_first_run = True
     for _ in watch(path, debounce=0, rust_timeout=0):
         triggered = True
         try:
             yield _load(path, type=Payload)
-            isFirstRun = False
+            is_first_run = False
         except UsageError:
             # Ignore read errors on subsequent runs
             # because file may temporarily be in an invalid state
-            if isFirstRun:
+            if is_first_run:
                 raise
 
 
-def _load_stdin_stream() -> Generator[Payload]:
+def _stdin_stream() -> Generator[Payload]:
     if stdin.isatty():
         raise UsageError(
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
