@@ -12,6 +12,7 @@ from noteblock_generator import VERSION
 
 from .core.api.loader import load
 from .core.api.types import BlockState
+from .core.api.watcher import live_loader
 from .core.coordinates import XYZ
 from .core.generator import Generator
 
@@ -195,5 +196,5 @@ def run(
         generator.generate(data, cache=False)
         return
 
-    for data in load(input_path, watch=True):
+    for data in live_loader(input_path):
         generator.generate(data, cache=True)

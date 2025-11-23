@@ -1,7 +1,5 @@
-import { is } from "typia";
 import type { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
-import type { FileRef } from "#schema/@";
 import { UserError } from "./error.js";
 import { getInput, withOutput } from "./io.js";
 
@@ -58,10 +56,8 @@ export const compileCommand = command({
 		if (!args.in) {
 			throw new UserError("Input required: Provide file path with --in.");
 		}
-		const { compile } = await import("#core/compile.js");
-		return compile(`file://${args.in}`, {
-			watchMode: args.out ? "full" : "diff",
-		});
+		const { liveCompiler } = await import("#core/compile.js");
+		return liveCompiler(`file://${args.in}`, args.out ? "full" : "diff");
 	},
 });
 
