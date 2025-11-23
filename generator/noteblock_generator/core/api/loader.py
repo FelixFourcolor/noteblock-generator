@@ -26,16 +26,24 @@ def load(path: Path | None) -> Building: ...
 def load(path: Path | None, *, watch: Literal[True]) -> Generator[Building]: ...
 def load(path: Path | None, *, watch: bool = False):
     if not watch:
-        src = _load_source(path)
-        data = _read_source(src)
-        return _decode(data, Building)
-    elif path:
-        return _load_on_change(path)
-    else:
-        return _load_stdin_stream()
+        return _load(path, Building)
+
+    def live_loader():
+        for payload in _load_on_change(path) if path else _load_stdin_stream():
+            if payload.error:
+                Console.warn(payload.error, important=True)
+            elif not payload.blocks or not payload.size:
+                raise UsageError("Input data does not match expected format.")
+            else:
+                yield Building(blocks=payload.blocks, size=payload.size)
+
+            Console.info("Waiting for changes...")
+            Console.newline()
+
+    return live_loader()
 
 
-def _load_on_change(path: Path) -> Generator[Building]:
+def _load_on_change(path: Path) -> Generator[Payload]:
     def trigger_initial_run():
         # Need a way to trigger the first run.
         # Only alternative to yield once before the watch loop;
@@ -52,7 +60,7 @@ def _load_on_change(path: Path) -> Generator[Building]:
     for _ in watch(path, debounce=0, rust_timeout=0):
         triggered = True
         try:
-            yield load(path)
+            yield _load(path, type=Payload)
             isFirstRun = False
         except UsageError:
             # Ignore read errors on subsequent runs
@@ -61,7 +69,7 @@ def _load_on_change(path: Path) -> Generator[Building]:
                 raise
 
 
-def _load_stdin_stream() -> Generator[Building]:
+def _load_stdin_stream() -> Generator[Payload]:
     if stdin.isatty():
         raise UsageError(
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
@@ -79,7 +87,7 @@ def _load_stdin_stream() -> Generator[Building]:
                 raise UsageError("Input pipe closed.")
             buffer.extend(chunk)
 
-        # If multiple updates come in one chunk, combine them
+        # If multiple payloads come in one chunk, combine them
         payload: Payload | None = None
         while True:
             try:
@@ -89,27 +97,32 @@ def _load_stdin_stream() -> Generator[Building]:
 
             chunk = buffer[:delimiter]
             del buffer[: delimiter + 1]
-            payload_chunk = _decode(chunk, Payload)
+            update = _decode(chunk, Payload)
 
             if not payload:
-                payload = payload_chunk
-            elif payload_chunk.error:
-                payload.error = payload_chunk.error
-            elif payload.blocks and payload_chunk.blocks:
-                # only need to update blocks; size doesn't matter for partial updates
-                payload.blocks.update(payload_chunk.blocks)
+                payload = update
+                continue
 
-        if payload:
-            if payload.error:
-                Console.warn(payload.error, important=True)
-                Console.newline()
-            elif payload.blocks and payload.size:
-                yield Building(blocks=payload.blocks, size=payload.size)
+            payload.error = update.error
+            if update.blocks:
+                if payload.blocks:
+                    payload.blocks.update(update.blocks)
+                else:
+                    payload.blocks = update.blocks
+            # no need to update size, it doesn't matter for partial updates
 
-        raise UsageError("Input data does not match expected format.")
+        if not payload:
+            raise UsageError("Input data does not match expected format.")
+        yield payload
 
 
 T = TypeVar("T")
+
+
+def _load(path: Path | None, type: type[T]) -> T:
+    src = _load_source(path)
+    data = _read_source(src)
+    return _decode(data, type)
 
 
 def _decode(data: bytes | bytearray, type: type[T]) -> T:

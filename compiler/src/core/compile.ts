@@ -4,11 +4,7 @@ import { type Building, build, cachedBuilder } from "#core/builder/@";
 import { liveResolver, resolve } from "#core/resolver/@";
 import type { FileRef, JsonData } from "#schema/@";
 
-type Payload = {
-	blocks?: Building["blocks"];
-	size?: Building["size"];
-	error?: string;
-};
+type Payload = Building | { error: string };
 
 export function compile(src: FileRef | JsonData): Promise<Building>;
 
