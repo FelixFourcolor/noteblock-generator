@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from sys import stdin
 from threading import Thread
-from typing import Generator, TypeVar
+from typing import Generator, Literal, TypeVar, overload
 from zipfile import ZipFile, is_zipfile
 
 from click import UsageError
@@ -20,23 +20,19 @@ from .types import Building, Payload
 MAX_PIPE_SIZE = 100 * 1024 * 1024  # 100 MB
 
 
-def load(path: Path | None) -> Building:
-    src = _load_source(path)
-    data = _read_source(src)
-    return _decode(data, Building)
-
-
-def live_loader(path: Path | None) -> Generator[Building]:
-    if path:
-        yield from _load_on_change(path)
-        return
-
-    for payload in _load_stdin_stream():
-        if payload.error:
-            Console.warn(payload.error, important=True)
-            Console.newline()
-        elif payload.blocks and payload.size:
-            yield Building(blocks=payload.blocks, size=payload.size)
+@overload
+def load(path: Path | None) -> Building: ...
+@overload
+def load(path: Path | None, *, watch: Literal[True]) -> Generator[Building]: ...
+def load(path: Path | None, *, watch: bool = False):
+    if not watch:
+        src = _load_source(path)
+        data = _read_source(src)
+        return _decode(data, Building)
+    elif path:
+        return _load_on_change(path)
+    else:
+        return _load_stdin_stream()
 
 
 def _load_on_change(path: Path) -> Generator[Building]:
@@ -65,7 +61,7 @@ def _load_on_change(path: Path) -> Generator[Building]:
                 raise
 
 
-def _load_stdin_stream() -> Generator[Payload]:
+def _load_stdin_stream() -> Generator[Building]:
     if stdin.isatty():
         raise UsageError(
             "Missing input: Either provide file path with --in, or pipe content to stdin.",
@@ -100,12 +96,17 @@ def _load_stdin_stream() -> Generator[Payload]:
             elif payload_chunk.error:
                 payload.error = payload_chunk.error
             elif payload.blocks and payload_chunk.blocks:
-                # only need to update blocks; size doesn't matter for partial update
+                # only need to update blocks; size doesn't matter for partial updates
                 payload.blocks.update(payload_chunk.blocks)
 
-        if not payload:
-            raise UsageError("Input data does not match expected format.")
-        yield payload
+        if payload:
+            if payload.error:
+                Console.warn(payload.error, important=True)
+                Console.newline()
+            elif payload.blocks and payload.size:
+                yield Building(blocks=payload.blocks, size=payload.size)
+
+        raise UsageError("Input data does not match expected format.")
 
 
 T = TypeVar("T")
