@@ -7,15 +7,15 @@ from sys import stdin
 from threading import Thread
 from typing import Generator
 
+import watchfiles
 from click import UsageError
-from watchfiles import watch
 
-from ..utils.console import Console
+from ..cli.console import Console
 from .loader import MAX_PIPE_SIZE, decode
-from .types import Building, Payload
+from .schema import Building, Payload
 
 
-def live_loader(path: Path | None) -> Generator[Building]:
+def watch(path: Path | None) -> Generator[Building]:
     data_stream = _file_stream(path) if path else _stdin_stream()
     is_first_run = True
 
@@ -56,7 +56,7 @@ def _file_stream(path: Path) -> Generator[Payload]:
     trigger_thread.start()
 
     is_first_run = True
-    for _ in watch(path, debounce=0, rust_timeout=0):
+    for _ in watchfiles.watch(path, debounce=0, rust_timeout=0):
         triggered = True
         try:
             yield decode(path.read_bytes(), Payload)

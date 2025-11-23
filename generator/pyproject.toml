@@ -19,7 +19,7 @@ Homepage = "https://www.youtube.com/@felixfourcolor"
 Repository = "https://github.com/FelixFourcolor/noteblock-generator"
 
 [project.scripts]
-nbg = "noteblock_generator.cli:run"
+nbg = "noteblock_generator.main:main"
 
 [build-system]
 requires = ["hatchling"]

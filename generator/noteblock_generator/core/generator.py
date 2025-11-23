@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING
 
 from .chunks import ChunksManager
 from .structure import Structure
-from .utils.console import Console
-from .utils.progress_bar import ProgressBar
+from ..cli.console import Console
+from ..cli.progress_bar import ProgressBar
 
 if TYPE_CHECKING:
-    from .api.types import BlockMap, BlockState, Building, Size
+    from ..data.schema import BlockMap, BlockState, Building, Size
     from .coordinates import XYZ, DirectionName
     from .structure import AlignName, TiltName
 

@@ -2,7 +2,7 @@ import builtins
 from sys import stdin
 
 APP_NAME = "noteblock-generator"
-VERSION = "0.2.99"
+__version__ = "0.2.99"
 
 
 if not stdin.isatty():

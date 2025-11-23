@@ -3,21 +3,16 @@ from __future__ import annotations
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 import typer
-from typer import Context, Option, Typer
+from typer import Context, Option
 
-from noteblock_generator import VERSION
-
-from .core.api.loader import load
-from .core.api.types import BlockState
-from .core.api.watcher import live_loader
-from .core.coordinates import XYZ
-from .core.generator import Generator
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from .. import __version__
+from ..core.coordinates import XYZ
+from ..core.generator import Generator
+from ..data import loader, watcher
+from ..data.schema import BlockState
 
 logging.disable()  # disable amulet's logging
 
@@ -48,7 +43,7 @@ class Alignment(Enum):
 
 def _show_version(ctx: Context, value: bool):
     if value:
-        print(VERSION)
+        print(__version__)
         ctx.exit()
 
 
@@ -58,13 +53,6 @@ def _show_help(ctx: Context, value: bool):
         ctx.exit()
 
 
-def __main(fn: Callable):
-    app = Typer(add_completion=False)
-    app.command(no_args_is_help=True)(fn)
-    return app
-
-
-@__main
 def run(
     world_path: Annotated[
         Path,
@@ -192,9 +180,9 @@ def run(
     )
 
     if not watch:
-        data = load(input_path)
+        data = loader.load(input_path)
         generator.generate(data, cache=False)
         return
 
-    for data in live_loader(input_path):
+    for data in watcher.watch(input_path):
         generator.generate(data, cache=True)

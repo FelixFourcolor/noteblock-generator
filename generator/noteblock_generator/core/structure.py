@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Literal, NamedTuple
 from .coordinates import DIRECTION_NAMES, Direction
 
 if TYPE_CHECKING:
-    from .api.types import BlockMap, BlockState, BlockType, Size
+    from ..data.schema import BlockMap, BlockState, BlockType, Size
     from .coordinates import XYZ, DirectionName
 
     TiltName = Literal["up", "down"]

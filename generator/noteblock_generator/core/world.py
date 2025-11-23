@@ -12,9 +12,9 @@ from amulet.api.level import World as BaseWorld
 from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
 
+from ..cli.console import Console
 from .blend import get_blend_block
 from .coordinates import Direction, get_nearest_direction
-from .utils.console import Console
 
 if TYPE_CHECKING:
     from .chunks import ChunkEdits, ChunksManager

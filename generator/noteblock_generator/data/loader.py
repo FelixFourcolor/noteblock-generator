@@ -9,7 +9,7 @@ from zipfile import ZipFile, is_zipfile
 from click import UsageError
 from msgspec import DecodeError, json
 
-from .types import Building
+from .schema import Building
 
 # prevent infinite loop on infinite input (like `yes | nbg`)
 MAX_PIPE_SIZE = 100 * 1024 * 1024  # 100 MB
