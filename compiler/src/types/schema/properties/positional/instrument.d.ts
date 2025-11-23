@@ -1,4 +1,4 @@
-import type { Re, Repeat, Token } from "#schema/utils/@";
+import type { Re, Repeat, Token } from "#types/helpers/@";
 import type { Positional } from "../meta.ts";
 
 export type Instrument = Re<

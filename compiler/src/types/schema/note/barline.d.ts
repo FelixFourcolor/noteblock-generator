@@ -1,4 +1,4 @@
-import type { Re, Token } from "#schema/utils/@";
+import type { Re, Token } from "#types/helpers/@";
 
 export type BarLine = Re<BarNumber, "?", Line, UnsafeFlag, "?">;
 

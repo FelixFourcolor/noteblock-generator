@@ -1,5 +1,5 @@
 import type { Variable } from "#schema/duration.ts";
-import type { Int, Re, Token } from "#schema/utils/@";
+import type { Int, Re, Token } from "#types/helpers/@";
 import type { Positional } from "../meta.ts";
 
 export type Level = Int | Level.variable;

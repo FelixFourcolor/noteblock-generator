@@ -6,7 +6,7 @@ import type {
 	IStaticProperties,
 	TPosition,
 } from "#schema/properties/@";
-import type { DistributiveOmit, Modified } from "#schema/utils/@";
+import type { DistributiveOmit, Modified } from "#types/helpers/@";
 
 type RestModifier = Omit<IStaticProperties, "time">;
 
