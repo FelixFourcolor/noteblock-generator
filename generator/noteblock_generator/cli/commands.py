@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -13,8 +12,6 @@ from ..core.coordinates import XYZ
 from ..core.generator import Generator
 from ..data import loader, watcher
 from ..data.schema import BlockState
-
-logging.disable()  # disable amulet's logging
 
 
 class Dimension(Enum):

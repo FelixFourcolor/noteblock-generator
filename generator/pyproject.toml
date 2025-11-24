@@ -7,9 +7,8 @@ license = { text = "MIT" }
 requires-python = ">=3.10, <3.14" # 3.14 blocker: msgspec
 keywords = ["minecraft", "noteblock"]
 dependencies = [
-    "amulet-core>=1.9.31",
+    "amulet-core>=1.9.32",
     "typer>=0.20.0",
-    "humanize>=4.14.0",
     "msgspec>=0.19.0",
     "watchfiles>=1.1.1",
 ]

@@ -1,8 +1,12 @@
 import builtins
+import logging
 from sys import stdin
 
 APP_NAME = "noteblock-generator"
 __version__ = "0.2.99"
+
+
+logging.disable()  # disable amulet's logging
 
 
 if not stdin.isatty():
