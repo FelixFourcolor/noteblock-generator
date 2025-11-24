@@ -9,9 +9,10 @@ from typing import Generator
 
 import watchfiles
 from click import UsageError
+from msgspec import DecodeError, json
 
 from ..cli.console import Console
-from .loader import MAX_PIPE_SIZE, decode
+from .loader import MAX_PIPE_SIZE
 from .schema import Building, Payload
 
 
@@ -59,7 +60,7 @@ def _file_stream(path: Path) -> Generator[Payload]:
     for _ in watchfiles.watch(path, debounce=0, rust_timeout=0):
         triggered = True
         try:
-            yield decode(path.read_bytes(), Payload)
+            yield _decode(path.read_bytes())
             is_first_run = False
         except UsageError:
             # Ignore read errors on subsequent runs
@@ -96,7 +97,7 @@ def _stdin_stream() -> Generator[Payload]:
 
             chunk = buffer[:delimiter]
             del buffer[: delimiter + 1]
-            update = decode(chunk, Payload)
+            update = _decode(chunk)
 
             if not payload:
                 payload = update
@@ -113,3 +114,13 @@ def _stdin_stream() -> Generator[Payload]:
         if not payload:
             raise UsageError("Input data does not match expected format.")
         yield payload
+
+
+_decoder = json.Decoder(Payload)
+
+
+def _decode(data: bytes | bytearray) -> Payload:
+    try:
+        return _decoder.decode(data)
+    except DecodeError:
+        raise UsageError("Input data does not match expected format.")

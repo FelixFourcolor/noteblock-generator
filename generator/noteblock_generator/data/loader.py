@@ -3,7 +3,6 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 from sys import stdin
-from typing import TypeVar
 from zipfile import ZipFile, is_zipfile
 
 from click import UsageError
@@ -18,15 +17,8 @@ MAX_PIPE_SIZE = 100 * 1024 * 1024  # 100 MB
 def load(path: Path | None):
     src = _load_source(path)
     data = _read_source(src)
-    return decode(data, Building)
-
-
-T = TypeVar("T")
-
-
-def decode(data: bytes | bytearray, type: type[T]) -> T:
     try:
-        return json.decode(data, type=type)
+        return json.decode(data, type=Building)
     except DecodeError:
         raise UsageError("Input data does not match expected format.")
 
