@@ -83,18 +83,20 @@ export const initCommand = command({
 				alias: "v",
 				type: "array",
 				describe: "Voice names",
-				default: [],
 			})
 			.option("out", {
 				alias: "o",
 				type: "string",
 				describe: "Path to project root",
 				defaultDescription: "cwd",
+			})
+			.option("force", {
+				describe: "Run even if the directory is not empty",
 			});
 	},
 	async execute(args) {
 		const { initProject } = await import("#extras/project-init/@");
-		return initProject(args.voices?.map(String), args.out);
+		return initProject(args.out, args.voices?.map(String), Boolean(args.force));
 	},
 });
 

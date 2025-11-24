@@ -1,19 +1,23 @@
 import { existsSync, readdirSync } from "node:fs";
+import { realpath } from "node:fs/promises";
 import { UserError } from "#cli/error.js";
 import { setupSchema } from "./schema.js";
 import { generateSourceFiles } from "./src.js";
 
-export function initProject(voices: string[], root = ".") {
-	ensureDirectoryIsEmpty(root);
-	generateSourceFiles(voices, `${root}/src`);
-	setupSchema(root);
-}
+export async function initProject(
+	root = ".",
+	voices: string[] = [],
+	force = false,
+) {
+	if (existsSync(root) && readdirSync(root).length > 0 && !force) {
+		const path = await realpath(root);
+		throw new UserError(
+			`Directory "${path}" is not empty; use --force to override.`,
+		);
+	}
 
-function ensureDirectoryIsEmpty(path: string) {
-	if (!existsSync(path)) {
-		return;
-	}
-	if (readdirSync(path).length > 0) {
-		throw new UserError(`"${path}" is not empty.`);
-	}
+	await Promise.all([
+		generateSourceFiles(voices, `${root}/src`),
+		setupSchema(root),
+	]);
 }
