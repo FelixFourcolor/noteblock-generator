@@ -1,3 +1,5 @@
+import { fstatSync } from "node:fs";
+import { stdout } from "node:process";
 import { assert } from "typia";
 import type { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -58,6 +60,11 @@ export const compileCommand = command({
 			return compile(src);
 		}
 
+		if (!out && fstatSync(stdout.fd).isFile()) {
+			throw new UserError(
+				"Cannot pipe to a file in watch mode; did you mean to use --out ?",
+			);
+		}
 		const debounce = (() => {
 			if (watch === true) {
 				return 1000;

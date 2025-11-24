@@ -1,10 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { stdin, stdout } from "node:process";
 import type { CommandOptions } from "./commands.js";
 import { handleError } from "./error.js";
-
-const { stdout, stdin } = process;
 
 export async function getInput(
 	args: CommandOptions<{ in: string | undefined }>,
@@ -77,5 +76,5 @@ async function getEntryPath(dirPath: string): Promise<string> {
 	if (topLevelFiles.length === 1) {
 		return join(dirPath, topLevelFiles[0]!.name);
 	}
-	return `${dirPath}/index.yaml`;
+	return join(dirPath, "index.yaml");
 }
