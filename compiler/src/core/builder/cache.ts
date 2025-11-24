@@ -37,15 +37,15 @@ export class BuilderCache {
 	}
 
 	invalidate(type: TPosition, size: Size) {
-		if (
+		const invalidated =
 			this.type !== type ||
 			this.size?.height !== size.height ||
-			this.size?.width !== size.width
-			// length change does not invalidate cache
-		) {
-			this.type = type;
+			this.size?.width !== size.width;
+		if (invalidated) {
 			this.slices = [];
+			this.blocks = {};
 		}
+		this.type = type;
 		this.size = size;
 	}
 
