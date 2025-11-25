@@ -92,7 +92,7 @@ src/
 ├─ piano/
 │  ├─ left-hand.yaml
 │  ├─ right-hand.yaml
-├─ strings/****
+├─ strings/
 │  ├─ violin.yaml
 │  ├─ cello.yaml
 ```
