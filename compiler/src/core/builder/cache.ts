@@ -6,19 +6,26 @@ import type { Building } from "./builders/builder.js";
 import type { Cursor } from "./cursor.js";
 import type { Size } from "./size.js";
 
+type Key = {
+	type: TPosition;
+	height: number;
+	width: number;
+};
+
 type SliceCache = {
 	slice: Slice;
 	cursor: Cursor;
 };
 
 export class BuilderCache {
-	private type: TPosition | undefined;
-	private size: Size | undefined;
+	private key: Key | undefined;
 	private slices: SliceCache[] = [];
 	private blocks: BlockMap = {};
 
+	private previousLength: number | undefined;
+	private currentLength: number | undefined;
 	get length() {
-		return this.size?.length;
+		return this.previousLength;
 	}
 
 	set(index: number, data: SliceCache) {
@@ -37,16 +44,16 @@ export class BuilderCache {
 	}
 
 	invalidate(type: TPosition, size: Size) {
-		const invalidated =
-			this.type !== type ||
-			this.size?.height !== size.height ||
-			this.size?.width !== size.width;
-		if (invalidated) {
+		const key = { type, height: size.height, width: size.width };
+		if (!isEqual(this.key, key)) {
+			this.key = key;
 			this.slices = [];
 			this.blocks = {};
+			this.previousLength = undefined;
+		} else {
+			this.previousLength = this.currentLength;
 		}
-		this.type = type;
-		this.size = size;
+		this.currentLength = size.length;
 	}
 
 	update(building: Building) {

@@ -132,18 +132,17 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				if (lastCachedCursor) {
 					// cache miss, update cursor to last time cache hit
 					this.cursor = lastCachedCursor.clone();
+					lastCachedCursor = undefined;
 				}
 
-				if (this.isStartOfRow) {
+				const isLongerThanCache = index >= (self.cache?.length ?? 0);
+				if (this.isStartOfRow && isLongerThanCache) {
 					self.buildPlayButton();
 				}
 				self.buildSlice(slice);
 
 				if (this.cache) {
-					this.cache.set(index, {
-						slice,
-						cursor: self.cursor.clone(),
-					});
+					this.cache.set(index, { slice, cursor: self.cursor.clone() });
 				}
 			});
 		});
