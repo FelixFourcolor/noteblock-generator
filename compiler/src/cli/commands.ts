@@ -14,7 +14,7 @@ interface Command<T> {
 	execute(args: CommandOptions<T>): Promise<void>;
 }
 
-function command<T>(recipe: {
+function createCommand<T>(recipe: {
 	buildOptions: (yargs: Argv) => Argv<T>;
 	execute: (args: CommandOptions<T>, yargs: Argv) => Promise<unknown>;
 }): (yargs: Argv) => Command<T> {
@@ -24,7 +24,7 @@ function command<T>(recipe: {
 	});
 }
 
-export const compileCommand = command({
+export const compileCommand = createCommand({
 	buildOptions(yargs) {
 		return yargs
 			.option("in", {
@@ -83,7 +83,7 @@ export const compileCommand = command({
 	},
 });
 
-export const initCommand = command({
+export const initCommand = createCommand({
 	buildOptions(yargs) {
 		return yargs
 			.option("voices", {
@@ -107,7 +107,7 @@ export const initCommand = command({
 	},
 });
 
-export const schemaCommand = command({
+export const schemaCommand = createCommand({
 	buildOptions(yargs) {
 		return yargs.option("out", {
 			alias: "o",

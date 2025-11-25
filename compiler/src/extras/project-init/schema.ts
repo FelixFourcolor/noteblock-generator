@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { CLI } from "#cli/@";
+import { launchCLI } from "#cli/cli.js";
 
 export async function setupSchema(root: string) {
 	const generateSchema = (async () => {
@@ -8,7 +8,7 @@ export async function setupSchema(root: string) {
 			console.error("Schema file already exists; skipping schema generation.");
 			return;
 		}
-		await CLI.run(["schema", "--out", `${root}/schema.json`]);
+		await launchCLI(["schema", "--out", schemaFile]);
 	})();
 
 	const setupVSCode = (async () => {
