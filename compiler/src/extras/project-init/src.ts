@@ -1,22 +1,24 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { stringify as yamlStringify } from "yaml";
 
 export async function generateSourceFiles(voices: string[], root: string) {
-	if (existsSync(root)) {
+	const srcDir = join(root, "src");
+
+	if (existsSync(srcDir)) {
 		console.error(
-			`Directory "${root}" already exists; skipping source generation.`,
+			`Directory "${srcDir}" already exists; skipping source generation.`,
 		);
 		return;
 	}
 
-	const indexPath = `${root}/index.yaml`;
+	const indexPath = join(srcDir, "index.yaml");
 	const indexData = { voices: voices.map((name) => `file://./${name}.yaml`) };
-	const voicePaths = voices.map((voice) => `${root}/${voice}.yaml`);
+	const voicePaths = voices.map((voice) => join(srcDir, `${voice}.yaml`));
 
-	await mkdir(root, { recursive: true });
-	await Promise.all([
+	await mkdir(srcDir, { recursive: true });
+	return Promise.all([
 		writeFile(indexPath, yamlStringify(indexData)),
 		...voicePaths.map(async (path) => {
 			await mkdir(dirname(path), { recursive: true });

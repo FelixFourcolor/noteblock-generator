@@ -96,14 +96,11 @@ export const initCommand = createCommand({
 				type: "string",
 				describe: "Path to project root",
 				defaultDescription: "cwd",
-			})
-			.option("force", {
-				describe: "Run even if the directory is not empty",
 			});
 	},
 	async execute(args) {
 		const { initProject } = await import("#extras/project-init/@");
-		return initProject(args.out, args.voices?.map(String), Boolean(args.force));
+		return initProject(args.out, args.voices?.map(String));
 	},
 });
 
