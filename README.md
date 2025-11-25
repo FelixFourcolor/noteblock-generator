@@ -1,92 +1,212 @@
 # Noteblock generator
 
-This program is only intended for my own use, and shared only for others to replicate my builds.
+This is a project that takes human-readable music notation in plain text and generates a note block structure in Minecraft. The notation is a language I made up, loosely inpired by [lilypond](https://lilypond.org/), with features specifically designed for note block music.
 
-See my projects:
+There are two separate programs, a [compiler](#compiler) and a [generator](#generator).
 
-* [Handel's He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
-* [Bach's Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
-* [Bach's Herr, unser Herrscher](https://github.com/FelixFourcolor/Herr-unser-Herrscher)
-* [Mozart's Confutatis](https://github.com/FelixFourcolor/Confutatis)
-* [Mozart's Dies irae](https://github.com/FelixFourcolor/Dies-irae)
-* [Mozart's Sull'aria](https://github.com/FelixFourcolor/Canzonetta-sull-aria)
-* [Handel's And the glory of the Lord](https://github.com/FelixFourcolor/And-the-glory-of-the-Lord)
-* [Handel's Hallelujah](https://github.com/FelixFourcolor/Hallelujah)
+## Compiler
 
-## Requirements
+The compiler takes the music source and outputs an intermediate representation of the note block structure.
 
-* Minecraft Java 1.19+
-* Python 3.10-3.12
+### Setup
 
-## Installation
+<table>
+  <tr>
+    <th>Requires</th>
+    <td>Node.js >= 22</td>
+  </tr>
+  <tr>
+    <th>Install</th>
+    <td><code>npm install noteblock-compiler</code></td>
+  </tr>
+</table>
+<br/>
 
-```pip install --upgrade noteblock-generator```
+After installing, the `nbc` command should be available. Run `nbc --help` to verify.
 
-## Usage
+### Usage
 
-```text
-usage: noteblock-generator path/to/music/source path/to/minecraft/world [OPTIONS]
+Music is written in YAML format. The simplest use case is just an array of note names:
 
-build options:
-  -l/--location X Y Z                  build location; default is player's location
-  -d/--dimension DIMENSION             build dimension; default is player's dimension
-  -o/--orientation HORIZONTAL VERTICAL build orientation; default is player's orientation
-  -t/--theme BLOCK                     redstone-conductive block; default is stone
-  --blend                              blend the structure with its environment
-
-output options:
-  -q/--quiet                           decrease output verbosity; can be used up to 3 times
-  --debug                              show full exception traceback if an error occurs
-
-help:
-  -h/--help                            show this help message and exit
+```sh
+# twinkle twinkle little star
+echo "[c, c, g, g, a, a, g]" | nbc
 ```
 
-### Music source
+<details>
+<summary> What the output looks like</summary>
 
-Path to the music source. It should be provided to you in all of my projects.
+```jsonc
+{
+  "size": { "height": 6, "length": 11, "width": 36 },
+  "blocks": {
+    "7 2 18": 0,
+    "7 1 17": 0,
+    "7 2 17": "repeater[facing=south]",
+    "7 0 16": 0,
+    "7 1 16": "redstone_wire[east=side,west=side]",
+    "7 2 16": 0,
+    "7 1 15": 0,
+    "6 0 16": "air",
+    "6 1 16": "note_block[note=13]",
+    "6 2 16": "air",
+    "8 1 16": null,
+    "6 1 15": null,
+    "8 1 15": null,
+    "5 1 16": null,
+    "9 1 16": null,
+    "7 2 15": "repeater[facing=south]",
+    "7 0 14": 0,
+    "7 1 14": "redstone_wire[east=side,west=side]",
+    "7 2 14": 0,
+    "7 1 13": 0,
+    "6 0 14": "air",
+    "6 1 14": "note_block[note=13]",
+    "6 2 14": "air",
+    "8 1 14": null,
+    "6 1 13": null,
+    "8 1 13": null,
+    "5 1 14": null,
+    "9 1 14": null,
+    "7 2 13": "repeater[facing=south]",
+    "7 0 12": 0,
+    "7 1 12": "redstone_wire[east=side,west=side]",
+    "7 2 12": 0,
+    "7 1 11": 0,
+    "6 0 12": "air",
+    "6 1 12": "note_block[note=13]",
+    "6 2 12": "air",
+    // ...
+    // truncated, actual output is very large
+  }
+}
+```
 
-### Minecraft world
+</details>
 
-Path to an existing minecraft world. Only Java Edition is supported.
+A typical project would have a main file that defines the song, and a separate file for each voice. For example:
 
-Consult Minecraft's documentation (or your custom launcher's documentation if you use one) for where the save folder is.
+```txt
+src/
+├─ index.yaml
+├─ piano/
+│  ├─ left-hand.yaml
+│  ├─ right-hand.yaml
+├─ strings/****
+│  ├─ violin.yaml
+│  ├─ cello.yaml
+```
 
-### Location
+To compile a single-file project, you can just pipe the file into `nbc` like above. For multi-file projects, provide the main file as an option parameter:
 
-The location where the structure will be generated.
+```sh
+nbc -i src/index.yaml
+```
 
-This uses Minecraft's relative coordinates syntax, where `~` stands for the player's location. For example, `--location ~ ~ ~` (default) is the player's current location, `--location ~ ~10 ~` is 10 blocks above the player, etc.
+### Features
 
-### Dimension
+If placing blocks yourself in-game is like writing machine code by hand, and using an auto-generator from a MIDI file is like asking an LLM to write the code for you, then this compiler is like assembly or C. There are some abstractions to ease the process, but you retain very fine control over the output.
 
-The dimension where the structure will be generated. If not given, it will be the player's current dimension.
+Features include:
 
-### Orientation
+- Mixing instruments (one note played by multiple blocks of different instruments)
+- Customizable sustain length. For example, a note's duration may be 4 redstone ticks, but you can make it only sustained for 3 ticks, leaving the last tick silent.
+- Two ways to control volume:
+  - Multiplicity-based: how many blocks used to play the note.
+  - Position-based: How far away the note block is from the player.
+- Volume can vary during a note's duration (e.g., to create onset and/or fade-out).
+- When mixing instruments, each can have its own sustain & volume settings.
+- Any setting can be changed mid-song.
 
-The orientation towards which the structure will be generated.
+Since this tool is only intended for my own use, **there is no documentation** for how to use this language.
 
-This uses Minecraft's rotation syntax, which is a pair of two numbers, the first one for horizontal, the second one for vertical. Horizontal rotation goes from -180 to 180, where -180 is north, -90 is east, 0 is south, 90 is east, and 180 is wrapping back to north. Vertical rotation goes form -90 to 90, where -90 is looking straight up and 90 is straight down.
+## Generator
 
-Similarly to location, either value of the pair (or both) can be substituted with a `~` to use the player's current orientation. For example, `--orientation ~ 90` means facing the same horizontal direction as the player, looking down.
+The generator takes the compiler's output and generates the structure in-game.
 
-### Theme
+### Setup
 
-Choose a block that can conduct redstones. Default is `stone`
+<table>
+  <tr>
+    <th>Requires</th>
+    <td>Python >= 3.10</td>
+  </tr>
+  <tr>
+    <th>Install</th>
+    <td><code>pip install noteblock-generator</code></td>
+  </tr>
+</table>
+<br/>
 
-Consult Minecraft's documentation for what blocks can conduct redstone and their technical names (Java Edition).
+After installing, the `nbg` command should be available. Run `nbg --help` to verify.
 
-### Blend
+### Basic usage
 
-By default, the program will clear the entire space before generating. With `--blend`, it will place noteblocks and redstone components where they need to be, remove things that may interfere with the redstones (e.g. water), and leave the rest. The result is the structure will appear blended in with its environment.
+```sh
+nbg -i path/to/compiler/output -o path/to/minecraft/world
+```
 
-### Verbosity
+You can also pipe the compiler's output directly into the generator.
 
-There are 4 verbosity levels, from least to most verbose is:
+```sh
+nbc [options] | nbg -o path/to/minecraft/world
+```
 
-* `-qqq`: No output at all, even if an error occurs, only an exit status to indicate success.
-* `-qq`: Above, plus critical warnings, and a brief error message if one occurs.
-* `-q`: Above, plus brief information about the structure, a generating progress bar, and longer error message if one occurs.
-* Default: Above, plus full information about the structure, and a confirmation prompt before generating.
+### Theming
 
-Note: with `-q` option, without a confirmation prompt, you can still press `CTRL + C` before the progress bar reaches 100% to safely quit the program; no changes would be made to the world.
+To find themes, go to the Minecraft wiki for the block you like (must be [redstone-conductive](https://minecraft.wiki/w/Conductivity)), scroll down to "Data values", and use the block's identifier for Java edition ([example page](https://minecraft.wiki/w/Block_of_Copper#Data_values)).
+
+| `--theme packed_ice` | `--theme gold_block` |
+| :-: | :-: |
+| ![ice theme](images/ice-theme.png) | ![gold theme](images/gold-theme.png) |
+
+If the block has states, you can specify them inside square brackets.
+
+| `--theme cherry_log[axis=x]` | `--theme cherry_log[axis=y]` |
+| :-: | :-: |
+| ![cherry_log axis=x](images/axis-x.png) | ![cherry_log axis=y](images/axis-y.png) |
+
+You can use `--theme` (or `-t` for short) multiple times. Theme blocks will be distributed evenly across the structure's width from left to right.
+
+`-t blue_ice -t stripped_cherry_log -t white_wool -t stripped_cherry_log -t blue_ice`
+![multi theme](images/multi-theme.png)
+
+### Blending
+
+By default, the program clears the entire space that the structure will occupy before generating. With the `--blend` flag, the structure will generate into the terrain, leaving existing blocks intact.
+
+| Default | `--blend` |
+| :-: | :-: |
+| ![without --blend](images/no-blend.png) | ![with --blend](images/blend.png) |
+
+### Positioning
+
+By default, the structure is generated wherever your character is. But you can fully customize the position. For example,
+
+```sh
+nbg -i compiled.json -o path/to/world
+    --dim   nether      # in the nether
+    --at    10 80 500   # starting from x=10, y=80, z=500
+    --face  +X          # generate towards the positive X direction
+    --align left        # to the player's left
+    --tilt  down        # underneath the player's feet
+```
+
+will result in
+
+```text
+^                                   ^
+| X                                 | Y
+|                                   |
+|      ----------------             - 80   ---------------@
+|      |              |             |      |              |
+|      |     the      |             |      |     the      |
+|      |  structure   |             |      |  structure   |
+|      |              |             |      |              |
+|      | (above view) |             |      | (side view)  |
+|      |              |             |      |              |
+- 10   ---------------@             |      ----------------
+|                                   |
+|                    500   Z        |                    500   Z
+----------------------|----->       ----------------------|----->
+```

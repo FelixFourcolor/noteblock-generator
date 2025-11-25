@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"plugins": [{ "transform": "typia/lib/transform" }],
+
+		"target": "ESNext",
+		"module": "NodeNext",
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"skipDefaultLibCheck": true,
+
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"exactOptionalPropertyTypes": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedSideEffectImports": true,
+
+		"paths": {
+			"#schema/@": ["./src/types/schema/index.ts"],
+			"#schema/*/@": ["./src/types/schema/*/index.ts"],
+			"#schema/*": ["./src/types/schema/*"],
+			"#*/@": ["./src/*/index.ts"],
+			"#*": ["./src/*"]
+		},
+		"outDir": "dist"
+	},
+	"include": ["src"]
+}
