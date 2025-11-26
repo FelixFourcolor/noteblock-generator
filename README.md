@@ -1,8 +1,6 @@
 # Noteblock generator
 
-This program is only intended for my own use, and shared only for others to replicate my builds.
-
-See my projects:
+This branch is no longer maintained, and is kept only for backward compatibility with these old projects:
 
 * [Handel's He trusted in God](https://github.com/FelixFourcolor/He-trusted-in-God)
 * [Bach's Sind Blitze, sind Donner](https://github.com/FelixFourcolor/Sind-Blitze-sind-Donner)
@@ -20,7 +18,7 @@ See my projects:
 
 ## Installation
 
-```pip install --upgrade noteblock-generator```
+```pip install --upgrade noteblock-generator==0.2.1```
 
 ## Usage
 
