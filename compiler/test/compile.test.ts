@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { mkdir, readdir, unlink, writeFile } from "node:fs/promises";
+import { createReadStream, readdirSync } from "node:fs";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, parse } from "node:path";
 import { fromPairs, mapKeys, orderBy, toPairs } from "lodash";
 import { describe, expect, test } from "vitest";
@@ -9,40 +9,44 @@ import { build } from "#core/builder";
 import { ResolutionCache } from "#core/resolver/cache.js";
 import { resolveSong } from "#core/resolver/components";
 
-describe("Compile tests", async () => {
+describe("Compile tests", () => {
 	const projectsDir = join(__dirname, "data", "projects");
-	for (const projectName of await readdir(projectsDir)) {
+	for (const projectName of readdirSync(projectsDir)) {
 		const projectPath = join(projectsDir, projectName);
 
-		describe(projectName, async () => {
+		test.concurrent(projectName, async () => {
 			const entryFile = join(projectPath, "repo", "src", "index.yaml");
 			const results = await getCompiledData(entryFile);
 
-			for (const [name, data] of Object.entries(results)) {
-				const getVerifiedHash = async () => {
-					const verifiedFile = join(projectPath, "verified", `${name}.json`);
-					return getFileHash(verifiedFile).catch(() => null);
-				};
+			return Promise.all(
+				Object.entries(results).map(async ([name, data]) => {
+					const getVerifiedHash = async () => {
+						const verifiedFile = join(projectPath, "verified", `${name}.json`);
+						return getFileHash(verifiedFile).catch(() => null);
+					};
 
-				// If verified file doesn't exist, still write the received file.
-				// Convenient to generate initial snapshot.
-				const writeReceivedFile = async () => {
-					const receivedFile = join(projectPath, "received", `${name}.json`);
-					await serialize(data, receivedFile);
-					return receivedFile;
-				};
+					// If verified file doesn't exist, still write the received file.
+					// Convenient to generate initial snapshot.
+					const writeReceivedFile = async () => {
+						const receivedFile = join(projectPath, "received", `${name}.json`);
+						await serialize(data, receivedFile);
+						return receivedFile;
+					};
 
-				const [verifiedHash, receivedFile] = await Promise.all([
-					getVerifiedHash(),
-					writeReceivedFile(),
-				]);
+					const [verifiedHash, receivedFile] = await Promise.all([
+						getVerifiedHash(),
+						writeReceivedFile(),
+					]);
 
-				test.skipIf(!verifiedHash)(name, async () => {
+					if (verifiedHash === null) {
+						return;
+					}
+
 					const receivedHash = await getFileHash(receivedFile);
 					expect(receivedHash).toBe(verifiedHash);
 					await unlink(receivedFile);
-				});
-			}
+				}),
+			);
 		});
 	}
 });
