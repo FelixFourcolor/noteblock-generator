@@ -1,14 +1,15 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
+import type { NoteEvent } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
-import type { ErrorTracker } from "./error-tracker.js";
-import type { LevelEntry, LevelMap, NoteEvent } from "./types.js";
-import { validateClusterSize } from "./validation.js";
+import type { ErrorTracker } from "./errors.js";
+import { validateClusterSize } from "./errors.js";
+import type { LevelEntry, LevelMap } from "./layout.js";
 
 export function mapLevels(
 	notes: NoteEvent[],
 	type: TPosition,
-	errorTracker: ErrorTracker,
+	{ registerError }: Pick<ErrorTracker, "registerError">,
 ): LevelMap {
 	if (notes.length === 0) {
 		return {};
@@ -17,7 +18,7 @@ export function mapLevels(
 	// Already validated consistency, so just take the first's
 	const measure = notes[0]!.measure;
 	const onError = (error: string) => {
-		errorTracker.registerError(error, measure);
+		registerError(error, measure);
 	};
 
 	return match(type)

@@ -1,15 +1,16 @@
 import { is } from "typia";
 import { UserError } from "#cli/error.js";
-import type { ResolutionCache } from "#core/resolver/cache.js";
-import type { FileRef, VoiceEntry } from "#schema/@";
-import { zip } from "../generator-utils.js";
-import type { SongContext, VoiceResolution } from "../resolution.js";
-import { resolveVoice } from "../voice/voice.js";
+import type { ResolverCache } from "#core/resolver/cache.js";
+import type { FileRef, IProperties, VoiceEntry } from "#schema/@";
+import { zip } from "./utils/generators.js";
+import { resolveVoice, type VoiceResolution } from "./voice.js";
+
+export type SongContext = { songModifier: IProperties; cwd: string };
 
 export async function resolveVoices(
 	entries: VoiceEntry[],
 	ctx: SongContext,
-	cache?: ResolutionCache,
+	cache?: ResolverCache,
 ): Promise<VoiceResolution> {
 	async function merge(voices: Promise<VoiceResolution>[]) {
 		const voiceResolutions = await Promise.all(voices);
@@ -56,7 +57,7 @@ export async function resolveVoices(
 		.filter((e) => e !== null);
 
 	if (voices.length === 0) {
-		throw new UserError("Song must contain at least one voice.");
+		throw new UserError("Song is empty.");
 	}
 
 	return merge(voices);

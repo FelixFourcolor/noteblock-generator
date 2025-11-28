@@ -1,4 +1,4 @@
-import { multi, type OneOrMany } from "../properties/multi.js";
+import { multi, type OneOrMany } from "#core/resolver/properties/@";
 
 export function* zip<T>(generators: Generator<T[]>[]): Generator<T[]> {
 	while (true) {

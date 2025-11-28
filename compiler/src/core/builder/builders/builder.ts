@@ -1,5 +1,5 @@
 import { forEachRight, range } from "lodash";
-import type { NoteCluster, Slice, SongLayout } from "#core/assembler/@";
+import type { NoteCluster, Slice, SongLayout } from "#core/layout/@";
 import type { TPosition } from "#schema/@";
 import { Block } from "../block.js";
 import { type BlockMap, BlockPlacer } from "../block-placer.js";

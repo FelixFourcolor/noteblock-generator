@@ -1,11 +1,15 @@
 import { basename, dirname } from "node:path";
 import { watch } from "chokidar";
 import { debounce } from "lodash";
-import { resolveSong, type SongResolution } from "#core/resolver/components/@";
-import type { FileRef, JsonData } from "#schema/@";
-import { ResolutionCache } from "./cache.js";
+import {
+	type JsonString,
+	resolveSong,
+	type SongResolution,
+} from "#core/resolver/components/@";
+import type { FileRef } from "#schema/@";
+import { ResolverCache } from "./cache.js";
 
-export function resolve(src: FileRef | JsonData): Promise<SongResolution> {
+export function resolve(src: FileRef | JsonString): Promise<SongResolution> {
 	return resolveSong(src);
 }
 
@@ -18,7 +22,7 @@ export async function* liveResolver(
 	const entryFilePath = src.slice(7);
 	const trackedDependencies = new Set<string>();
 	const changedFiles = new Set([entryFilePath]);
-	const cache = new ResolutionCache();
+	const cache = new ResolverCache();
 
 	const createChangeSignal = () => {
 		const { promise, resolve } = Promise.withResolvers<void>();

@@ -1,21 +1,18 @@
 import { partition } from "lodash";
 import { match, P } from "ts-pattern";
-import type { SongResolution } from "#core/resolver/@";
-import type { BoundsTracker } from "./bounds-tracker.js";
-import type { ErrorTracker } from "./error-tracker.js";
-import { mapLevels } from "./level-mapper.js";
-import type { LevelMap } from "./types.js";
-import { validateConsistency } from "./validation.js";
+import type { Tick } from "#core/resolver/@";
+import type { TPosition } from "#schema/@";
+import { type ErrorTracker, validateConsistency } from "./errors.js";
+import type { HeightTracker } from "./height.js";
+import type { LevelMap } from "./layout.js";
+import { mapLevels } from "./levels.js";
 
-export function* processSong(
-	song: SongResolution,
-	boundTracker: BoundsTracker,
-	errorTracker: ErrorTracker,
+export function* processTicks(
+	ticks: Iterable<Tick>,
+	type: TPosition,
+	{ registerLevel }: Pick<HeightTracker, "registerLevel">,
+	{ registerError }: Pick<ErrorTracker, "registerError">,
 ): Generator<{ delay: number; levelMap: LevelMap }> {
-	const { type, ticks } = song;
-	const { registerLevel } = boundTracker;
-	const { registerError } = errorTracker;
-
 	let measure = { bar: 1, tick: 0 };
 
 	for (const tick of ticks) {
@@ -44,7 +41,7 @@ export function* processSong(
 			});
 
 		const notes = events.filter((event) => event.noteblock != null);
-		const levelMap = mapLevels(notes, type, errorTracker);
+		const levelMap = mapLevels(notes, type, { registerError });
 		Object.keys(levelMap).map(Number).map(registerLevel);
 
 		yield { delay, levelMap };

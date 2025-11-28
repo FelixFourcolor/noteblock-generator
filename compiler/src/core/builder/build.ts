@@ -1,6 +1,6 @@
 import { isEmpty } from "lodash";
 import { match } from "ts-pattern";
-import type { SongLayout } from "#core/assembler/@";
+import type { SongLayout } from "#core/layout/@";
 import type { Building } from "./builders/builder.js";
 import { DoubleBuilder } from "./builders/double-builder.js";
 import { SingleBuilder } from "./builders/single-builder.js";

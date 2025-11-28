@@ -1,5 +1,5 @@
 import { isEqual } from "lodash";
-import type { Slice } from "#core/assembler/@";
+import type { Slice } from "#core/layout/@";
 import type { TPosition } from "#schema/@";
 import type { BlockMap } from "./block-placer.js";
 import type { Building } from "./builders/builder.js";

@@ -1,14 +1,13 @@
 import { isEmpty } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import { splitTimedValue } from "#core/resolver/duration.js";
-import type { OneOrMany } from "#core/resolver/properties/multi.js";
+import { type OneOrMany, splitTimedValue } from "#core/resolver/properties/@";
 import type { Note, NoteModifier, NoteValue, Trill } from "#schema/@";
-import type { Context } from "../context.js";
-import { chain, multiZip, zip } from "../generator-utils.js";
-import type { TickEvent } from "../tick.js";
 import { resolveNoteblocks } from "./noteblock.js";
 import { applyPhrasing } from "./phrasing.js";
+import type { TickEvent } from "./tick.js";
+import type { Context } from "./utils/context.js";
+import { chain, multiZip, zip } from "./utils/generators.js";
 
 type ResolvedNote<Phrased extends boolean = true> = Phrased extends true
 	? Generator<TickEvent.Phrased[]>
@@ -111,7 +110,7 @@ export function resolveNote(note: Note, voiceContext: Context): ResolvedNote {
 	return applyPhrasing({ events: chain(compoundItems), context: noteContext });
 }
 
-export function normalize(note: Note): {
+function normalize(note: Note): {
 	value: NoteValue | Note.Compound.Value;
 	trillValue: Trill.Value | undefined;
 	noteModifier: NoteModifier;

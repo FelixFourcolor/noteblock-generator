@@ -1,14 +1,17 @@
-import type { Tick, VoiceContext, VoiceResolution } from "#core/resolver/@";
 import type { FileRef } from "#schema/@";
+import type { Tick } from "./components/tick.js";
+import type { VoiceContext, VoiceResolution } from "./components/voice.js";
 
 type CacheKey = VoiceContext & { voice: FileRef };
-type SerializedResolution = Omit<VoiceResolution, "ticks"> & { ticks: Tick[] };
 
-export class ResolutionCache {
+export class ResolverCache {
 	dependencies = new Set<string>();
 
 	private cacheKeys = new Map<FileRef, string>();
-	private cache = new Map<string, SerializedResolution>();
+	private cache = new Map<
+		string,
+		Omit<VoiceResolution, "ticks"> & { ticks: Tick[] }
+	>();
 
 	get(key: CacheKey): VoiceResolution | undefined {
 		const cached = this.cache.get(JSON.stringify(key));
@@ -38,8 +41,7 @@ export class ResolutionCache {
 		}
 	}
 
-	/** For integration tests only */
-	exportData() {
+	exportDataForTests() {
 		return Object.fromEntries(
 			this.dependencies
 				.values()
@@ -55,7 +57,7 @@ function toFileRef(filePath: string): FileRef {
 	if (!filePath.match(/^\.*\//)) {
 		filePath = `./${filePath}`;
 	}
-	return `file://${filePath}`;
+	return `file://${filePath}` as FileRef;
 }
 
 function toGenerator<T>(array: T[]): Generator<T> {

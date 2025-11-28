@@ -2,29 +2,26 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve as resolvePath } from "node:path";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
-import type { Deferred, FileRef, JsonData } from "#schema/@";
+import type { JsonString } from "#core/resolver/components/@";
+import type { FileRef } from "#schema/@";
 
 type Validator<T> = (input: unknown) => input is T;
 
-type ValidateContext<T extends object> = {
-	data: Deferred<T, { allowJson: true }>;
-	validator: Validator<T>;
-	cwd?: string;
-};
-
-export type Validated<T> = {
+type ValidateSuccess<T> = {
 	data: T;
 	cwd: string;
 	filename?: string;
 };
 
-export type ValidateError = { error: string };
+export type ValidateError<Context extends unknown | undefined = undefined> = {
+	error: string;
+} & (Context extends undefined ? {} : { context?: Context });
 
-export async function validate<T extends object>({
-	data,
-	validator,
+export async function validate<T extends object>(
+	data: T | FileRef | JsonString,
+	validator: Validator<T>,
 	cwd = process.cwd(),
-}: ValidateContext<T>): Promise<Validated<T> | ValidateError> {
+): Promise<ValidateSuccess<T> | ValidateError> {
 	if (is<FileRef>(data)) {
 		const cleanedPath = data.slice(7);
 		const resolvedPath = resolvePath(cwd, cleanedPath);
@@ -37,7 +34,7 @@ export async function validate<T extends object>({
 		};
 	}
 
-	if (is<JsonData>(data)) {
+	if (is<JsonString>(data)) {
 		const result = parseValidate(data.slice(7), validator);
 		return { ...result, cwd };
 	}
@@ -64,11 +61,12 @@ function parseValidate<T>(input: string, validator: Validator<T>) {
 	} catch (e) {
 		return { error: String(e) };
 	}
-	return validateWithError(data, validator);
+	return validateData(data, validator);
 }
 
-function validateWithError<T>(data: unknown, validator: Validator<T>) {
-	if (validator(data)) {
+function validateData<T>(data: unknown, validator: Validator<T>) {
+	const success = validator(data);
+	if (success) {
 		return { data };
 	}
 	return { error: "Data does not match schema." };

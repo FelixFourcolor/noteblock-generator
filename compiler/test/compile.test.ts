@@ -1,25 +1,28 @@
 import { createHash } from "node:crypto";
-import { createReadStream, readdirSync } from "node:fs";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { createReadStream, readdirSync, rmdirSync } from "node:fs";
+import { mkdir, rmdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, parse } from "node:path";
 import { fromPairs, mapKeys, orderBy, toPairs } from "lodash";
 import { describe, expect, test } from "vitest";
-import { assemble } from "#core/assembler";
 import { build } from "#core/builder";
-import { ResolutionCache } from "#core/resolver/cache.js";
+import { calculateLayout } from "#core/layout/layout.js";
+import { ResolverCache } from "#core/resolver/cache.js";
 import { resolveSong } from "#core/resolver/components";
+import type { FileRef } from "#schema/@";
 
 describe("Compile tests", () => {
 	const projectsDir = join(__dirname, "data", "projects");
 	for (const projectName of readdirSync(projectsDir)) {
 		const projectPath = join(projectsDir, projectName);
+		const entryFile = join(projectPath, "repo", "src", "index.yaml");
+		const receivedDir = join(projectPath, "received");
 
 		test.concurrent(projectName, async () => {
-			const entryFile = join(projectPath, "repo", "src", "index.yaml");
-			const results = await getCompiledData(entryFile);
+			await rmdir(receivedDir).catch(() => null);
+			const compiledData = await getCompiledData(entryFile);
 
-			return Promise.all(
-				Object.entries(results).map(async ([name, data]) => {
+			const testResults = await Promise.all(
+				Object.entries(compiledData).map(async ([name, data]) => {
 					const getVerifiedHash = async () => {
 						const verifiedFile = join(projectPath, "verified", `${name}.json`);
 						return getFileHash(verifiedFile).catch(() => null);
@@ -28,7 +31,7 @@ describe("Compile tests", () => {
 					// If verified file doesn't exist, still write the received file.
 					// Convenient to generate initial snapshot.
 					const writeReceivedFile = async () => {
-						const receivedFile = join(projectPath, "received", `${name}.json`);
+						const receivedFile = join(receivedDir, `${name}.json`);
 						await serialize(data, receivedFile);
 						return receivedFile;
 					};
@@ -39,29 +42,37 @@ describe("Compile tests", () => {
 					]);
 
 					if (verifiedHash === null) {
-						return;
+						return true;
 					}
 
 					const receivedHash = await getFileHash(receivedFile);
-					expect(receivedHash).toBe(verifiedHash);
-					await unlink(receivedFile);
+					const hashesMatch = verifiedHash === receivedHash;
+					if (hashesMatch) {
+						await unlink(receivedFile);
+					}
+					return hashesMatch;
 				}),
 			);
+
+			expect(testResults.every((result) => result === true)).toBe(true);
+			// don't rm recursive so that dir is only deleted if all tests pass
+			await rmdir(receivedDir);
 		});
 	}
 });
 
 async function getCompiledData(src: string): Promise<Record<string, object>> {
-	const cache = new ResolutionCache();
-	const rawResolved = await resolveSong(`file://${src}`, cache);
-	const resolved = { ...rawResolved, ticks: Array.from(rawResolved.ticks) };
-	const assembled = assemble(resolved);
-	const compiled = build(assembled);
+	const cache = new ResolverCache();
+	const resolved = await resolveSong(`file://${src}` as FileRef, cache).then(
+		({ ticks, width, type }) => ({ ticks: Array.from(ticks), width, type }),
+	);
+	const layout = calculateLayout(resolved);
+	const compiled = build(layout);
 	const voices = mapKeys(
-		cache.exportData(),
+		cache.exportDataForTests(),
 		(_, path) => `resolved.${parse(path).name}`,
 	);
-	return { ...voices, resolved, assembled, compiled };
+	return { ...voices, resolved, layout, compiled };
 }
 
 async function getFileHash(filePath: string): Promise<string> {

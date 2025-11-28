@@ -1,6 +1,5 @@
 import { zipWith } from "lodash";
 import { assert, is } from "typia";
-import { splitVariableValue } from "#core/resolver/duration.js";
 import type {
 	Delete,
 	Positional,
@@ -9,6 +8,7 @@ import type {
 	Level as T_Level,
 	Position as T_Position,
 } from "#schema/@";
+import { splitVariableValue } from "../duration.js";
 import { multiMap, type OneOrMany } from "../multi.js";
 import type { ResolveType } from "../properties.js";
 import { Division } from "./division.js";

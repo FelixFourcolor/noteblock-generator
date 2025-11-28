@@ -1,8 +1,8 @@
 import { times, zipWith } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import { resolveVariableValue } from "#core/resolver/duration.js";
 import type { Level as T_Level } from "#schema/@";
+import { resolveVariableValue } from "../duration.js";
 import { Positional } from "../positional.js";
 import type { ResolveType } from "../properties.js";
 import {

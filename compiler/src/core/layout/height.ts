@@ -1,4 +1,4 @@
-export class BoundsTracker {
+export class HeightTracker {
 	minLevel = Number.MAX_SAFE_INTEGER;
 	maxLevel = Number.MIN_SAFE_INTEGER;
 

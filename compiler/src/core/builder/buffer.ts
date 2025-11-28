@@ -1,6 +1,6 @@
 import { times } from "lodash";
 
-import type { SongLayout } from "#core/assembler/@";
+import type { SongLayout } from "#core/layout/@";
 
 export function addBuffer<S extends SongLayout>(song: S): S {
 	const { width, height, slices } = song;

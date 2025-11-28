@@ -1,4 +1,4 @@
-import type { Slice } from "#core/assembler/@";
+import type { Slice } from "#core/layout/@";
 import { Block } from "../block.js";
 import { Direction } from "../direction.js";
 import { Builder } from "./builder.js";

@@ -1,15 +1,15 @@
 import { times } from "lodash";
 import { match, P } from "ts-pattern";
-import type { OneOrMany } from "#core/resolver/properties/@";
 import {
 	Dynamic,
 	isMulti,
 	multiMap,
+	type OneOrMany,
 	Position,
 	Sustain,
 } from "#core/resolver/properties/@";
-import type { Context } from "../context.js";
-import type { TickEvent } from "../tick.js";
+import type { TickEvent } from "./tick.js";
+import type { Context } from "./utils/context.js";
 
 export function* applyPhrasing({
 	events,

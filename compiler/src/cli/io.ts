@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { stdin, stdout } from "node:process";
+import type { FileRef } from "#schema/@";
 import type { CommandOptions } from "./commands.js";
 import { handleError } from "./error.js";
 
@@ -10,7 +11,7 @@ export async function getInput(
 ) {
 	if (args.in) {
 		const path = await getEntryPath(args.in);
-		return `file://${path}` as const;
+		return `file://${path}` as FileRef;
 	}
 	if (!stdin.isTTY) {
 		const chunks = await Array.fromAsync(stdin);

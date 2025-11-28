@@ -1,3 +1,4 @@
+export * from "./duration.js";
 export * from "./multi.js";
 
 export * from "./positional/division.js";

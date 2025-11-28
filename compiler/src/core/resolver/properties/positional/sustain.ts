@@ -1,12 +1,12 @@
 import { match, P } from "ts-pattern";
 import { assert, createIs } from "typia";
-import { parseDuration } from "#core/resolver/duration.js";
 import type {
 	Beat,
 	Duration,
 	IPositional,
 	Sustain as T_Sustain,
 } from "#schema/@";
+import { parseDuration } from "../duration.js";
 import { multiMap } from "../multi.js";
 import { Positional } from "../positional.js";
 

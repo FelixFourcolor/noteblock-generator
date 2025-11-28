@@ -1,6 +1,6 @@
-import type { NoteBlock } from "#core/resolver/@";
 import type { Delay } from "#schema/@";
-import type { IMeasure } from "./measure.ts";
+import type { NoteBlock } from "../properties/index.ts";
+import type { IMeasure } from "./utils/measure.ts";
 
 type TEvent = keyof variants;
 interface variants {
@@ -22,3 +22,5 @@ export namespace TickEvent {
 }
 
 export type Tick<T extends TEvent = TEvent> = TickEvent.Voiced<T>[];
+
+export type NoteEvent = TickEvent.Voiced<"note">;
