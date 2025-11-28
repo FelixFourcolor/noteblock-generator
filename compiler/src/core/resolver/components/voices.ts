@@ -23,18 +23,7 @@ export async function resolveVoices(
 		};
 	}
 
-	const resolveVoiceWithCache: typeof resolveVoice = cache
-		? async (voice, ctx) => {
-				if (!is<FileRef>(voice)) {
-					return resolveVoice(voice, ctx);
-				}
-				const cacheKey = { ...ctx, voice };
-				return (
-					cache.get(cacheKey) ??
-					resolveVoice(voice, ctx).then((res) => cache.set(cacheKey, res))
-				);
-			}
-		: resolveVoice;
+	const cachedResolveVoice = resolveVoiceWithCache(cache);
 
 	const voices = entries
 		.reverse()
@@ -43,11 +32,11 @@ export async function resolveVoices(
 				return null;
 			}
 			if (!Array.isArray(entry)) {
-				return resolveVoiceWithCache(entry, { ...ctx, index });
+				return cachedResolveVoice(entry, { ...ctx, index });
 			}
 			return merge(
 				entry.map((subvoice, subIndex) => {
-					return resolveVoiceWithCache(subvoice, {
+					return cachedResolveVoice(subvoice, {
 						...ctx,
 						index: [index, subIndex],
 					});
@@ -61,4 +50,36 @@ export async function resolveVoices(
 	}
 
 	return merge(voices);
+}
+
+function resolveVoiceWithCache(cache?: ResolverCache): typeof resolveVoice {
+	if (!cache) {
+		return resolveVoice;
+	}
+
+	return (voice, ctx) => {
+		const cacheKey = (() => {
+			const { songModifier, index } = ctx;
+			const level = typeof index === "number" ? index : index[0];
+			if (is<FileRef>(voice)) {
+				return { songModifier, level, url: voice };
+			}
+			const { notes, ...voiceModifier } = voice;
+			if (is<FileRef>(notes)) {
+				return { songModifier, voiceModifier, level, url: notes };
+			}
+			return null;
+		})();
+
+		if (!cacheKey) {
+			return resolveVoice(voice, ctx);
+		}
+
+		const cachedResult = cache.get(cacheKey);
+		if (cachedResult) {
+			return Promise.resolve(cachedResult);
+		}
+
+		return resolveVoice(voice, ctx).then((res) => cache.set(cacheKey, res));
+	};
 }

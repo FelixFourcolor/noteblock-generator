@@ -1,8 +1,13 @@
-import type { FileRef } from "#schema/@";
+import type { FileRef, IProperties } from "#schema/@";
 import type { Tick } from "./components/tick.js";
-import type { VoiceContext, VoiceResolution } from "./components/voice.js";
+import type { VoiceResolution } from "./components/voice.js";
 
-type CacheKey = VoiceContext & { voice: FileRef };
+type CacheKey = {
+	songModifier: IProperties;
+	level: number;
+	voiceModifier?: IProperties;
+	url: FileRef;
+};
 
 export class ResolverCache {
 	dependencies = new Set<string>();
@@ -26,8 +31,8 @@ export class ResolverCache {
 
 		const serializedKey = JSON.stringify(key);
 		this.cache.set(serializedKey, { ...value, ticks });
-		this.cacheKeys.set(key.voice, serializedKey);
-		this.dependencies.add(key.voice.slice(7));
+		this.cacheKeys.set(key.url, serializedKey);
+		this.dependencies.add(key.url.slice(7));
 
 		return { ...value, ticks: toGenerator(ticks) };
 	}
