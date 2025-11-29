@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve as resolvePath } from "node:path";
+import { match, P } from "ts-pattern";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
 import type { FileRef } from "#schema/@";
@@ -23,20 +24,23 @@ export async function validate<T extends object>(
 	cwd = process.cwd(),
 ): Promise<ValidateSuccess<T> | ValidateError> {
 	if (is<FileRef>(data)) {
-		const cleanedPath = data.slice(7);
+		const cleanedPath = data.slice("file://".length);
 		const resolvedPath = resolvePath(cwd, cleanedPath);
-
 		const result = await loadValidate(resolvedPath, validator);
-		return {
-			...result,
-			cwd: dirname(resolvedPath),
-			filename: filename(resolvedPath),
-		};
+		return match(result)
+			.with({ success: P.select() }, (validated) => ({
+				validated,
+				cwd: dirname(resolvedPath),
+				filename: filename(resolvedPath),
+			}))
+			.otherwise((error) => error);
 	}
 
 	if (is<JsonString>(data)) {
-		const result = parseValidate(data.slice(7), validator);
-		return { ...result, cwd };
+		const result = parseValidate(data.slice("json://".length), validator);
+		return match(result)
+			.with({ success: P.select() }, (validated) => ({ validated, cwd }))
+			.otherwise((error) => error);
 	}
 
 	return { validated: data, cwd };
@@ -64,10 +68,13 @@ function parseValidate<T>(input: string, validator: Validator<T>) {
 	return validateData(validated, validator);
 }
 
-function validateData<T>(data: unknown, validator: Validator<T>) {
+function validateData<T>(
+	data: unknown,
+	validator: Validator<T>,
+): { success: T } | { error: string } {
 	const success = validator(data);
 	if (success) {
-		return { validated: data };
+		return { success: data };
 	}
 	return { error: "Data does not match schema." };
 }

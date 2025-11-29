@@ -17,12 +17,12 @@ export function calculateLayout({
 	const levelMaps = Array.from(
 		processTicks(ticks, type, boundTracker, errorTracker),
 	);
-	if (levelMaps.length === 0) {
-		throw new UserError("Song is empty.");
-	}
 	const error = errorTracker.validate();
 	if (error) {
 		throw error;
+	}
+	if (levelMaps.length === 0) {
+		throw new UserError("Song is empty.");
 	}
 
 	const { minLevel, height } = boundTracker;

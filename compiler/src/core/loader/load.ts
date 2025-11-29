@@ -1,17 +1,19 @@
-import type { FileRef } from "#schema/@";
+import { basename, dirname } from "node:path";
 import { watch } from "chokidar";
 import { debounce } from "lodash";
-import { basename, dirname } from "node:path";
 import { match, P } from "ts-pattern";
+import { UserError } from "#cli/error.js";
+import type { FileRef } from "#schema/@";
 import { loadSong } from "./song.js";
 import type { JsonString, LazySong, LoadedSong } from "./types.js";
 
 export async function load(src: FileRef | JsonString): Promise<LoadedSong> {
 	const result = await loadSong(src);
-	if ("error" in result) {
-		throw new Error(result.error);
-	}
-	return result;
+	return match(result)
+		.with({ error: P.select() }, (error) => {
+			throw new UserError(error);
+		})
+		.otherwise((loadedSong) => loadedSong);
 }
 
 export async function* liveLoader(
