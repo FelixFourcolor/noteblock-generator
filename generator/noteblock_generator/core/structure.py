@@ -48,7 +48,7 @@ class Structure:
         self.height = size.height
         self.bounds = self._get_bounds()
 
-        # to alternate between rounding up and down in boyndary cases
+        # to alternate between rounding up and down in boundary cases
         self._theme_should_round_up = True
 
     def __hash__(self):
