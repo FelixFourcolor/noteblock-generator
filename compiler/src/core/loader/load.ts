@@ -46,7 +46,7 @@ export async function* liveLoader(
 			[nextChange, signalChange] = createChangeSignal();
 		}
 
-		if (changedFiles.has(entryFilePath)) {
+		if (changedFiles.has(basename(entryFilePath))) {
 			song = undefined;
 		}
 		const updates = Array.from(changedFiles).map(toFileRef);
