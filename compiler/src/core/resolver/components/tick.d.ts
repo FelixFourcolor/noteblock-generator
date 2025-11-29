@@ -1,6 +1,6 @@
 import type { Delay } from "#schema/@";
-import type { NoteBlock } from "../properties/index.ts";
-import type { IMeasure } from "./utils/measure.ts";
+import type { NoteBlock } from "../properties/index.js";
+import type { IMeasure } from "./utils/measure.js";
 
 type TEvent = keyof variants;
 interface variants {

@@ -9,6 +9,11 @@ export type Notes<T extends TValidate = TPosition> = (T extends TPosition
 	? BarLine | Note<T> | IProperties<T>
 	: unknown)[];
 
-export type Voice<T extends TValidate = TPosition> = IGlobal<IProperties<T>> & {
-	notes: Notes<T> | FileRef;
+export type Voice<
+	T extends TValidate = TPosition,
+	V extends "inline" | "standalone" = "inline",
+> = IGlobal<IProperties<T>> & {
+	// Prevents a song loading a voice in a file which loads the notes in another file.
+	// Would complicate caching, and who would write it like that anyway.
+	notes: Notes<T> | (V extends "inline" ? FileRef : never);
 };

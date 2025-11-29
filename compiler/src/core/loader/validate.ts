@@ -2,13 +2,13 @@ import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, resolve as resolvePath } from "node:path";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
-import type { JsonString } from "#core/resolver/components/@";
 import type { FileRef } from "#schema/@";
+import type { JsonString } from "./types.js";
 
 type Validator<T> = (input: unknown) => input is T;
 
 type ValidateSuccess<T> = {
-	data: T;
+	validated: T;
 	cwd: string;
 	filename?: string;
 };
@@ -39,7 +39,7 @@ export async function validate<T extends object>(
 		return { ...result, cwd };
 	}
 
-	return { data, cwd };
+	return { validated: data, cwd };
 }
 
 function filename(path: string) {
@@ -55,19 +55,19 @@ async function loadValidate<T>(path: string, validator: Validator<T>) {
 }
 
 function parseValidate<T>(input: string, validator: Validator<T>) {
-	let data: unknown;
+	let validated: unknown;
 	try {
-		data = parseYAML(input);
+		validated = parseYAML(input);
 	} catch (e) {
 		return { error: String(e) };
 	}
-	return validateData(data, validator);
+	return validateData(validated, validator);
 }
 
 function validateData<T>(data: unknown, validator: Validator<T>) {
 	const success = validator(data);
 	if (success) {
-		return { data };
+		return { validated: data };
 	}
 	return { error: "Data does not match schema." };
 }

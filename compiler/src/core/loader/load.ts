@@ -1,0 +1,102 @@
+import type { FileRef } from "#schema/@";
+import { watch } from "chokidar";
+import { debounce } from "lodash";
+import { basename, dirname } from "node:path";
+import { match, P } from "ts-pattern";
+import { loadSong } from "./song.js";
+import type { JsonString, LazySong, LoadedSong } from "./types.js";
+
+export async function load(src: FileRef | JsonString): Promise<LoadedSong> {
+	const result = await loadSong(src);
+	if ("error" in result) {
+		throw new Error(result.error);
+	}
+	return result;
+}
+
+export async function* liveLoader(
+	src: FileRef,
+	options: { debounce: number },
+): AsyncGenerator<LazySong> {
+	const entryFilePath = src.slice("file://".length);
+	const currentDependencies = new Set<string>();
+	const changedFiles = new Set([entryFilePath]);
+
+	const createChangeSignal = () => {
+		const { promise, resolve } = Promise.withResolvers<void>();
+		return [promise, debounce(resolve, options.debounce)] as const;
+	};
+	let [nextChange, signalChange] = createChangeSignal();
+
+	const watcher = watch(basename(entryFilePath), {
+		cwd: dirname(entryFilePath),
+	});
+	watcher.on("change", (filePath) => {
+		changedFiles.add(filePath);
+		signalChange();
+	});
+
+	let song: LoadedSong | undefined;
+
+	const fetchNext = async () => {
+		if (!changedFiles.size) {
+			await nextChange;
+			[nextChange, signalChange] = createChangeSignal();
+		}
+
+		if (changedFiles.has(entryFilePath)) {
+			song = undefined;
+		}
+		const updates = Array.from(changedFiles).map(toFileRef);
+		changedFiles.clear();
+
+		return async () => {
+			if (!song) {
+				song = await load(src);
+				const latestDependencies = new Set(
+					song.voices
+						.map((entry) =>
+							match(entry)
+								.with(null, () => [])
+								.with(P.array(), (group) => group)
+								.otherwise((v) => [v]),
+						)
+						.flat()
+						.map((voice) => voice.url)
+						.filter((url) => url != null)
+						.map((url) => url.slice("file://".length)),
+				);
+				currentDependencies
+					.keys()
+					.filter((path) => !latestDependencies.has(path))
+					.forEach((path) => {
+						watcher.unwatch(path);
+						currentDependencies.delete(path);
+					});
+				latestDependencies
+					.keys()
+					.filter((path) => !currentDependencies.has(path))
+					.forEach((path) => {
+						watcher.add(path);
+						currentDependencies.add(path);
+					});
+			}
+			return { song, updates };
+		};
+	};
+
+	try {
+		while (true) {
+			yield await fetchNext();
+		}
+	} finally {
+		watcher.close();
+	}
+}
+
+function toFileRef(filePath: string): FileRef {
+	if (!filePath.match(/^\.*\//)) {
+		filePath = `./${filePath}`;
+	}
+	return `file://${filePath}` as FileRef;
+}

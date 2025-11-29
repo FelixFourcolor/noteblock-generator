@@ -9,8 +9,8 @@ import {
 	Trill,
 } from "#core/resolver/properties/@";
 import type { NoteValue, Trill as T_Trill } from "#schema/@";
-import type { TickEvent } from "./tick.js";
-import type { Context } from "./utils/context.js";
+import type { TickEvent } from "../tick.js";
+import type { Context } from "../utils/context.js";
 
 export function* resolveNoteblocks({
 	noteValue,

@@ -8,8 +8,8 @@ import {
 	Position,
 	Sustain,
 } from "#core/resolver/properties/@";
-import type { TickEvent } from "./tick.js";
-import type { Context } from "./utils/context.js";
+import type { TickEvent } from "../tick.js";
+import type { Context } from "../utils/context.js";
 
 export function* applyPhrasing({
 	events,

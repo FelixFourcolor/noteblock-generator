@@ -1,17 +1,15 @@
 import type { FileRef, IProperties } from "#schema/@";
 import type { Tick } from "./components/tick.js";
-import type { VoiceResolution } from "./components/voice.js";
+import type { VoiceResolution } from "./components/voice/voice.js";
 
 type CacheKey = {
 	songModifier: IProperties;
 	level: number;
-	voiceModifier?: IProperties;
+	voiceModifier: IProperties;
 	url: FileRef;
 };
 
 export class ResolverCache {
-	dependencies = new Set<string>();
-
 	private cacheKeys = new Map<FileRef, string>();
 	private cache = new Map<
 		string,
@@ -32,37 +30,23 @@ export class ResolverCache {
 		const serializedKey = JSON.stringify(key);
 		this.cache.set(serializedKey, { ...value, ticks });
 		this.cacheKeys.set(key.url, serializedKey);
-		this.dependencies.add(key.url.slice(7));
 
 		return { ...value, ticks: toGenerator(ticks) };
 	}
 
-	async invalidate(filePath: string) {
-		const voice = toFileRef(filePath);
-		const key = this.cacheKeys.get(voice);
+	invalidate(url: FileRef) {
+		const key = this.cacheKeys.get(url);
 		if (key) {
-			this.cacheKeys.delete(voice);
+			this.cacheKeys.delete(url);
 			this.cache.delete(key);
 		}
 	}
 
-	exportDataForTests() {
-		return Object.fromEntries(
-			this.dependencies
-				.values()
-				.map((filePath) => [
-					filePath,
-					this.cache.get(this.cacheKeys.get(toFileRef(filePath))!)!,
-				]),
-		);
+	exportData() {
+		return this.cacheKeys
+			.entries()
+			.map(([url, key]) => [url, this.cache.get(key)!] as const);
 	}
-}
-
-function toFileRef(filePath: string): FileRef {
-	if (!filePath.match(/^\.*\//)) {
-		filePath = `./${filePath}`;
-	}
-	return `file://${filePath}` as FileRef;
 }
 
 function toGenerator<T>(array: T[]): Generator<T> {

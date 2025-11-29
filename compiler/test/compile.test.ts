@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
-import { createReadStream, readdirSync, rmdirSync } from "node:fs";
+import { createReadStream, readdirSync } from "node:fs";
 import { mkdir, rmdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, parse } from "node:path";
-import { fromPairs, mapKeys, orderBy, toPairs } from "lodash";
+import { fromPairs, orderBy, toPairs } from "lodash";
 import { describe, expect, test } from "vitest";
 import { build } from "#core/builder";
 import { calculateLayout } from "#core/layout/layout.js";
+import { load } from "#core/loader/@";
 import { ResolverCache } from "#core/resolver/cache.js";
 import { resolveSong } from "#core/resolver/components";
 import type { FileRef } from "#schema/@";
@@ -18,7 +19,7 @@ describe("Compile tests", () => {
 		const receivedDir = join(projectPath, "received");
 
 		test.concurrent(projectName, async () => {
-			await rmdir(receivedDir).catch(() => null);
+			await rmdir(receivedDir, { recursive: true }).catch(() => null);
 			const compiledData = await getCompiledData(entryFile);
 
 			const testResults = await Promise.all(
@@ -55,22 +56,27 @@ describe("Compile tests", () => {
 			);
 
 			expect(testResults.every((result) => result === true)).toBe(true);
-			// don't rm recursive so that dir is only deleted if all tests pass
-			await rmdir(receivedDir);
+			// dir is only deleted if all tests pass
+			await rmdir(receivedDir).catch(() => null);
 		});
 	}
 });
 
 async function getCompiledData(src: string): Promise<Record<string, object>> {
 	const cache = new ResolverCache();
-	const resolved = await resolveSong(`file://${src}` as FileRef, cache).then(
+	const data = await load(`file://${src}` as FileRef);
+	const resolved = await resolveSong(data, cache).then(
 		({ ticks, width, type }) => ({ ticks: Array.from(ticks), width, type }),
 	);
 	const layout = calculateLayout(resolved);
 	const compiled = build(layout);
-	const voices = mapKeys(
-		cache.exportDataForTests(),
-		(_, path) => `resolved.${parse(path).name}`,
+	const voices = Object.fromEntries(
+		cache
+			.exportData()
+			.map(([url, res]) => [
+				`resolved.${parse(url.slice("file://".length)).name}`,
+				res,
+			]),
 	);
 	return { ...voices, resolved, layout, compiled };
 }

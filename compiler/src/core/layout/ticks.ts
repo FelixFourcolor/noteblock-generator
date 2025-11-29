@@ -4,8 +4,8 @@ import type { Tick } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import { type ErrorTracker, validateConsistency } from "./errors.js";
 import type { HeightTracker } from "./height.js";
-import type { LevelMap } from "./layout.js";
 import { mapLevels } from "./levels.js";
+import type { LevelMap } from "./types.js";
 
 export function* processTicks(
 	ticks: Iterable<Tick>,

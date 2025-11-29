@@ -1,9 +1,9 @@
 import { equals, is } from "typia";
 import type { BarLine, IProperties, Note, Notes } from "#schema/@";
+import { resolveNote } from "../note/note.js";
+import type { Tick } from "../tick.js";
+import type { MutableContext } from "../utils/context.js";
 import { resolveBarLine } from "./barline.js";
-import { resolveNote } from "./note.js";
-import type { Tick } from "./tick.js";
-import type { MutableContext } from "./utils/context.js";
 
 export function* resolveNotes(
 	notes: Notes<"lazy">,

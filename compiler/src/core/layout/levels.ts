@@ -4,7 +4,7 @@ import type { NoteEvent } from "#core/resolver/@";
 import type { TPosition } from "#schema/@";
 import type { ErrorTracker } from "./errors.js";
 import { validateClusterSize } from "./errors.js";
-import type { LevelEntry, LevelMap } from "./layout.js";
+import type { LevelEntry, LevelMap } from "./types.js";
 
 export function mapLevels(
 	notes: NoteEvent[],
