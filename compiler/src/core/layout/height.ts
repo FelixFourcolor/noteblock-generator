@@ -3,7 +3,7 @@ export class HeightTracker {
 	maxLevel = Number.MIN_SAFE_INTEGER;
 
 	get height() {
-		return this.maxLevel - this.minLevel + 1;
+		return Math.max(0, this.maxLevel - this.minLevel + 1);
 	}
 
 	registerLevel = (level: number) => {

@@ -17,15 +17,17 @@ export function calculateLayout({
 	const levelMaps = Array.from(
 		processTicks(ticks, type, boundTracker, errorTracker),
 	);
+
 	const error = errorTracker.validate();
 	if (error) {
 		throw error;
 	}
-	if (levelMaps.length === 0) {
+
+	const { minLevel, height } = boundTracker;
+	if (levelMaps.length === 0 || height === 0) {
 		throw new UserError("Song is empty.");
 	}
 
-	const { minLevel, height } = boundTracker;
 	const slices = levelMaps.map(({ delay, levelMap }) => ({
 		delay,
 		levels: times(height, (i) => levelMap[minLevel + i]),
