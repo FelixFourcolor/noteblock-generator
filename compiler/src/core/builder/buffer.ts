@@ -23,7 +23,7 @@ export function addBuffer<S extends SongLayout>(song: S): S {
 function calculateInitBuffer({ height, width, slices }: SongLayout): number {
 	let maxBuffer = 0;
 	for (let i = 0; i < height - 1; i++) {
-		let localBuffer = height - i - 1;
+		let localBuffer = height - i;
 		for (const { levels } of slices) {
 			if (localBuffer <= maxBuffer || levels[i]) {
 				break;
