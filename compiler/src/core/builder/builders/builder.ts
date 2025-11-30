@@ -159,22 +159,21 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	private getNotePlacements(): [number, number][] {
+		const isTurning = this.isEndOfRow && this.hasNext;
+		// Prioritize placements closer to the player, easier to view.
+		// biome-ignore format: .
 		const placements: [number, number][] = [
-			[-1, 1],
-			[1, 1],
-			[-1, 2], // special handling required
-			[1, 2], // when is end of row
-			[-2, 1],
-			[2, 1],
+			    [-1, 1],
+   !isTurning ? [-1, 2] : [3, 1],
+			    [-2, 1],
+				[1, 1],
+   !isTurning ? [1, 2]  : [5, 1],
+				[2, 1],
 		];
-		if (this.isEndOfRow && this.hasNext) {
-			placements[2] = [3, 1];
-			placements[3] = [5, 1];
-		}
+		// When turning, [+/-1, 2] are taken by the bridge.
 
 		// Priorize placements that are not blocked from above.
-		// Validity is not guaranteed (unless limiting cluster size to 3).
-		// We just try our best to *appear* valid.
+		// Validity is not guaranteed, we just try our best to *appear* valid.
 		return placements.sort(([xA, zA], [xB, zB]) => {
 			const aboveA = this.getOffset([xA, 1, zA]);
 			const aboveB = this.getOffset([xB, 1, zB]);
@@ -201,8 +200,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			});
 		}
 
-		// If x = -2 or 2 has a noteblock,
-		// x = -1 or 1 (respectively) must be present to conduct redstone.
+		// If x = +/-2 has a noteblock,
+		// there must be something at x = +/-1 to conduct redstone.
 		if (this.getOffset([-2, 1, 1])) {
 			if (!this.getOffset([-1, 0, 1])) {
 				this.setOffset([-1, 0, 1], Block.Generic);
