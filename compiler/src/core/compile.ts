@@ -1,3 +1,4 @@
+import { isEmpty } from "lodash";
 import { UserError } from "#cli/error.js";
 import { type Building, build, cachedBuilder } from "#core/builder/@";
 import { calculateLayout } from "#core/layout/@";
@@ -18,18 +19,33 @@ export async function* liveCompiler(
 	const resolve = cachedResolver();
 	const build = cachedBuilder(options);
 
-	for await (const load of liveLoader(src, options)) {
-		const payload = await load()
-			.then(resolve)
-			.then(calculateLayout)
-			.then(build)
-			.catch((error) => {
-				if (!(error instanceof UserError)) {
-					throw error;
+	let activeErrorMessage: string | undefined;
+	const getPayload = (buildAsync: Promise<Building>) => {
+		return buildAsync
+			.then((building) => {
+				if (activeErrorMessage) {
+					activeErrorMessage = undefined;
+					// return even if empty to clear the error message
+					return building;
 				}
-				return { error: error.message };
+				if (!isEmpty(building.blocks)) {
+					return building;
+				}
+			})
+			.catch((e) => {
+				if (!(e instanceof UserError)) {
+					throw e;
+				}
+				if (activeErrorMessage !== e.message) {
+					activeErrorMessage = e.message;
+					return { error: activeErrorMessage };
+				}
 			});
+	};
 
+	for await (const load of liveLoader(src, options)) {
+		const buildAsync = load().then(resolve).then(calculateLayout).then(build);
+		const payload = await getPayload(buildAsync);
 		if (payload) {
 			yield payload;
 		}

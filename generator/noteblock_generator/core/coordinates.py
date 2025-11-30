@@ -1,52 +1,57 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import TYPE_CHECKING, Literal
+import math
+from typing import TYPE_CHECKING, Literal, NamedTuple
 
+from .placement import PlacementTranslator
 
 if TYPE_CHECKING:
     DirectionName = Literal["north", "south", "east", "west"]
-
 
 XYZ = tuple[int, int, int]
 XZ = tuple[int, int]
 
 
-class Direction(XZ, Enum):
-    # coordinates in (x, z)
-    north = (0, -1)
-    south = (0, 1)
-    east = (1, 0)
-    west = (-1, 0)
+class Bounds(NamedTuple):
+    min_x: int
+    max_x: int
+    min_y: int
+    max_y: int
+    min_z: int
+    max_z: int
 
-    def rotate(self, vector: XZ) -> XZ:
-        """Complex multiplication, with (x, z) representing x + zi"""
-        return (
-            self[0] * vector[0] - self[1] * vector[1],
-            self[0] * vector[1] + self[1] * vector[0],
+
+class CoordinateTranslator(PlacementTranslator):
+    def __getitem__(self, coords: XYZ) -> XYZ:
+        raw_x, raw_y, raw_z = coords
+
+        if self.align == "center":
+            shifted_z = raw_z - math.floor((self.width - 1) / 2)
+        elif self.align == "left":
+            shifted_z = raw_z - self.width + 1
+        else:  # right
+            shifted_z = raw_z
+
+        rotated_x, rotated_z = self.facing.rotate((raw_x, shifted_z))
+
+        translated_x = self.origin_x + rotated_x
+        translated_y = self.origin_y + raw_y
+        translated_z = self.origin_z + rotated_z
+
+        if self.tilt == "down":
+            translated_y -= self.height - 2
+
+        return translated_x, translated_y, translated_z
+
+    def calculate_bounds(self):
+        start_x, start_y, start_z = self[0, 0, 0]
+        end_x, end_y, end_z = self[self.length - 1, self.height - 1, self.width - 1]
+
+        return Bounds(
+            min_x=min(start_x, end_x),
+            max_x=max(start_x, end_x),
+            min_y=min(start_y, end_y),
+            max_y=max(start_y, end_y),
+            min_z=min(start_z, end_z),
+            max_z=max(start_z, end_z),
         )
-
-    def __str__(self):
-        return {
-            Direction.north: "towards negative Z",
-            Direction.south: "towards positive Z",
-            Direction.east: "towards positive X",
-            Direction.west: "towards negative X",
-        }[self]
-
-
-DIRECTION_NAMES: list[DirectionName] = ["north", "south", "east", "west"]
-
-ROTATION_TO_DIRECTION_MAP = {
-    -180: Direction.north,
-    -90: Direction.east,
-    0: Direction.south,
-    90: Direction.west,
-    180: Direction.north,
-}
-
-
-def get_nearest_direction(rotation: float):
-    match = min(ROTATION_TO_DIRECTION_MAP.keys(), key=lambda x: abs(x - rotation))
-    direction = ROTATION_TO_DIRECTION_MAP[match]
-    return direction

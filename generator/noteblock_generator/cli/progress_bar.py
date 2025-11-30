@@ -1,10 +1,13 @@
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Generator
 from threading import Thread
+from typing import TypeVar
 
 from rich import progress
 
 from .console import Console
+
+T = TypeVar("T")
 
 
 class UserCancelled(Exception): ...
@@ -33,28 +36,39 @@ class ProgressBar:
 
     def _track(
         self,
-        jobs_iter: Iterable,
+        jobs_iter: Generator[object, None, T],
         *,
         description: str,
         jobs_count: int | None = None,
         transient=False,
-    ):
-        if not self.result_ready:
-            for _ in jobs_iter:
-                if jobs_count is not None:
-                    jobs_count -= 1
-                if self.result_ready:
-                    break
-            else:  #  all jobs finish before user responds
-                if transient:
-                    return
+    ) -> T:
+        result: list[T] = []
 
-        if self.cancelled:
-            raise UserCancelled
+        def capture_return():
+            nonlocal jobs_count
+            try:
+                while True:
+                    yield next(jobs_iter)
+                    if jobs_count is not None:
+                        jobs_count -= 1
+                    if self.result_ready:
+                        break
+            except StopIteration as e:
+                result.append(e.value)
+                return
+
+            if self.cancelled:
+                raise UserCancelled
+
+            try:
+                while True:
+                    yield next(jobs_iter)
+            except StopIteration as e:
+                result.append(e.value)
 
         deque(
             progress.track(
-                jobs_iter,
+                capture_return(),
                 total=jobs_count,
                 description=description,
                 transient=transient,
@@ -62,6 +76,8 @@ class ProgressBar:
             ),
             maxlen=0,
         )
+
+        return result[0]
 
     @property
     def result_ready(self) -> bool:

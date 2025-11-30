@@ -14,12 +14,13 @@ from click import UsageError
 
 from ..cli.console import Console
 from .blend import get_blend_block
-from .coordinates import Direction, get_nearest_direction
+from .direction import Direction, get_nearest_direction
 
 if TYPE_CHECKING:
-    from .chunks import ChunkEdits, ChunksManager
-    from .coordinates import XYZ, XZ, DirectionName
-    from .structure import Bounds, TiltName
+    from .chunks import ChunkEdits, ChunksData
+    from .coordinates import XYZ, XZ, Bounds
+    from .direction import DirectionName
+    from .generator import TiltName
 
 
 class ChunkLoadError(Exception):
@@ -55,6 +56,16 @@ class World(BaseWorld):
         return 0
 
     def validate_bounds(self, bounds: Bounds, dimension: str):
+        start = (bounds.min_x, bounds.min_y, bounds.min_z)
+        end = (bounds.max_x, bounds.max_y, bounds.max_z)
+        Console.info(
+            "Structure will occupy the space\n{start} to {end} in {dimension}.",
+            start=start,
+            end=end,
+            dimension=dimension,
+            important=True,
+        )
+
         world_bounds = self.bounds(f"minecraft:{dimension}")
         for coord, limit, axis in [
             (bounds.min_x, world_bounds.min_x, "min X"),
@@ -69,10 +80,9 @@ class World(BaseWorld):
                     f"Structure exceeds world boundary at {axis}: {coord} vs {limit=}."
                 )
 
-    def write(self, chunks: ChunksManager, dimension: str):
-        for chunk_coords, data in chunks:
-            self._edit_chunk(chunk_coords, data, f"minecraft:{dimension}")
-            yield
+    def write(self, chunks: ChunksData, dimension: str):
+        for chunk_coords, data in chunks.items():
+            yield self._edit_chunk(chunk_coords, data, f"minecraft:{dimension}")
         self._wrapper.save()
 
     @cached_property

@@ -178,8 +178,8 @@ def run(
 
     if not watch:
         data = loader.load(input_path)
-        generator.generate(data, cache=False)
+        generator.generate(data)
         return
 
     for data in watcher.watch(input_path):
-        generator.generate(data, cache=True)
+        generator.generate(data, cached=True)

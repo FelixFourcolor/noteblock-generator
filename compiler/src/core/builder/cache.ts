@@ -56,7 +56,7 @@ export class BuilderCache {
 		this.currentLength = size.length;
 	}
 
-	update(building: Building) {
+	merge(building: Building) {
 		Object.assign(this.blocks, building.blocks);
 		return { size: building.size, blocks: this.blocks };
 	}

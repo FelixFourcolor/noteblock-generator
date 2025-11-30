@@ -25,22 +25,24 @@ def watch(path: Path | None) -> Generator[Building]:
             if path:
                 return next(data_stream)
             return Console.status("Compiling", data_stream.__next__)
-
-        Console.newline()
-        return Console.status("Waiting for changes", data_stream.__next__)
+        return Console.status("\nWaiting for changes", data_stream.__next__)
 
     while True:
-        payload = fetch_next()
+        try:
+            payload = fetch_next()
+        except StopIteration:
+            break
         is_first_run = False
 
-        if payload.error:
-            Console.warn(payload.error, important=True)
+        if payload.error is not None:
+            Console.warn(text=payload.error, important=True)
             continue
 
-        if not payload.blocks or not payload.size:
-            raise UsageError("Input data does not match expected format.")
+        if payload.blocks is not None and payload.size is not None:
+            yield Building(blocks=payload.blocks, size=payload.size)
+            continue
 
-        yield Building(blocks=payload.blocks, size=payload.size)
+        raise UsageError("Input data does not match expected format.")
 
 
 def _file_stream(path: Path) -> Generator[Payload]:
@@ -84,36 +86,23 @@ def _stdin_stream() -> Generator[Payload]:
         while DELIMITER not in chunk and len(buffer) < MAX_PIPE_SIZE:
             chunk = os.read(stdin.fileno(), CHUNK_SIZE)
             if not chunk:
-                raise UsageError("Input pipe closed.")
+                return
             buffer.extend(chunk)
 
-        # If multiple payloads come in one chunk, combine them
-        payload: Payload | None = None
-        while True:
-            try:
-                delimiter = buffer.index(DELIMITER)
-            except ValueError:
-                break
+        payloads = buffer.split(DELIMITER)
+        buffer = payloads.pop()  # leftover partial payload
 
-            chunk = buffer[:delimiter]
-            del buffer[: delimiter + 1]
-            update = _decode(chunk)
-
-            if not payload:
-                payload = update
-                continue
-
-            payload.error = update.error
-            if update.blocks:
-                if payload.blocks:
-                    payload.blocks.update(update.blocks)
+        combined_payload = Payload()
+        for payload in [_decode(payload) for payload in payloads]:
+            if payload.blocks is not None:
+                if combined_payload.blocks is None:
+                    combined_payload.blocks = payload.blocks
                 else:
-                    payload.blocks = update.blocks
-            # no need to update size, it doesn't matter for partial updates
-
-        if not payload:
-            raise UsageError("Input data does not match expected format.")
-        yield payload
+                    combined_payload.blocks |= payload.blocks
+            if payload.size is not None:
+                combined_payload.size = payload.size
+            combined_payload.error = payload.error
+        yield combined_payload
 
 
 _decoder = json.Decoder(Payload)

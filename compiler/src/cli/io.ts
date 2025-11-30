@@ -56,6 +56,13 @@ export function withOutput<T extends CommandOptions<{ out?: string }>>(
 			return emit(result, args);
 		}
 
+		stdout.on("error", (err) => {
+			if (err.code === "EPIPE") {
+				process.exit(0);
+			}
+			throw err;
+		});
+
 		for await (const payload of result) {
 			await emit(payload, args);
 		}
