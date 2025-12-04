@@ -36,10 +36,11 @@ export class ResolverCache {
 
 	invalidate(url: FileRef) {
 		const key = this.cacheKeys.get(url);
-		if (key) {
-			this.cacheKeys.delete(url);
-			this.cache.delete(key);
+		if (key === undefined) {
+			throw new Error("Attempted to invalidate non-existent cache entry.");
 		}
+		this.cacheKeys.delete(url);
+		this.cache.delete(key);
 	}
 
 	exportData() {

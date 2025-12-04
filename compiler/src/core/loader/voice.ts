@@ -1,5 +1,6 @@
-import { basename } from "node:path";
-import { createEquals, is } from "typia";
+import { basename, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { assert, createEquals, is } from "typia";
 import type { FileRef, Notes, Voice } from "#schema/@";
 import type { LazyVoice } from "./types.js";
 import { validate } from "./validate.js";
@@ -11,6 +12,7 @@ export function loadVoice(
 	const inferredName = inferName(voiceData);
 
 	if (is<FileRef>(voiceData)) {
+		const url = resolveUrl(voiceData, cwd);
 		const load = async () => {
 			const validateResult = await validate(
 				voiceData,
@@ -26,13 +28,18 @@ export function loadVoice(
 
 			const { validated: voice, filename } = validateResult;
 			const { notes, ...modifier } = voice;
-			return { notes, modifier, name: filename ?? inferredName };
+			return {
+				notes,
+				modifier,
+				name: filename ?? inferredName,
+			};
 		};
-		return { load, url: voiceData };
+		return { load, url };
 	}
 
 	const { notes: notesData, ...modifier } = voiceData;
 	if (is<FileRef>(notesData)) {
+		const url = resolveUrl(notesData, cwd);
 		const load = async () => {
 			const validateResult = await validate(
 				notesData,
@@ -47,9 +54,13 @@ export function loadVoice(
 			}
 
 			const { validated: notes, filename } = validateResult;
-			return { notes, modifier, name: filename ?? inferredName };
+			return {
+				notes,
+				modifier,
+				name: filename ?? inferredName,
+			};
 		};
-		return { load, modifier, url: notesData };
+		return { load, modifier, url };
 	}
 
 	const loadedVoice = {
@@ -68,4 +79,9 @@ function inferName(voice: Voice<"lazy"> | Notes<"lazy"> | FileRef) {
 		return inferName(voice.notes);
 	}
 	return undefined;
+}
+
+function resolveUrl(fileRef: FileRef, cwd: string): FileRef {
+	const filePath = resolve(cwd, fileRef.slice("file://".length));
+	return assert<FileRef>(pathToFileURL(filePath).href);
 }

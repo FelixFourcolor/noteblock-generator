@@ -1,7 +1,8 @@
-import { basename, dirname } from "node:path";
+import { pathToFileURL } from "node:url";
 import { watch } from "chokidar";
 import { debounce } from "lodash";
 import { match, P } from "ts-pattern";
+import { assert } from "typia";
 import { UserError } from "#cli/error.js";
 import type { FileRef } from "#schema/@";
 import { loadSong } from "./song.js";
@@ -30,9 +31,7 @@ export async function* liveLoader(
 	};
 	let [nextChange, signalChange] = createChangeSignal();
 
-	const watcher = watch(basename(entryFilePath), {
-		cwd: dirname(entryFilePath),
-	});
+	const watcher = watch(entryFilePath);
 	watcher.on("change", (filePath) => {
 		changedFiles.add(filePath);
 		signalChange();
@@ -46,7 +45,8 @@ export async function* liveLoader(
 			[nextChange, signalChange] = createChangeSignal();
 		}
 
-		if (changedFiles.has(basename(entryFilePath))) {
+		const songFileChanged = changedFiles.delete(entryFilePath);
+		if (songFileChanged) {
 			song = undefined;
 		}
 		const updates = Array.from(changedFiles).map(toFileRef);
@@ -97,8 +97,5 @@ export async function* liveLoader(
 }
 
 function toFileRef(filePath: string): FileRef {
-	if (!filePath.match(/^\.*\//)) {
-		filePath = `./${filePath}`;
-	}
-	return `file://${filePath}` as FileRef;
+	return assert<FileRef>(pathToFileURL(filePath).href);
 }

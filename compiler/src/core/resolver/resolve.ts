@@ -9,7 +9,7 @@ export function resolve(song: LoadedSong): Promise<SongResolution> {
 export function cachedResolver() {
 	const cache = new ResolverCache();
 	const cacheInvalidate = cache.invalidate.bind(cache);
-	return async ({ song, updates }: Awaited<ReturnType<LazySong>>) => {
+	return ({ song, updates }: Awaited<ReturnType<LazySong>>) => {
 		updates.forEach(cacheInvalidate);
 		return resolveSong(song, cache);
 	};

@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { basename, dirname, extname, resolve as resolvePath } from "node:path";
+import { basename, dirname, extname, resolve } from "node:path";
 import { match, P } from "ts-pattern";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
@@ -24,8 +24,7 @@ export async function validate<T extends object>(
 	cwd = process.cwd(),
 ): Promise<ValidateSuccess<T> | ValidateError> {
 	if (is<FileRef>(data)) {
-		const cleanedPath = data.slice("file://".length);
-		const resolvedPath = resolvePath(cwd, cleanedPath);
+		const resolvedPath = resolve(cwd, data.slice("file://".length));
 		const result = await loadValidate(resolvedPath, validator);
 		return match(result)
 			.with({ success: P.select() }, (validated) => ({
