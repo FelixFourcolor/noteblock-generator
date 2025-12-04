@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from functools import partial
 from typing import TypeVar
 
 import typer
@@ -7,7 +8,7 @@ from rich.console import Console as _Console
 from rich.panel import Panel
 
 _console = _Console()
-_print = _console.print
+_print = partial(_console.print, highlight=False)
 
 T = TypeVar("T")
 
@@ -67,6 +68,9 @@ class Console:
     def status(text: str, callback: Callable[[], T]) -> T:
         style = "dim"
         with _console.status(
-            f"[{style}]{text}[/{style}]", spinner="line", spinner_style=style, speed=0.5
+            f"[{style}]{text}[/{style}]",
+            spinner="line",
+            spinner_style=style,
+            speed=0.5,
         ):
             return callback()

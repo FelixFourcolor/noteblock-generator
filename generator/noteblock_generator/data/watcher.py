@@ -21,18 +21,24 @@ def watch(path: Path | None) -> Generator[Building]:
     is_first_run = True
 
     def fetch_next():
+        data = next(data_stream)
+        Console.info(f"{'-' * 15} {time.strftime('%H:%M:%S')} {'-' * 15}")
+        return data
+
+    def fetch_next_with_status():
         if is_first_run:
             if path:
-                return next(data_stream)
-            return Console.status("Compiling", data_stream.__next__)
-        return Console.status("\nWaiting for changes", data_stream.__next__)
+                return fetch_next()
+            return Console.status("Compiling", fetch_next)
+        Console.newline()
+        return Console.status("Waiting for changes", fetch_next)
 
     while True:
         try:
-            payload = fetch_next()
+            payload = fetch_next_with_status()
+            is_first_run = False
         except StopIteration:
             break
-        is_first_run = False
 
         if payload.error is not None:
             Console.warn(text=payload.error, important=True)

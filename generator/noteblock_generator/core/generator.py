@@ -85,7 +85,7 @@ class Generator:
                 world.validate_bounds(bounds, self.dimension)
 
             with ProgressBar(cancellable=is_first_run) as track:
-                description = "Generating" if is_first_run else "Updating"
+                description = "Generating" if is_first_run else "Regenerating"
                 block_placements = self._get_block_placements(size, blocks)
                 chunks = track(
                     organize_chunks(block_placements),
