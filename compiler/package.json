@@ -34,7 +34,7 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "rm -fr dist build; typia generate --input src --output build && node esbuild.config.ts && rm -fr build",
+		"build": "rm -fr dist build; typia generate --input src --output build && node esbuild.config.ts",
 		"test": "vitest run",
 		"test:coverage": "rm -fr coverage; vitest --coverage"
 	}
