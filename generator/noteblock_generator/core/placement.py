@@ -23,14 +23,14 @@ class PlacementConfig:
     blend: bool
 
 
-class PlacementTranslator(ABC):
+class PlacementMapper(ABC):
     def __init__(self, config: PlacementConfig):
         self.origin_x, self.origin_y, self.origin_z = config.origin
         self.facing = config.facing
         self.tilt: TiltName = config.tilt
         self.align: AlignName = config.align
         self.theme = config.theme
-        self.empty_block = None if config.blend else "air"
+        self.empty_block: BlockState | None = None if config.blend else "air"
 
         self.size: Size | None = None
 

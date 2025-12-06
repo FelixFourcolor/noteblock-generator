@@ -7,7 +7,7 @@ from itertools import chain, product
 from typing import TYPE_CHECKING
 
 from .direction import DIRECTION_NAMES, Direction
-from .placement import PlacementTranslator
+from .placement import PlacementMapper
 
 if TYPE_CHECKING:
     from re import Match
@@ -19,13 +19,13 @@ DIRECTION_PATTERN = re.compile("|".join(DIRECTION_NAMES))
 THEME_BLOCK: ThemeBlock = 0
 
 
-class BlockTranslator(PlacementTranslator):
+class BlockMapper(PlacementMapper):
     def update_size(self, size: Size):
         super().update_size(size)
         # to alternate rounding in boundary cases
         self._theme_should_round_up = True
 
-    def calculate_fill(self, prev_size: Size) -> BlockMap:
+    def calculate_expansion(self, prev_size: Size) -> BlockMap:
         if prev_size == self.size:
             return {}
 
@@ -59,9 +59,7 @@ class BlockTranslator(PlacementTranslator):
             )
         }
 
-    def __getitem__(self, arg: tuple[BlockType, int]):
-        block, z = arg
-
+    def get(self, block: BlockType, *, z: int) -> BlockState | None:
         if block is None:
             return self.empty_block
 

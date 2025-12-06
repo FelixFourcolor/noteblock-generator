@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 
 from ..cli.console import Console
 from ..cli.progress_bar import ProgressBar
-from .blocks import BlockTranslator
+from .blocks import BlockMapper
 from .chunks import organize_chunks
-from .coordinates import CoordinateTranslator
+from .coordinates import CoordinateMapper
 from .direction import Direction
 from .placement import PlacementConfig
 
@@ -77,11 +77,11 @@ class Generator:
                 self._initialize_world_params(world)
             assert self.dimension is not None
 
-            self._block_translator.update_size(size)
-            self._coordinate_translator.update_size(size)
+            self._block_mapper.update_size(size)
+            self._coordinate_mapper.update_size(size)
 
             if size != self._prev_size:
-                bounds = self._coordinate_translator.calculate_bounds()
+                bounds = self._coordinate_mapper.calculate_bounds()
                 world.validate_bounds(bounds, self.dimension)
 
             with ProgressBar(cancellable=is_first_run) as track:
@@ -106,39 +106,32 @@ class Generator:
             ):
                 block = blocks.get(f"{x} {y} {z}")
                 yield (
-                    self._coordinate_translator[x, y, z],
-                    self._block_translator[block, z],
+                    self._coordinate_mapper.get((x, y, z)),
+                    self._block_mapper.get(block, z=z),
                 )
             return
 
-        fill_blocks = self._block_translator.calculate_fill(self._prev_size)
-        if fill_blocks:
-            blocks = {**fill_blocks, **blocks}
+        if empty_blocks := self._block_mapper.calculate_expansion(self._prev_size):
+            blocks = {**empty_blocks, **blocks}
 
         for str_coords, block in blocks.items():
             x, y, z = map(int, str_coords.split(" "))
             yield (
-                self._coordinate_translator[x, y, z],
-                self._block_translator[block, z],
+                self._coordinate_mapper.get((x, y, z)),
+                self._block_mapper.get(block, z=z),
             )
 
     def _initialize_world_params(self, world: World):
         if not self.dimension:
             self.dimension = world.player_dimension
-        if not self.coordinates:
-            self.coordinates = world.player_coordinates
-        if not self.facing:
-            self.facing = world.player_facing
-        if not self.tilt:
-            self.tilt = world.player_tilt
 
         config = PlacementConfig(
-            origin=self.coordinates,
-            facing=Direction[self.facing],
-            tilt=self.tilt,
+            origin=self.coordinates or world.player_coordinates,
+            facing=Direction[self.facing or world.player_facing],
+            tilt=self.tilt or world.player_tilt,
             align=self.align,
             theme=self.theme,
             blend=self.blend,
         )
-        self._block_translator = BlockTranslator(config)
-        self._coordinate_translator = CoordinateTranslator(config)
+        self._block_mapper = BlockMapper(config)
+        self._coordinate_mapper = CoordinateMapper(config)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Literal, NamedTuple
 
-from .placement import PlacementTranslator
+from .placement import PlacementMapper
 
 if TYPE_CHECKING:
     DirectionName = Literal["north", "south", "east", "west"]
@@ -21,8 +21,8 @@ class Bounds(NamedTuple):
     max_z: int
 
 
-class CoordinateTranslator(PlacementTranslator):
-    def __getitem__(self, coords: XYZ) -> XYZ:
+class CoordinateMapper(PlacementMapper):
+    def get(self, coords: XYZ) -> XYZ:
         raw_x, raw_y, raw_z = coords
 
         if self.align == "center":
@@ -44,9 +44,12 @@ class CoordinateTranslator(PlacementTranslator):
         return translated_x, translated_y, translated_z
 
     def calculate_bounds(self):
-        start_x, start_y, start_z = self[0, 0, 0]
-        end_x, end_y, end_z = self[self.length - 1, self.height - 1, self.width - 1]
-
+        start_x, start_y, start_z = self.get((0, 0, 0))
+        end_x, end_y, end_z = self.get((
+            self.length - 1,
+            self.height - 1,
+            self.width - 1,
+        ))
         return Bounds(
             min_x=min(start_x, end_x),
             max_x=max(start_x, end_x),
