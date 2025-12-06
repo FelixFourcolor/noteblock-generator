@@ -45,30 +45,30 @@ class ProgressBar:
         result: list[T] = []
 
         def capture_return():
-            nonlocal jobs_count
-            try:
-                while True:
-                    yield next(jobs_iter)
-                    if jobs_count is not None:
-                        jobs_count -= 1
-                    if self.result_ready:
-                        break
-            except StopIteration as e:
-                result.append(e.value)
-                return
-
-            if self.cancelled:
-                raise UserCancelled
-
             try:
                 while True:
                     yield next(jobs_iter)
             except StopIteration as e:
                 result.append(e.value)
+
+        jobs_iter_wrapper = capture_return()
+
+        if not self.result_ready:
+            for _ in jobs_iter_wrapper:
+                if jobs_count is not None:
+                    jobs_count -= 1
+                if self.result_ready:
+                    break
+            else:  #  all jobs finish before user responds
+                if transient:
+                    return result[0]
+
+        if self.cancelled:
+            raise UserCancelled
 
         deque(
             progress.track(
-                capture_return(),
+                jobs_iter_wrapper,
                 total=jobs_count,
                 description=description,
                 transient=transient,
