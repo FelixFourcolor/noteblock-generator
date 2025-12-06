@@ -135,8 +135,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 					lastCachedCursor = undefined;
 				}
 
-				const isLongerThanCache = index >= (self.cache?.length ?? 0);
-				if (this.isStartOfRow && isLongerThanCache) {
+				if (this.isStartOfRow) {
 					self.buildPlayButton();
 				}
 				self.buildSlice(slice);
