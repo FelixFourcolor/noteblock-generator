@@ -1,8 +1,8 @@
 import { isEqual } from "lodash";
 import type { Slice } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
+import type { Building } from "../builder";
 import type { BlockMap } from "./block-placer";
-import type { Building } from "./builders/builder";
 import type { Cursor } from "./cursor";
 import type { Size } from "./size";
 

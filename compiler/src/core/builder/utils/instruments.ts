@@ -1,7 +1,7 @@
 import type { InstrumentName } from "@/types/schema";
-import type { BlockName } from "../block";
+import type { BlockName } from "./block";
 
-export const instrumentBase = {
+export const baseBlock = {
 	bass: "oak_log",
 	didgeridoo: "pumpkin",
 	guitar: "white_wool",

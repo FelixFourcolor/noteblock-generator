@@ -1,6 +1,6 @@
 import type { Slice } from "@/core/layout";
-import { Block } from "../block";
 import { Builder } from "./builder";
+import { Block } from "./utils/block";
 
 export class DoubleBuilder extends Builder<"double"> {
 	protected override buildSlice({ delay, levels }: Slice<"double">) {

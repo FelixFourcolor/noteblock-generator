@@ -1,14 +1,14 @@
 import { forEachRight, range } from "lodash";
 import type { NoteCluster, Slice, SongLayout } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
-import { Block } from "../block";
-import { type BlockMap, BlockPlacer } from "../block-placer";
-import { addBuffer } from "../buffer";
-import type { BuilderCache } from "../cache";
-import type { Cursor } from "../cursor";
-import { Direction } from "../direction";
-import { getSize, type Size, SLICE_SIZE } from "../size";
-import { instrumentBase } from "./noteblock-instruments";
+import { Block } from "./utils/block";
+import { type BlockMap, BlockPlacer } from "./utils/block-placer";
+import { addBuffer } from "./utils/buffer";
+import type { BuilderCache } from "./utils/cache";
+import type { Cursor } from "./utils/cursor";
+import { Direction } from "./utils/direction";
+import { baseBlock } from "./utils/instruments";
+import { getSize, type Size, SLICE_SIZE } from "./utils/size";
 
 export type Building = {
 	size: Size;
@@ -170,7 +170,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
    !isTurning ? [1, 2]  : [5, 1],
 				[2, 1],
 		];
-		// When turning, [+/-1, 2] are taken by the bridge.
 
 		// Priorize placements that are not blocked from above.
 		// Validity is not guaranteed, we just try our best to *appear* valid.
@@ -188,7 +187,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
-			this.setOffset([dx, -1, dz], instrumentBase[note.instrument]);
+			this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
 			this.setOffset([dx, 0, dz], Block.Note(note));
 			this.setOffset([dx, 1, dz], "air");
 		});
