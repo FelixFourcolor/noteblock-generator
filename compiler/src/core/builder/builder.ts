@@ -10,6 +10,12 @@ import { Direction } from "./utils/direction";
 import { baseBlock } from "./utils/instruments";
 import { getSize, type Size, SLICE_SIZE } from "./utils/size";
 
+export type BuildOptions = {
+	walkable: true | undefined | "partial";
+	sidePadding: boolean;
+	instrumentBase: boolean;
+};
+
 export type Building = {
 	size: Size;
 	blocks: BlockMap;
@@ -29,6 +35,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	constructor(
 		song: SongLayout<T>,
+		private options: BuildOptions,
 		private cache?: BuilderCache,
 	) {
 		super();
@@ -82,9 +89,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	private buildSpace() {
 		const { height, width, length } = this.size;
 
-		const isPadding = (x: number, z: number) => {
-			return [0, length - 1].includes(x) || [0, width - 1].includes(z);
-		};
+		const isPadding: (x: number, z: number) => boolean = this.options
+			.sidePadding
+			? (x, z) => [0, length - 1].includes(x) || [0, width - 1].includes(z)
+			: () => false;
 
 		const isMidpoint = (z: number) => {
 			if (width % 2 === 1) {
@@ -102,11 +110,14 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 						this.set([x, y, z], "air");
 					});
 				}
+				if (!this.options.walkable) {
+					return;
+				}
 				if (isMidpoint(z)) {
 					this.set([x, height - 1, z], "air");
 					this.set([x, height - 2, z], "air");
 					this.set([x, height - 3, z], "glass");
-				} else if (x > 0) {
+				} else if (x > 0 && this.options.walkable === true) {
 					this.set([x, height - 3, z], "glass");
 				}
 			});
@@ -141,7 +152,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				self.buildSlice(slice);
 
 				if (this.cache) {
-					this.cache.set(index, { slice, cursor: self.cursor.clone() });
+					const cursor = self.cursor.clone();
+					this.cache.set(index, { slice, cursor });
 				}
 			});
 		});
@@ -159,7 +171,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private getNotePlacements(): [number, number][] {
 		const isTurning = this.isEndOfRow && this.hasNext;
-		// Prioritize placements closer to the player, easier to view.
+		// Prioritize placements closer to the player -> easier to view.
 		// biome-ignore format: .
 		const placements: [number, number][] = [
 			    [-1, 1],
@@ -170,8 +182,12 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				[2, 1],
 		];
 
-		// Priorize placements that are not blocked from above.
-		// Validity is not guaranteed, we just try our best to *appear* valid.
+		if (!this.options.instrumentBase) {
+			return placements;
+		}
+
+		// With instrument base, some notes may be blocked above.
+		// Prioritize placements that are free.
 		return placements.sort(([xA, zA], [xB, zB]) => {
 			const aboveA = this.getOffset([xA, 1, zA]);
 			const aboveB = this.getOffset([xB, 1, zB]);
@@ -186,9 +202,11 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
-			this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
-			this.setOffset([dx, 0, dz], Block.Note(note));
 			this.setOffset([dx, 1, dz], "air");
+			this.setOffset([dx, 0, dz], Block.Note(note));
+			if (this.options.instrumentBase) {
+				this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
+			}
 		});
 
 		if (this.cache) {
@@ -196,6 +214,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			notePlacements.slice(notes.length).forEach(([dx, dz]) => {
 				this.setOffset([dx, 0, dz], null);
 			});
+		}
+
+		if (!this.options.instrumentBase) {
+			return;
 		}
 
 		// If x = +/-2 has a noteblock,

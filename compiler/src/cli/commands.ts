@@ -47,6 +47,22 @@ export const compileCommand = createCommand({
 					"Watch source and recompile on changes; accept an optional debounce time in ms",
 				implies: "in",
 				defaultDescription: "off / 1000ms",
+			})
+			.option("walkable", {
+				choices: [true, "partial"] as const,
+				describe: "Include walkable space above the build",
+				defaultDescription: "false",
+			})
+			.option("side-padding", {
+				type: "boolean",
+				describe:
+					"Include columns of empty space around the build; defensive against external interference",
+				default: false,
+			})
+			.option("instrument-base", {
+				type: "boolean",
+				describe: "Include instrument base blocks (e.g. wool for guitar)",
+				default: false,
 			});
 	},
 	async execute(args, yargs) {
@@ -59,7 +75,7 @@ export const compileCommand = createCommand({
 		const { watch, out } = args;
 
 		if (watch === undefined) {
-			return compile(src);
+			return compile(src, args);
 		}
 
 		if (!out && fstatSync(stdout.fd).isFile()) {
@@ -79,7 +95,7 @@ export const compileCommand = createCommand({
 		return liveCompiler(
 			// src is FileRef guaranteed by `implies: "in"`
 			assert<FileRef>(src),
-			{ debounce, emit: out ? "full" : "diff" },
+			{ ...args, debounce, emit: out ? "full" : "diff" },
 		);
 	},
 });
