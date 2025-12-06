@@ -1,5 +1,5 @@
 import { match, P } from "ts-pattern";
-import { UserError } from "#cli/error.js";
+import { UserError } from "@/cli/error";
 import {
 	Instrument,
 	multiMap,
@@ -7,10 +7,10 @@ import {
 	type ResolveType,
 	resolveTimedValue,
 	Trill,
-} from "#core/resolver/properties/@";
-import type { NoteValue, Trill as T_Trill } from "#schema/@";
-import type { TickEvent } from "../tick.js";
-import type { Context } from "../utils/context.js";
+} from "@/core/resolver/properties";
+import type { NoteValue, Trill as T_Trill } from "@/types/schema";
+import type { TickEvent } from "../tick";
+import type { Context } from "../utils/context";
 
 export function* resolveNoteblocks({
 	noteValue,

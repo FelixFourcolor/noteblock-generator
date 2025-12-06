@@ -1,7 +1,7 @@
 import { match, P } from "ts-pattern";
-import type { IPositional, Transpose as T_Transpose } from "#schema/@";
-import { Positional } from "../positional.js";
-import { parseNumericValue } from "../variable.js";
+import type { IPositional, Transpose as T_Transpose } from "@/types/schema";
+import { Positional } from "../positional";
+import { parseNumericValue } from "../variable";
 
 const Value = Positional({
 	Default: 0,

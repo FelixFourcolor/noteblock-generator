@@ -1,17 +1,16 @@
 import { range } from "lodash";
 import { match, P } from "ts-pattern";
 import { assert, createIs, is } from "typia";
-import { UserError } from "#cli/error.js";
-
+import { UserError } from "@/cli/error";
+import type { Int } from "@/types/helpers";
 import type {
 	InstrumentName,
 	Pitch,
 	Instrument as T_Instrument,
 	Trill,
-} from "#schema/@";
-import type { Int } from "#types/helpers/@";
-import { Positional } from "../positional.js";
-import { Transpose } from "./transpose.js";
+} from "@/types/schema";
+import { Positional } from "../positional";
+import { Transpose } from "./transpose";
 
 export type NoteBlock = {
 	instrument: InstrumentName;
@@ -185,7 +184,7 @@ namespace pitches {
 	function addAccidentals(basePitches: Record<string, number>) {
 		const base = Object.entries(basePitches);
 		const withAccidentals = base
-			.filter(([pitch]) => !pitch.endsWith("#core/"))
+			.filter(([pitch]) => !pitch.endsWith("core/"))
 			.flatMap(([name, value]) => [
 				[`${name}#`, value + 1],
 				[`${name}##`, value + 2],

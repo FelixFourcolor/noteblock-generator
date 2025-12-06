@@ -3,8 +3,8 @@ import { basename, dirname, extname, resolve } from "node:path";
 import { match, P } from "ts-pattern";
 import { is } from "typia";
 import { parse as parseYAML } from "yaml";
-import type { FileRef } from "#schema/@";
-import type { JsonString } from "./types.js";
+import type { FileRef } from "@/types/schema";
+import type { JsonString } from "./types";
 
 type Validator<T> = (input: unknown) => input is T;
 

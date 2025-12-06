@@ -1,4 +1,13 @@
 import { is } from "typia";
+import type { Cover } from "@/types/helpers";
+import type {
+	IProperties,
+	Pitch,
+	Positional,
+	Sustain as T_Sustain,
+	Transpose as T_Transpose,
+	Trill as T_Trill,
+} from "@/types/schema";
 import {
 	Beat,
 	Delay,
@@ -9,31 +18,23 @@ import {
 	Time,
 	Transpose,
 	Trill,
-} from "#core/resolver/properties/@";
-import type {
-	IProperties,
-	Pitch,
-	Positional,
-	Sustain as T_Sustain,
-	Transpose as T_Transpose,
-	Trill as T_Trill,
-} from "#schema/@";
-import type { Cover } from "#types/helpers/@";
-import type { OneOrMany } from "./multi.js";
-import type { PositionalClass } from "./positional.js";
-import type { StaticClass } from "./static.js";
+} from ".";
+import type { OneOrMany } from "./multi";
+import type { PositionalClass } from "./positional";
+import type { StaticClass } from "./static";
 
-export type ResolveType<T> = T extends StaticClass<infer U>
-	? U
-	: T extends PositionalClass<any, any, any, infer U>
-		? U | undefined
-		: T extends new (
-					...args: any
-				) => { resolve: (...args: any) => infer U }
-			? U extends OneOrMany<infer V>
-				? V | undefined
-				: never
-			: never;
+export type ResolveType<T> =
+	T extends StaticClass<infer U>
+		? U
+		: T extends PositionalClass<any, any, any, infer U>
+			? U | undefined
+			: T extends new (
+						...args: any
+					) => { resolve: (...args: any) => infer U }
+				? U extends OneOrMany<infer V>
+					? V | undefined
+					: never
+				: never;
 
 type Modifier = Cover<IProperties, "division" | "level" | "position">;
 

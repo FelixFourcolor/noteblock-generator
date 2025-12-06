@@ -1,5 +1,5 @@
 import { mapKeys, mapValues } from "lodash";
-import { JSON_SCHEMA_PREFIX as PREFIX } from "./translateRefs.js";
+import { JSON_SCHEMA_PREFIX as PREFIX } from "./translateRefs";
 
 export function minimizeRefs(obj: unknown) {
 	const refs = extractRefs(obj);

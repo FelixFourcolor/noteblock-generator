@@ -1,9 +1,9 @@
-import { UserError } from "#cli/error.js";
-import type { LazyVoiceEntry } from "#core/loader/@";
-import type { ResolverCache } from "#core/resolver/cache.js";
-import type { IProperties } from "#schema/@";
-import { zip } from "../utils/generators.js";
-import { resolveVoice, type VoiceResolution } from "../voice/voice.js";
+import { UserError } from "@/cli/error";
+import type { LazyVoiceEntry } from "@/core/loader";
+import type { ResolverCache } from "@/core/resolver/cache";
+import type { IProperties } from "@/types/schema";
+import { zip } from "../utils/generators";
+import { resolveVoice, type VoiceResolution } from "../voice/voice";
 
 export type SongContext = { songModifier: IProperties; cwd: string };
 

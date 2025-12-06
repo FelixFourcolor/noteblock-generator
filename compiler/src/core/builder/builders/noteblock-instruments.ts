@@ -1,5 +1,5 @@
-import type { InstrumentName } from "#schema/@";
-import type { BlockName } from "../block.js";
+import type { InstrumentName } from "@/types/schema";
+import type { BlockName } from "../block";
 
 export const instrumentBase = {
 	bass: "oak_log",

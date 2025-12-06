@@ -7,9 +7,9 @@ import {
 	type OneOrMany,
 	Position,
 	Sustain,
-} from "#core/resolver/properties/@";
-import type { TickEvent } from "../tick.js";
-import type { Context } from "../utils/context.js";
+} from "@/core/resolver/properties";
+import type { TickEvent } from "../tick";
+import type { Context } from "../utils/context";
 
 export function* applyPhrasing({
 	events,

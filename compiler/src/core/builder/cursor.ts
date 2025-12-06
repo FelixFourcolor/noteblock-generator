@@ -1,5 +1,5 @@
-import type { XYZ } from "./block-placer.js";
-import { Direction } from "./direction.js";
+import type { XYZ } from "./block-placer";
+import { Direction } from "./direction";
 
 export class Cursor {
 	constructor(

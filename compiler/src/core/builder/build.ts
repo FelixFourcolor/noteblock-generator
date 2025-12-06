@@ -1,9 +1,9 @@
 import { match } from "ts-pattern";
-import type { SongLayout } from "#core/layout/@";
-import type { Building } from "./builders/builder.js";
-import { DoubleBuilder } from "./builders/double-builder.js";
-import { SingleBuilder } from "./builders/single-builder.js";
-import { BuilderCache } from "./cache.js";
+import type { SongLayout } from "@/core/layout";
+import type { Building } from "./builders/builder";
+import { DoubleBuilder } from "./builders/double-builder";
+import { SingleBuilder } from "./builders/single-builder";
+import { BuilderCache } from "./cache";
 
 export function build(song: SongLayout): Building {
 	return _build(song);

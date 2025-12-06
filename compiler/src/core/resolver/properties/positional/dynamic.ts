@@ -1,17 +1,17 @@
 import { times, zipWith } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import type { Dynamic as T_Dynamic } from "#schema/@";
-import { resolveVariableValue } from "../duration.js";
-import { Positional } from "../positional.js";
-import type { ResolveType } from "../properties.js";
+import type { Dynamic as T_Dynamic } from "@/types/schema";
+import { resolveVariableValue } from "../duration";
+import { Positional } from "../positional";
+import type { ResolveType } from "../properties";
 import {
 	parseNumber,
 	parseNumericValue,
 	uniformAbsolute,
 	uniformRelative,
-} from "../variable.js";
-import { Sustain } from "./sustain.js";
+} from "../variable";
+import { Sustain } from "./sustain";
 
 export const Dynamic = Positional({
 	Default: [uniformAbsolute(1)],

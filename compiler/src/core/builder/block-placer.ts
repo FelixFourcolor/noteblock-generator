@@ -1,6 +1,6 @@
-import { Block, type BlockType } from "./block.js";
-import { Cursor } from "./cursor.js";
-import { Wire } from "./wire.js";
+import { Block, type BlockType } from "./block";
+import { Cursor } from "./cursor";
+import { Wire } from "./wire";
 
 export type XYZ = [number, number, number];
 export type StrCoord = `${number} ${number} ${number}`;

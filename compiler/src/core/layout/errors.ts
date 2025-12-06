@@ -1,5 +1,5 @@
-import { UserError } from "#cli/error.js";
-import type { IMeasure, NoteEvent, TickEvent } from "#core/resolver/@";
+import { UserError } from "@/cli/error";
+import type { IMeasure, NoteEvent, TickEvent } from "@/core/resolver";
 
 export class ErrorTracker {
 	private readonly errors = new Map<string, Set<string>>();

@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { stdin, stdout } from "node:process";
-import type { FileRef } from "#schema/@";
-import type { CommandOptions } from "./commands.js";
-import { handleError } from "./error.js";
+import type { FileRef } from "@/types/schema";
+import type { CommandOptions } from "./commands";
+import { handleError } from "./error";
 
 export async function getInput(
 	args: CommandOptions<{ in: string | undefined }>,

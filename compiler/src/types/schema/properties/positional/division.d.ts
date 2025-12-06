@@ -1,5 +1,5 @@
-import type { Variable } from "#schema/duration.ts";
-import type { Positional } from "../meta.ts";
+import type { Variable } from "@/types/schema/duration";
+import type { Positional } from "../meta";
 
 export type Division = Division.variable;
 

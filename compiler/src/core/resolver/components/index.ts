@@ -1,3 +1,4 @@
-export * from "./song/song.js";
-export type * from "./tick.js";
-export type { IMeasure } from "./utils/measure.js";
+export * from "./song/song";
+export type * from "./tick";
+export type * from "./utils/measure";
+export type * from "./voice/voice";

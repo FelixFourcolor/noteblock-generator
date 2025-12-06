@@ -1,12 +1,12 @@
 import type { tags } from "typia";
-import type { NoteValue } from "#schema/note/@";
+import type { DistributiveOmit, Modified } from "@/types/helpers";
+import type { NoteValue } from "../note";
 import type {
 	INoteTrill,
 	IProperties,
 	IStaticProperties,
 	TPosition,
-} from "#schema/properties/@";
-import type { DistributiveOmit, Modified } from "#types/helpers/@";
+} from "../properties";
 
 type RestModifier = Omit<IStaticProperties, "time">;
 

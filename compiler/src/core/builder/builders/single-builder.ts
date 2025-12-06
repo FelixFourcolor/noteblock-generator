@@ -1,7 +1,7 @@
-import type { Slice } from "#core/layout/@";
-import { Block } from "../block.js";
-import { Direction } from "../direction.js";
-import { Builder } from "./builder.js";
+import type { Slice } from "@/core/layout";
+import { Block } from "../block";
+import { Direction } from "../direction";
+import { Builder } from "./builder";
 
 export class SingleBuilder extends Builder<"single"> {
 	protected override buildSlice(slice: Slice<"single">) {

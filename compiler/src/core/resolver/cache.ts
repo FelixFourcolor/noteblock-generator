@@ -1,6 +1,5 @@
-import type { FileRef, IProperties } from "#schema/@";
-import type { Tick } from "./components/tick.js";
-import type { VoiceResolution } from "./components/voice/voice.js";
+import type { FileRef, IProperties } from "@/types/schema";
+import type { Tick, VoiceResolution } from "./components";
 
 type CacheKey = {
 	songModifier: IProperties;

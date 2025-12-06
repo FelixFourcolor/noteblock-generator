@@ -1,5 +1,5 @@
 /*
- * https://github.com/hackle/blog-rust/blob/master/sample/typescript-union-to-tuple-array.ts
+ * https://github.com/hackle/blog-rust/blob/master/sample/typescript-union-to-tuple-array
  */
 
 export type Tuplify<Union> = PickOne<Union> extends infer Last

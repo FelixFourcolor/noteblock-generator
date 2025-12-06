@@ -7,13 +7,13 @@ import type {
 	Division as T_Division,
 	Level as T_Level,
 	Position as T_Position,
-} from "#schema/@";
-import { splitVariableValue } from "../duration.js";
-import { multiMap, type OneOrMany } from "../multi.js";
-import type { ResolveType } from "../properties.js";
-import { Division } from "./division.js";
-import { Level } from "./level.js";
-import type { Sustain } from "./sustain.js";
+} from "@/types/schema";
+import { splitVariableValue } from "../duration";
+import { multiMap, type OneOrMany } from "../multi";
+import type { ResolveType } from "../properties";
+import { Division } from "./division";
+import { Level } from "./level";
+import type { Sustain } from "./sustain";
 
 export class Position {
 	readonly level: InstanceType<typeof Level>;

@@ -1,9 +1,9 @@
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import type { FileRef, Song } from "#schema/@";
-import type { JsonString, LoadedSong } from "./types.js";
-import { type ValidateError, validate } from "./validate.js";
-import { loadVoice } from "./voice.js";
+import type { FileRef, Song } from "@/types/schema";
+import type { JsonString, LoadedSong } from "./types";
+import { type ValidateError, validate } from "./validate";
+import { loadVoice } from "./voice";
 
 export async function loadSong(
 	data: FileRef | JsonString,

@@ -1,10 +1,10 @@
 import { equals } from "typia";
-import type { LazyVoice } from "#core/loader/@";
-import type { IProperties, Time, TPosition, Voice } from "#schema/@";
-import type { SongContext } from "../song/voices.js";
-import type { Tick } from "../tick.js";
-import { Context } from "../utils/context.js";
-import { resolveNotes } from "./notes.js";
+import type { LazyVoice } from "@/core/loader";
+import type { IProperties, Time, TPosition, Voice } from "@/types/schema";
+import type { SongContext } from "../song/voices";
+import type { Tick } from "../tick";
+import { Context } from "../utils/context";
+import { resolveNotes } from "./notes";
 
 export type VoiceContext = SongContext & {
 	index: number | [number, number];

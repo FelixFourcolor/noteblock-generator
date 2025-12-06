@@ -1,7 +1,7 @@
-import type { Duration } from "#schema/duration.js";
-import type { Pitch } from "#schema/note/@";
-import type { Int, Modified } from "#types/helpers/@";
-import type { IPositional, Positional } from "../meta.js";
+import type { Int, Modified } from "@/types/helpers";
+import type { Duration } from "@/types/schema/duration";
+import type { Pitch } from "@/types/schema/note";
+import type { IPositional, Positional } from "../meta";
 
 export namespace Trill {
 	export type Value = boolean | Int<-12, 12> | Pitch;

@@ -1,10 +1,10 @@
 import { isEmpty } from "lodash";
-import { UserError } from "#cli/error.js";
-import { type Building, build, cachedBuilder } from "#core/builder/@";
-import { calculateLayout } from "#core/layout/@";
-import { type JsonString, liveLoader, load } from "#core/loader/@";
-import { cachedResolver, resolve } from "#core/resolver/@";
-import type { FileRef } from "#schema/@";
+import { UserError } from "@/cli/error";
+import type { FileRef } from "@/types/schema";
+import { type Building, build, cachedBuilder } from "./builder";
+import { calculateLayout } from "./layout";
+import { type JsonString, liveLoader, load } from "./loader";
+import { cachedResolver, resolve } from "./resolver";
 
 export function compile(src: FileRef | JsonString): Promise<Building> {
 	return load(src).then(resolve).then(calculateLayout).then(build);

@@ -3,9 +3,12 @@ import { stdout } from "node:process";
 import { assert } from "typia";
 import type { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
-import type { FileRef } from "#schema/@";
-import { UserError } from "./error.js";
-import { getInput, withOutput } from "./io.js";
+import { compile, liveCompiler } from "@/core/compile";
+import { initProject } from "@/extras/project-init";
+import { generateSchema } from "@/extras/schema-generator";
+import type { FileRef } from "@/types/schema";
+import { UserError } from "./error";
+import { getInput, withOutput } from "./io";
 
 export type CommandOptions<T> = Awaited<ReturnType<Argv<T>["parseAsync"]>>;
 
@@ -56,7 +59,6 @@ export const compileCommand = createCommand({
 		const { watch, out } = args;
 
 		if (watch === undefined) {
-			const { compile } = await import("#core/compile.js");
 			return compile(src);
 		}
 
@@ -74,7 +76,6 @@ export const compileCommand = createCommand({
 			}
 			return Math.max(0, watch);
 		})();
-		const { liveCompiler } = await import("#core/compile.js");
 		return liveCompiler(
 			// src is FileRef guaranteed by `implies: "in"`
 			assert<FileRef>(src),
@@ -99,7 +100,6 @@ export const initCommand = createCommand({
 			});
 	},
 	async execute(args) {
-		const { initProject } = await import("#extras/project-init/@");
 		return initProject(args.out, args.voices?.map(String));
 	},
 });
@@ -115,7 +115,6 @@ export const schemaCommand = createCommand({
 	},
 
 	async execute() {
-		const { generateSchema } = await import("#extras/schema-generator/@");
 		return generateSchema();
 	},
 });

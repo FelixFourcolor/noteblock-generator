@@ -1,13 +1,13 @@
 import { isEmpty } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import { type OneOrMany, splitTimedValue } from "#core/resolver/properties/@";
-import type { Note, NoteModifier, NoteValue, Trill } from "#schema/@";
-import type { TickEvent } from "../tick.js";
-import type { Context } from "../utils/context.js";
-import { chain, multiZip, zip } from "../utils/generators.js";
-import { resolveNoteblocks } from "./noteblock.js";
-import { applyPhrasing } from "./phrasing.js";
+import { type OneOrMany, splitTimedValue } from "@/core/resolver/properties";
+import type { Note, NoteModifier, NoteValue, Trill } from "@/types/schema";
+import type { TickEvent } from "../tick";
+import type { Context } from "../utils/context";
+import { chain, multiZip, zip } from "../utils/generators";
+import { resolveNoteblocks } from "./noteblock";
+import { applyPhrasing } from "./phrasing";
 
 type ResolvedNote<Phrased extends boolean = true> = Phrased extends true
 	? Generator<TickEvent.Phrased[]>

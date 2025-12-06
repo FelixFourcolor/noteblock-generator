@@ -1,6 +1,6 @@
-import type { Timed, Untimed } from "#schema/duration.ts";
-import type { Re, Repeat } from "#types/helpers/@";
-import type { Pitch } from "./pitch.ts";
+import type { Re, Repeat } from "@/types/helpers";
+import type { Timed, Untimed } from "../duration";
+import type { Pitch } from "./pitch";
 
 export type NoteValue = NoteValue.Simple | NoteValue.Chord | NoteValue.Quaver;
 

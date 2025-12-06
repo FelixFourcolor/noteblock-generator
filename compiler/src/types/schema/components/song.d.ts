@@ -1,7 +1,7 @@
 import type { tags } from "typia";
-import type { IGlobal, IProperties, TPosition } from "#schema/properties/@";
-import type { FileRef } from "./ref.js";
-import type { Notes, TValidate, Voice } from "./voice.ts";
+import type { IGlobal, IProperties, TPosition } from "../properties";
+import type { FileRef } from "./ref";
+import type { Notes, TValidate, Voice } from "./voice";
 
 type VoiceGroup<T extends TValidate = TPosition> = (
 	| Voice<T, "inline">

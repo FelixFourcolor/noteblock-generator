@@ -1,13 +1,5 @@
 {
 	"compilerOptions": {
-		"plugins": [{ "transform": "typia/lib/transform" }],
-
-		"target": "ESNext",
-		"module": "NodeNext",
-		"verbatimModuleSyntax": true,
-		"isolatedModules": true,
-		"skipDefaultLibCheck": true,
-
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
@@ -15,14 +7,13 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedSideEffectImports": true,
 
-		"paths": {
-			"#schema/@": ["./src/types/schema/index.ts"],
-			"#schema/*/@": ["./src/types/schema/*/index.ts"],
-			"#schema/*": ["./src/types/schema/*"],
-			"#*/@": ["./src/*/index.ts"],
-			"#*": ["./src/*"]
-		},
-		"outDir": "dist"
-	},
-	"include": ["src"]
+		"target": "ESNext",
+		"module": "ESNext",
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"skipDefaultLibCheck": true,
+		"moduleResolution": "Bundler",
+		"noEmit": true,
+		"paths": { "@/*": ["./src/*"] }
+	}
 }

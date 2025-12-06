@@ -1,5 +1,5 @@
 import { match, P } from "ts-pattern";
-import type { Time } from "#schema/@";
+import type { Time } from "@/types/schema";
 
 export interface IMeasure {
 	bar: number;

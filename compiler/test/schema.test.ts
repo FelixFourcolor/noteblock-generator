@@ -4,7 +4,7 @@ import { join } from "node:path";
 import Ajv from "ajv";
 import { describe, expect, test } from "vitest";
 import { parse as parseYAML } from "yaml";
-import { generateSchema } from "#extras/schema-generator";
+import { generateSchema } from "@/extras/schema-generator";
 
 describe("Schema tests", () => {
 	const schema = generateSchema();

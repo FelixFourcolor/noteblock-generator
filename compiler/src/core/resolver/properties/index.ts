@@ -1,17 +1,17 @@
-export * from "./duration.js";
-export * from "./multi.js";
+export * from "./duration";
+export * from "./multi";
 
-export * from "./positional/division.js";
-export * from "./positional/dynamic.js";
-export * from "./positional/instrument.js";
-export * from "./positional/level.js";
-export * from "./positional/position.js";
-export * from "./positional/sustain.js";
-export * from "./positional/transpose.js";
-export * from "./positional/trill.js";
+export * from "./positional/division";
+export * from "./positional/dynamic";
+export * from "./positional/instrument";
+export * from "./positional/level";
+export * from "./positional/position";
+export * from "./positional/sustain";
+export * from "./positional/transpose";
+export * from "./positional/trill";
 
-export * from "./properties.js";
+export * from "./properties";
 
-export * from "./static/beat.js";
-export * from "./static/delay.js";
-export * from "./static/time.js";
+export * from "./static/beat";
+export * from "./static/delay";
+export * from "./static/time";

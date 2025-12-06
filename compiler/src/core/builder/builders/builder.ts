@@ -1,14 +1,14 @@
 import { forEachRight, range } from "lodash";
-import type { NoteCluster, Slice, SongLayout } from "#core/layout/@";
-import type { TPosition } from "#schema/@";
-import { Block } from "../block.js";
-import { type BlockMap, BlockPlacer } from "../block-placer.js";
-import { addBuffer } from "../buffer.js";
-import type { BuilderCache } from "../cache.js";
-import type { Cursor } from "../cursor.js";
-import { Direction } from "../direction.js";
-import { getSize, type Size, SLICE_SIZE } from "../size.js";
-import { instrumentBase } from "./noteblock-instruments.js";
+import type { NoteCluster, Slice, SongLayout } from "@/core/layout";
+import type { TPosition } from "@/types/schema";
+import { Block } from "../block";
+import { type BlockMap, BlockPlacer } from "../block-placer";
+import { addBuffer } from "../buffer";
+import type { BuilderCache } from "../cache";
+import type { Cursor } from "../cursor";
+import { Direction } from "../direction";
+import { getSize, type Size, SLICE_SIZE } from "../size";
+import { instrumentBase } from "./noteblock-instruments";
 
 export type Building = {
 	size: Size;

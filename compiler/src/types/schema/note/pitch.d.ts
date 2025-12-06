@@ -1,4 +1,4 @@
-import type { Re } from "#types/helpers/@";
+import type { Re } from "@/types/helpers";
 
 export type Pitch = Pitch.absolute | Pitch.relative | Pitch.implied;
 export namespace Pitch {

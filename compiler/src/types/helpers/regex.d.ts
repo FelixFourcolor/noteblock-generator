@@ -1,6 +1,6 @@
 import type { Lt, Subtract } from "ts-arithmetic";
 import type { tags } from "typia";
-import type { Tuplify } from "./array.js";
+import type { Tuplify } from "./array";
 
 export type Re<A, B = "", C = "", D = "", E = ""> = [A] extends [string[]]
 	? Regex<ReJoin<[...A, string & B, string & C, string & D, string & E]>>

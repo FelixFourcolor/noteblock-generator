@@ -4,12 +4,12 @@ import { mkdir, rmdir, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, parse } from "node:path";
 import { fromPairs, orderBy, toPairs } from "lodash";
 import { describe, expect, test } from "vitest";
-import { build } from "#core/builder";
-import { calculateLayout } from "#core/layout/layout.js";
-import { load } from "#core/loader/@";
-import { ResolverCache } from "#core/resolver/cache.js";
-import { resolveSong } from "#core/resolver/components";
-import type { FileRef } from "#schema/@";
+import { build } from "@/core/builder";
+import { calculateLayout } from "@/core/layout";
+import { load } from "@/core/loader";
+import { resolveSong } from "@/core/resolver";
+import { ResolverCache } from "@/core/resolver/cache";
+import type { FileRef } from "@/types/schema";
 
 describe("Compile tests", () => {
 	const projectsDir = join(__dirname, "data", "projects");

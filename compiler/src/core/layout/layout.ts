@@ -1,10 +1,10 @@
 import { times } from "lodash";
-import { UserError } from "#cli/error.js";
-import type { SongResolution } from "#core/resolver/@";
-import { ErrorTracker } from "./errors.js";
-import { HeightTracker } from "./height.js";
-import { processTicks } from "./ticks.js";
-import type { SongLayout } from "./types.js";
+import { UserError } from "@/cli/error";
+import type { SongResolution } from "@/core/resolver";
+import { ErrorTracker } from "./errors";
+import { HeightTracker } from "./height";
+import { processTicks } from "./ticks";
+import type { SongLayout } from "./types";
 
 export function calculateLayout({
 	type,

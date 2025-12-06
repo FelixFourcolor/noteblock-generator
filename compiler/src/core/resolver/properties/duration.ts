@@ -1,6 +1,6 @@
 import { match, P } from "ts-pattern";
 import { assert, is } from "typia";
-import type { Beat, Duration } from "#schema/@";
+import type { Beat, Duration } from "@/types/schema";
 
 export function parseDuration(
 	duration: Duration.determinate,

@@ -1,7 +1,7 @@
 import { match, P } from "ts-pattern";
-import { Block, type BlockType } from "./block.js";
-import type { XYZ } from "./block-placer.js";
-import { Direction } from "./direction.js";
+import { Block, type BlockType } from "./block";
+import type { XYZ } from "./block-placer";
+import { Direction } from "./direction";
 
 type Value = "wire" | "repeater" | null;
 

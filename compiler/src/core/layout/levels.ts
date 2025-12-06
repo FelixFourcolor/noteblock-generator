@@ -1,10 +1,10 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
-import type { NoteEvent } from "#core/resolver/@";
-import type { TPosition } from "#schema/@";
-import type { ErrorTracker } from "./errors.js";
-import { validateClusterSize } from "./errors.js";
-import type { LevelEntry, LevelMap } from "./types.js";
+import type { NoteEvent } from "@/core/resolver";
+import type { TPosition } from "@/types/schema";
+import type { ErrorTracker } from "./errors";
+import { validateClusterSize } from "./errors";
+import type { LevelEntry, LevelMap } from "./types";
 
 export function mapLevels(
 	notes: NoteEvent[],

@@ -1,4 +1,4 @@
-import type { SongLayout } from "#core/layout/@";
+import type { SongLayout } from "@/core/layout";
 
 export type Size = {
 	width: number;

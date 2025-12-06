@@ -1,5 +1,5 @@
-import type { NoteBlock } from "#core/resolver/@";
-import type { Delay, TPosition } from "#schema/@";
+import type { NoteBlock } from "@/core/resolver";
+import type { Delay, TPosition } from "@/types/schema";
 
 export type NoteCluster = NoteBlock[];
 

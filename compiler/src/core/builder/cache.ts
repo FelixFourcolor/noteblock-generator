@@ -1,10 +1,10 @@
 import { isEqual } from "lodash";
-import type { Slice } from "#core/layout/@";
-import type { TPosition } from "#schema/@";
-import type { BlockMap } from "./block-placer.js";
-import type { Building } from "./builders/builder.js";
-import type { Cursor } from "./cursor.js";
-import type { Size } from "./size.js";
+import type { Slice } from "@/core/layout";
+import type { TPosition } from "@/types/schema";
+import type { BlockMap } from "./block-placer";
+import type { Building } from "./builders/builder";
+import type { Cursor } from "./cursor";
+import type { Size } from "./size";
 
 type Key = {
 	type: TPosition;

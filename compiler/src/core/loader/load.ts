@@ -3,10 +3,10 @@ import { watch } from "chokidar";
 import { debounce } from "lodash";
 import { match, P } from "ts-pattern";
 import { assert } from "typia";
-import { UserError } from "#cli/error.js";
-import type { FileRef } from "#schema/@";
-import { loadSong } from "./song.js";
-import type { JsonString, LazySong, LoadedSong } from "./types.js";
+import { UserError } from "@/cli/error";
+import type { FileRef } from "@/types/schema";
+import { loadSong } from "./song";
+import type { JsonString, LazySong, LoadedSong } from "./types";
 
 export async function load(src: FileRef | JsonString): Promise<LoadedSong> {
 	const result = await loadSong(src);

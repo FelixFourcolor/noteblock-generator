@@ -1,13 +1,13 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { launchCLI } from "#cli/cli.js";
+import { launchCLI } from "@/cli/cli";
 
 export function setupSchema(root: string) {
 	const vscodeDir = join(root, ".vscode");
 
 	const generateSchema = (async () => {
-		const schemaFile = join(vscodeDir, "schema.json");
+		const schemaFile = join(vscodeDir, "schemaon");
 		if (existsSync(schemaFile)) {
 			console.error("Schema file already exists; skipping schema generation.");
 			return;
@@ -16,13 +16,13 @@ export function setupSchema(root: string) {
 	})();
 
 	const generateVscodeSettings = (async () => {
-		const settingsFile = join(vscodeDir, "settings.json");
+		const settingsFile = join(vscodeDir, "settingson");
 		if (existsSync(settingsFile)) {
 			console.error("VSCode settings already exist; skipping schema setup.");
 			return;
 		}
 		const settings = {
-			"yaml.schemas": { ".vscode/schema.json": ["src/**/*.yaml"] },
+			"yaml.schemas": { ".vscode/schemaon": ["src/**/*.yaml"] },
 		};
 		await mkdir(vscodeDir, { recursive: true });
 		await writeFile(settingsFile, `${JSON.stringify(settings, null, 2)}\n`);

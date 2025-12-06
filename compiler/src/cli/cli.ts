@@ -1,6 +1,6 @@
 import Yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand, initCommand, schemaCommand } from "./commands.js";
+import { compileCommand, initCommand, schemaCommand } from "./commands";
 
 export async function launchCLI(argv = hideBin(process.argv)) {
 	const yargs = Yargs(argv)

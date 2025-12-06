@@ -1,6 +1,6 @@
-import type { Slice } from "#core/layout/@";
-import { Block } from "../block.js";
-import { Builder } from "./builder.js";
+import type { Slice } from "@/core/layout";
+import { Block } from "../block";
+import { Builder } from "./builder";
 
 export class DoubleBuilder extends Builder<"double"> {
 	protected override buildSlice({ delay, levels }: Slice<"double">) {

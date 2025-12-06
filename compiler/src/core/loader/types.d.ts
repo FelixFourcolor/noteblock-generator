@@ -1,5 +1,5 @@
-import type { FileRef, IProperties, Notes } from "#schema/@";
-import type { ValidateError } from "./validate.js";
+import type { FileRef, IProperties, Notes } from "@/types/schema";
+import type { ValidateError } from "./validate";
 
 export type JsonString = `json://${string}`;
 

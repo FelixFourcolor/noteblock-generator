@@ -1,11 +1,11 @@
 import { partition } from "lodash";
 import { match, P } from "ts-pattern";
-import type { Tick } from "#core/resolver/@";
-import type { TPosition } from "#schema/@";
-import { type ErrorTracker, validateConsistency } from "./errors.js";
-import type { HeightTracker } from "./height.js";
-import { mapLevels } from "./levels.js";
-import type { LevelMap } from "./types.js";
+import type { Tick } from "@/core/resolver";
+import type { TPosition } from "@/types/schema";
+import { type ErrorTracker, validateConsistency } from "./errors";
+import type { HeightTracker } from "./height";
+import { mapLevels } from "./levels";
+import type { LevelMap } from "./types";
 
 export function* processTicks(
 	ticks: Iterable<Tick>,

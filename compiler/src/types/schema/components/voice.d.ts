@@ -1,7 +1,7 @@
-import type { BarLine } from "#schema/note/@";
-import type { IGlobal, IProperties, TPosition } from "#schema/properties/@";
-import type { Note } from "./note.ts";
-import type { FileRef } from "./ref.js";
+import type { BarLine } from "@/types/schema/note";
+import type { IGlobal, IProperties, TPosition } from "../properties";
+import type { Note } from "./note";
+import type { FileRef } from "./ref";
 
 export type TValidate = TPosition | "lazy";
 

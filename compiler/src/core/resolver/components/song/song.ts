@@ -1,9 +1,9 @@
 import { is } from "typia";
-import type { LoadedSong } from "#core/loader/@";
-import type { IProperties, Time, TPosition } from "#schema/@";
-import type { ResolverCache } from "../../cache.js";
-import type { Tick } from "../tick.js";
-import { resolveVoices } from "./voices.js";
+import type { LoadedSong } from "@/core/loader";
+import type { IProperties, Time, TPosition } from "@/types/schema";
+import type { ResolverCache } from "../../cache";
+import type { Tick } from "../tick";
+import { resolveVoices } from "./voices";
 
 export type SongResolution<T extends TPosition = TPosition> = {
 	type: T;

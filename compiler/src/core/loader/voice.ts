@@ -1,9 +1,9 @@
 import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assert, createEquals, is } from "typia";
-import type { FileRef, Notes, Voice } from "#schema/@";
-import type { LazyVoice } from "./types.js";
-import { validate } from "./validate.js";
+import type { FileRef, Notes, Voice } from "@/types/schema";
+import type { LazyVoice } from "./types";
+import { validate } from "./validate";
 
 export function loadVoice(
 	voiceData: Voice<"lazy"> | FileRef,

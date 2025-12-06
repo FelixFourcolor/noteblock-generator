@@ -5,10 +5,10 @@ import type {
 	Duration,
 	IPositional,
 	Sustain as T_Sustain,
-} from "#schema/@";
-import { parseDuration } from "../duration.js";
-import { multiMap } from "../multi.js";
-import { Positional } from "../positional.js";
+} from "@/types/schema";
+import { parseDuration } from "../duration";
+import { multiMap } from "../multi";
+import { Positional } from "../positional";
 
 export class Sustain {
 	static default({ noteDuration }: { noteDuration: number }) {
