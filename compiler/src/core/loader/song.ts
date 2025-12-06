@@ -1,17 +1,18 @@
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
+import { UserError } from "@/cli/error";
 import type { FileRef, Song } from "@/types/schema";
 import type { JsonString, LoadedSong } from "./types";
-import { type ValidateError, validate } from "./validate";
+import { validate } from "./validate";
 import { loadVoice } from "./voice";
 
 export async function loadSong(
 	data: FileRef | JsonString,
-): Promise<LoadedSong | ValidateError> {
-	const validateResult = await validate(data, createIs<Song<"lazy">>());
-
-	return match(validateResult)
-		.with({ error: P._ }, (error) => error)
+): Promise<LoadedSong> {
+	return match(await validate(data, createIs<Song<"lazy">>()))
+		.with({ error: P.select() }, (error) => {
+			throw new UserError(error);
+		})
 		.otherwise(({ validated, cwd }) => {
 			const { voices, modifier } = normalize(validated);
 			return {
