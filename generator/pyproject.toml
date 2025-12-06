@@ -4,7 +4,6 @@ version = "0.3.0"
 description = "Generate music in Minecraft noteblocks"
 authors = [{ name = "Felix Fourcolor", email = "felix.fourcolor@gmail.com" }]
 license = { text = "MIT" }
-readme = "README.md"
 requires-python = ">=3.10, <3.15"
 keywords = ["minecraft", "noteblock"]
 dependencies = [
