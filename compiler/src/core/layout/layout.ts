@@ -1,9 +1,9 @@
 import { times } from "lodash";
 import { UserError } from "@/cli/error";
 import type { SongResolution } from "@/core/resolver";
-import { ErrorTracker } from "./errors";
-import { HeightTracker } from "./height";
-import { processTicks } from "./ticks";
+import { processTicks } from "./tick-processor";
+import { ErrorTracker } from "./tracker/errors";
+import { HeightTracker } from "./tracker/height";
 import type { SongLayout } from "./types";
 
 export function calculateLayout({

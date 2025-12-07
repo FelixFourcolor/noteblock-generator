@@ -2,9 +2,9 @@ import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
 import type { NoteEvent } from "@/core/resolver";
 import type { TPosition } from "@/types/schema";
-import type { ErrorTracker } from "./errors";
-import { validateClusterSize } from "./errors";
+import type { ErrorTracker } from "./tracker/errors";
 import type { LevelEntry, LevelMap } from "./types";
+import { validateCluster } from "./validator/cluster-size";
 
 export function mapLevels(
 	notes: NoteEvent[],
@@ -35,7 +35,7 @@ function mapSingle(
 	const singleNotes = notes.filter((note) => note.division === "L");
 	const levelGroups = groupBy(singleNotes, (note) => note.level);
 
-	validateClusterSize(levelGroups, ([level, { voices, size }]) => {
+	validateCluster(levelGroups, ([level, { voices, size }]) => {
 		onError(`${voices.join(", ")}: Overflow @${level}=${size}`);
 	});
 
@@ -55,7 +55,7 @@ function mapDouble(
 	);
 
 	for (const [level, divisionGroups] of Object.entries(positionGroups)) {
-		validateClusterSize(divisionGroups, ([division, { voices, size }]) => {
+		validateCluster(divisionGroups, ([division, { voices, size }]) => {
 			onError(`${voices.join(", ")}: Overflow @${division}${level}=${size}`);
 		});
 	}

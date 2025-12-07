@@ -2,10 +2,11 @@ import { partition } from "lodash";
 import { match, P } from "ts-pattern";
 import type { Tick } from "@/core/resolver";
 import type { TPosition } from "@/types/schema";
-import { type ErrorTracker, validateConsistency } from "./errors";
-import type { HeightTracker } from "./height";
-import { mapLevels } from "./levels";
+import { mapLevels } from "./level-mapper";
+import type { ErrorTracker } from "./tracker/errors";
+import type { HeightTracker } from "./tracker/height";
 import type { LevelMap } from "./types";
+import { validateConsistency } from "./validator/consistency";
 
 export function* processTicks(
 	ticks: Iterable<Tick>,
@@ -14,6 +15,7 @@ export function* processTicks(
 	{ registerError }: Pick<ErrorTracker, "registerError">,
 ): Generator<{ delay: number; levelMap: LevelMap }> {
 	let measure = { bar: 1, tick: 0 };
+	let defaultDelay = 1;
 
 	for (const tick of ticks) {
 		const [errors, events] = partition(tick, (event) => "error" in event);
@@ -27,17 +29,20 @@ export function* processTicks(
 		}
 
 		measure = match(validateConsistency(events, "measure"))
-			.with({ value: P.select() }, (measure) => measure)
-			.otherwise(({ error }) => {
+			.with({ error: P.select() }, (error) => {
 				registerError(error, measure);
 				return measure;
-			});
+			})
+			.otherwise(({ value }) => value);
 
 		const delay = match(validateConsistency(events, "delay"))
-			.with({ value: P.select() }, (delay) => delay)
-			.otherwise(({ error }) => {
+			.with({ error: P.select() }, (error) => {
 				registerError(error, measure);
-				return 1;
+				return defaultDelay;
+			})
+			.otherwise(({ value, defaultValue }) => {
+				defaultDelay = defaultValue;
+				return value;
 			});
 
 		const notes = events.filter((event) => event.noteblock != null);
