@@ -18,7 +18,6 @@ export type Repeat<
 		separator: string;
 		atLeast?: number;
 		wrapper?: string | [string, string];
-		strict?: boolean;
 	},
 	__separator extends string = options["separator"],
 	__atLeast extends number = options["atLeast"] extends number
@@ -34,9 +33,6 @@ export type Repeat<
 			: ["", ""],
 	__open_wrapper extends string = __wrappers[0],
 	__close_wrapper extends string = __wrappers[1],
-	__strict extends boolean = options["strict"] extends boolean
-		? options["strict"]
-		: false,
 > = Re<
 	__open_wrapper,
 	Pattern,
@@ -44,8 +40,8 @@ export type Repeat<
 	Re<
 		// dangling separator at the end
 		Token<__separator>,
-		// required if strict and atLeast <= 2 to distinguish repeated vs single pattern
-		[__strict, Lt<__atLeast, 2>] extends [true, true] ? "" : "?"
+		// required if atLeast <= 2 to distinguish repeated vs single pattern
+		Lt<__atLeast, 2> extends true ? "" : "?"
 	>,
 	__close_wrapper
 >;

@@ -14,130 +14,139 @@ type ResolvedNote<Phrased extends boolean = true> = Phrased extends true
 	: Generator<OneOrMany<TickEvent> | undefined>;
 
 export function resolveNote(note: Note, voiceContext: Context): ResolvedNote {
-	const { value, trillValue, noteModifier } = normalize(note);
-	const noteContext = voiceContext.fork(noteModifier);
-	function resolveSimple<Phrased extends boolean>(
-		noteValue: NoteValue.Simple,
-		context: Context,
-		phrased: Phrased,
-	): ResolvedNote<Phrased> {
-		const events = resolveNoteblocks({ noteValue, trillValue, context });
-		return (
-			phrased ? applyPhrasing({ events, context }) : events
-		) as ResolvedNote<Phrased>;
-	}
+	const { noteValue, trillValue, noteModifier } = normalize(note);
+	const context = voiceContext.fork(noteModifier);
 
-	function resolveQuaver<Phrased extends boolean>(
-		noteValue: NoteValue.Quaver,
-		context: Context,
-		phrased: Phrased,
-	): ResolvedNote<Phrased> {
-		const values = noteValue.split("'");
-		const { beat } = noteContext.resolveStatic();
-		const halfBeat = Math.max(1, Math.floor(beat / 2));
-		const fastContext = context.fork({ beat: halfBeat });
+	return match(noteValue)
+		.with(P.when(isSimple), (v) => resolveSimple(v, trillValue, context))
+		.with(P.when(isChord), (v) => resolveChord(v, context))
+		.with(P.when(isQuaver), (v) => resolveQuaver(v, context))
+		.with(P.when(isCompound), (v) => resolveCompound(v, context))
+		.exhaustive();
+}
 
-		function resolveItem(value: NoteValue.Quaver.Item, context = noteContext) {
-			return match(value as unknown) // weird ts-pattern issue
-				.with(P.when(isSimple), (v) => resolveSimple(v, context, false))
-				.with(P.when(isChord), (v) => resolveChord(v, context, false))
-				.otherwise((value) => {
-					throw new Error(`Invalid quaver item: ${value}`);
-				});
-		}
+function resolveSimple<Phrased extends boolean = true>(
+	noteValue: NoteValue.Simple,
+	trillValue: Trill.Value | undefined,
+	context: Context,
+	phrased: Phrased = true as Phrased,
+): ResolvedNote<Phrased> {
+	const events = resolveNoteblocks({ noteValue, trillValue, context });
+	return (
+		phrased ? applyPhrasing({ events, context }) : events
+	) as ResolvedNote<Phrased>;
+}
 
-		const result = values.slice(0, -1).map((v) => resolveItem(v, fastContext));
-		const phrasedResult = phrased
-			? result.map((events) => applyPhrasing({ events, context: fastContext }))
-			: [];
+function resolveQuaver<Phrased extends boolean = true>(
+	noteValue: NoteValue.Quaver,
+	context: Context,
+	phrased: Phrased = true as Phrased,
+): ResolvedNote<Phrased> {
+	const values = noteValue.split("'");
+	const { beat } = context.resolveStatic();
+	const halfBeat = Math.max(1, Math.floor(beat / 2));
+	const fastContext = context.fork({ beat: halfBeat });
 
-		const lastValue = values[values.length - 1]!;
-		if (lastValue.trim()) {
-			const lastNote = resolveItem(lastValue);
-			result.push(lastNote);
-			if (phrased) {
-				const phrasedLastNote = applyPhrasing({ events: lastNote, context });
-				phrasedResult.push(phrasedLastNote);
-			}
-		}
-
-		return (
-			phrased ? chain(phrasedResult) : chain(result)
-		) as ResolvedNote<Phrased>;
-	}
-
-	function resolveChord<Phrased extends boolean>(
-		noteValue: NoteValue.Chord,
-		context: Context,
-		phrased: Phrased,
-	): ResolvedNote<Phrased> {
-		const { value: pitches, duration } = splitTimedValue(noteValue);
-		const chordItems = pitches
-			.slice(1, -1)
-			.split(";")
-			.filter((v) => v.trim())
-			.map((pitch) => (duration ? `${pitch}:${duration}` : pitch));
-
-		return (
-			phrased
-				? zip(chordItems.map((v) => resolveSimple(v, context, true)))
-				: multiZip(chordItems.map((v) => resolveSimple(v, context, false)))
-		) as ResolvedNote<Phrased>;
-	}
-
-	if (typeof value === "string") {
+	function resolveItem(value: string, context: Context) {
 		return match(value)
-			.with(P.when(isSimple), (v) => resolveSimple(v, noteContext, true))
-			.with(P.when(isChord), (v) => resolveChord(v, noteContext, true))
-			.with(P.when(isQuaver), (v) => resolveQuaver(v, noteContext, true))
-			.exhaustive();
-	}
-
-	const compoundItems = value.map((note) => {
-		const { value, noteModifier } = normalize(note);
-		const context = noteContext.fork(noteModifier);
-
-		if (Array.isArray(value)) {
-			throw new Error(`Invalid compound item: ${JSON.stringify(value)}`);
-		}
-
-		return match(value)
-			.with(P.when(isSimple), (v) => resolveSimple(v, context, false))
+			.with(P.when(isSimple), (v) =>
+				resolveSimple(v, undefined, context, false),
+			)
 			.with(P.when(isChord), (v) => resolveChord(v, context, false))
-			.with(P.when(isQuaver), (v) => resolveQuaver(v, context, false))
 			.exhaustive();
-	});
-	return applyPhrasing({ events: chain(compoundItems), context: noteContext });
+	}
+
+	const result = values.slice(0, -1).map((v) => resolveItem(v, fastContext));
+	const phrasedResult = phrased
+		? result.map((events) => applyPhrasing({ events, context: fastContext }))
+		: [];
+
+	const lastValue = values[values.length - 1]!;
+	if (lastValue.trim()) {
+		const lastNote = resolveItem(lastValue, context);
+		result.push(lastNote);
+		if (phrased) {
+			const phrasedLastNote = applyPhrasing({ events: lastNote, context });
+			phrasedResult.push(phrasedLastNote);
+		}
+	}
+
+	return (
+		phrased ? chain(phrasedResult) : chain(result)
+	) as ResolvedNote<Phrased>;
+}
+
+function resolveChord<Phrased extends boolean = true>(
+	noteValue: NoteValue.Chord,
+	context: Context,
+	phrased: Phrased = true as Phrased,
+): ResolvedNote<Phrased> {
+	const { value: pitches, duration } = splitTimedValue(noteValue);
+	const chordItems = pitches
+		.slice(1, -1)
+		.split(";")
+		.filter((v) => v.trim())
+		.map((pitch) => (duration ? `${pitch}:${duration}` : pitch));
+
+	return (
+		phrased
+			? zip(chordItems.map((v) => resolveSimple(v, undefined, context, true)))
+			: multiZip(
+					chordItems.map((v) => resolveSimple(v, undefined, context, false)),
+				)
+	) as ResolvedNote<Phrased>;
+}
+
+function resolveCompound(noteValue: NoteValue.Compound, context: Context) {
+	const compoundItems = noteValue
+		.split("--")
+		.filter((v) => v.trim())
+		.map((item) => {
+			return match(item)
+				.with(P.when(isSimple), (v) =>
+					resolveSimple(v, undefined, context, false),
+				)
+				.with(P.when(isChord), (v) => resolveChord(v, context, false))
+				.with(P.when(isQuaver), (v) => resolveQuaver(v, context, false))
+				.exhaustive();
+		});
+
+	return applyPhrasing({ events: chain(compoundItems), context });
 }
 
 function normalize(note: Note): {
-	value: NoteValue | Note.Compound.Value;
+	noteValue: NoteValue;
 	trillValue: Trill.Value | undefined;
 	noteModifier: NoteModifier;
 } {
-	if (typeof note === "string" || Array.isArray(note)) {
-		return { value: note, trillValue: undefined, noteModifier: {} };
+	if (typeof note === "string") {
+		return { noteValue: note, trillValue: undefined, noteModifier: {} };
 	}
 
 	if ("trill" in note) {
-		const { trill, note: value, ...noteModifier } = note;
+		const { trill, note: noteValue, ...noteModifier } = note;
 		if (typeof trill !== "object") {
-			return { value, noteModifier, trillValue: trill };
+			return { noteValue, noteModifier, trillValue: trill };
 		}
 
 		const { value: trillValue, ...trillModifier } = trill;
 		if (isEmpty(trillModifier)) {
-			return { value, noteModifier, trillValue };
+			return { noteValue, noteModifier, trillValue };
 		}
 
 		const noteModifierWithTrill = { ...noteModifier, trill: trillModifier };
-		return { value, noteModifier: noteModifierWithTrill, trillValue };
+		return {
+			noteValue,
+			noteModifier: noteModifierWithTrill,
+			trillValue,
+		};
 	}
 
-	const { note: value, ...noteModifier } = note as Note.Simple & object;
-	return { value, trillValue: undefined, noteModifier };
+	const { note: noteValue, ...noteModifier } = note;
+	return { noteValue, trillValue: undefined, noteModifier };
 }
 
 const isSimple = createIs<NoteValue.Simple>();
 const isChord = createIs<NoteValue.Chord>();
 const isQuaver = createIs<NoteValue.Quaver>();
+const isCompound = createIs<NoteValue.Compound>();

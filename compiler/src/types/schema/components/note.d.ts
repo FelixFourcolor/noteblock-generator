@@ -44,15 +44,7 @@ export namespace Note {
 	>;
 
 	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ note: Compound.Value<T> },
+		{ note: NoteValue.Compound },
 		NoteModifier<T>
 	>;
-	export namespace Compound {
-		export type Value<T extends TPosition = TPosition> = (
-			| Simple<T>
-			| Chord<T>
-			| Quaver<T>
-		)[] &
-			tags.MinItems<2>;
-	}
 }
