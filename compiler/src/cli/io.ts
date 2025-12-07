@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { stdin, stdout } from "node:process";
 import type { FileRef } from "@/types/schema";
 import type { CommandOptions } from "./commands";
-import { handleError } from "./error";
+import { handleError, UserError } from "./error";
 
 export async function getInput(
 	args: CommandOptions<{ in: string | undefined }>,
@@ -18,7 +18,7 @@ export async function getInput(
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
-	throw new Error(
+	throw new UserError(
 		"Input required: Provide file path with --in, or pipe data to stdin.",
 	);
 }

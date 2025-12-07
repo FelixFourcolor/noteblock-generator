@@ -20,7 +20,10 @@ export class SingleBuilder extends Builder<"single"> {
 
 	private initialPlayButton() {
 		const midpoint = this.size.width / 2 - 1;
+
+		this.setOffset([0, -1, midpoint], "glass");
 		this.setOffset([0, 0, midpoint], Block.Button);
+
 		this.useWireOffset((wire) => {
 			for (let dz = midpoint - 1; dz >= 2; dz--) {
 				wire.add([0, 0, dz]);

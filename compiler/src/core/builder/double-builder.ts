@@ -60,6 +60,7 @@ export class DoubleBuilder extends Builder<"double"> {
 					}
 					wire.add([-1, 0, junction], "repeater");
 				});
+				self.setOffset([-2, -1, midpoint], "glass");
 				self.setOffset([-2, 0, midpoint], Block.Button);
 			} else {
 				self.setOffset([0, 0, junction], Block.Button);

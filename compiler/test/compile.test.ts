@@ -69,7 +69,11 @@ async function getCompiledData(src: string): Promise<Record<string, object>> {
 		({ ticks, width, type }) => ({ ticks: Array.from(ticks), width, type }),
 	);
 	const layout = calculateLayout(resolved);
-	const compiled = build(layout);
+	const compiled = build(layout, {
+		walkSpace: "partial",
+		sidePadding: false,
+		instrumentBase: false,
+	});
 	const voices = Object.fromEntries(
 		cache
 			.exportData()

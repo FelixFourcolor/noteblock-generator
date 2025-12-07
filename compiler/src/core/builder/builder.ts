@@ -11,7 +11,7 @@ import { baseBlock } from "./utils/instruments";
 import { getSize, type Size, SLICE_SIZE } from "./utils/size";
 
 export type BuildOptions = {
-	walkable: true | undefined | "partial";
+	walkSpace: "full" | "partial" | "none";
 	sidePadding: boolean;
 	instrumentBase: boolean;
 };
@@ -110,14 +110,12 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 						this.set([x, y, z], "air");
 					});
 				}
-				if (!this.options.walkable) {
+				if (this.options.walkSpace === "none") {
 					return;
 				}
-				if (isMidpoint(z)) {
+				if (isMidpoint(z) || (x > 0 && this.options.walkSpace === "full")) {
 					this.set([x, height - 1, z], "air");
 					this.set([x, height - 2, z], "air");
-					this.set([x, height - 3, z], "glass");
-				} else if (x > 0 && this.options.walkable === true) {
 					this.set([x, height - 3, z], "glass");
 				}
 			});

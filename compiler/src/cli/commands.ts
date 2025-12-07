@@ -1,9 +1,9 @@
 import { fstatSync } from "node:fs";
 import { stdout } from "node:process";
-import { assert } from "typia";
 import type { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
 import { compile, liveCompiler } from "@/core/compile";
+import type { JsonString } from "@/core/loader/types";
 import { initProject } from "@/extras/project-init";
 import { generateSchema } from "@/extras/schema-generator";
 import type { FileRef } from "@/types/schema";
@@ -13,18 +13,18 @@ import { getInput, withOutput } from "./io";
 export type CommandOptions<T> = Awaited<ReturnType<Argv<T>["parseAsync"]>>;
 
 interface Command<T> {
-	buildOptions(yargs: Argv): Argv<T>;
-	execute(args: CommandOptions<T>): Promise<void>;
+	builder(yargs: Argv): Argv<T>;
+	handler(args: CommandOptions<T>): Promise<void>;
 }
 
 function createCommand<T>(recipe: {
 	buildOptions: (yargs: Argv) => Argv<T>;
-	execute: (args: CommandOptions<T>, yargs: Argv) => Promise<unknown>;
-}): (yargs: Argv) => Command<T> {
-	return (yargs) => ({
-		buildOptions: recipe.buildOptions,
-		execute: withOutput((args) => recipe.execute(args, yargs)),
-	});
+	execute: (args: CommandOptions<T>) => Promise<unknown>;
+}): Command<T> {
+	return {
+		builder: recipe.buildOptions,
+		handler: withOutput((args) => recipe.execute(args)),
+	};
 }
 
 export const compileCommand = createCommand({
@@ -48,32 +48,26 @@ export const compileCommand = createCommand({
 				implies: "in",
 				defaultDescription: "off / 1000ms",
 			})
-			.option("walkable", {
-				choices: [true, "partial"] as const,
-				describe: "Include walkable space above the build",
-				defaultDescription: "false",
+			.option("walk-space", {
+				describe: "Ensure the space above the build is walkable",
+				default: "partial",
+				coerce: (arg) => arg as "full" | "partial" | "none",
 			})
 			.option("side-padding", {
 				type: "boolean",
 				describe:
-					"Include columns of empty space around the build; defensive against external interference",
+					"Include a block of empty space around the build (defensive against external interference)",
 				default: false,
 			})
 			.option("instrument-base", {
 				type: "boolean",
-				describe: "Include instrument base blocks (e.g. wool for guitar)",
+				describe:
+					"Include instrument base for note blocks (e.g. wool for guitar)",
 				default: false,
 			});
 	},
-	async execute(args, yargs) {
-		if (hideBin(process.argv).length === 0) {
-			yargs.showHelp();
-			return;
-		}
-
+	async execute({ watch, out, ...args }) {
 		const src = await getInput(args);
-		const { watch, out } = args;
-
 		if (watch === undefined) {
 			return compile(src, args);
 		}
@@ -90,12 +84,13 @@ export const compileCommand = createCommand({
 			if (typeof watch !== "number") {
 				throw new UserError(`Invalid debounce value: ${watch}`);
 			}
-			return Math.max(0, watch);
+			return watch;
 		})();
+		const emit = out ? "full" : "diff";
 		return liveCompiler(
 			// src is FileRef guaranteed by `implies: "in"`
-			assert<FileRef>(src),
-			{ ...args, debounce, emit: out ? "full" : "diff" },
+			src as FileRef,
+			{ ...args, debounce, emit },
 		);
 	},
 });
