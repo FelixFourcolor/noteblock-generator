@@ -35,7 +35,7 @@ export function* processTicks(
 			})
 			.otherwise(({ value }) => value);
 
-		const delay = match(validateConsistency(events, "delay"))
+		const delay = match(validateConsistency(events, "delay", defaultDelay))
 			.with({ error: P.select() }, (error) => {
 				registerError(error, measure);
 				return defaultDelay;

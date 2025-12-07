@@ -27,8 +27,8 @@ export function validateConsistency<
 			conflictMap[key] = { value, voices: new Set([voice]) };
 		}
 	});
-	const conflicts = Object.values(conflictMap);
 
+	const conflicts = Object.values(conflictMap);
 	if (conflicts.length === 0) {
 		throw new Error("Events array is empty.");
 	}
@@ -41,7 +41,7 @@ export function validateConsistency<
 	const values = conflicts.map(({ value }) => value);
 	if (
 		conflicts.length === 2 &&
-		defaultValue != NO_DEFAULT &&
+		defaultValue !== NO_DEFAULT &&
 		values.includes(defaultValue)
 	) {
 		const otherValue = values.find((v) => v !== defaultValue)!;
