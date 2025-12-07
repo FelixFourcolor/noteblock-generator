@@ -13,7 +13,6 @@
 		"isolatedModules": true,
 		"skipDefaultLibCheck": true,
 		"moduleResolution": "Bundler",
-		"noEmit": true,
 		"paths": { "@/*": ["./src/*"] }
 	}
 }

@@ -24,8 +24,10 @@
 		"@vitest/coverage-v8": "^4.0.15",
 		"@vitest/ui": "^4.0.15",
 		"ajv": "^8.17.1",
+		"concurrently": "^9.2.1",
 		"esbuild": "^0.27.1",
 		"ts-arithmetic": "^0.1.1",
+		"ts-patch": "^3.3.0",
 		"typescript": "^5.9.3",
 		"vitest": "^4.0.15"
 	},
@@ -34,8 +36,12 @@
 		"dist"
 	],
 	"scripts": {
-		"build": "rm -fr dist build; typia generate --input src --output build && node esbuild.config.ts",
-		"test": "vitest run",
-		"test:coverage": "rm -fr coverage; vitest --coverage"
+		"prepare": "ts-patch install",
+		"build": "pnpm build:tsc; pnpm build:esbuild",
+		"build:watch": "concurrently \"pnpm build:tsc --watch\" \"pnpm build:esbuild --watch\"",
+		"build:tsc": "tsc -p tsconfig.build.json",
+		"build:esbuild": "esbuild ./build/main.js --bundle --platform=node --format=esm --alias:@=./build --outfile=./dist/main.js --packages=external",
+		"clean": "rm -rf dist build coverage",
+		"test": "vitest run"
 	}
 }
