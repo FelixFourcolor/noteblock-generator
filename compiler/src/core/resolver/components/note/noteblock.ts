@@ -1,7 +1,7 @@
 import { match, P } from "ts-pattern";
 import { UserError } from "@/cli/error";
 import {
-	Instrument,
+	type Instrument,
 	multiMap,
 	type OneOrMany,
 	type ResolveType,

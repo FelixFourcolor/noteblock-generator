@@ -1,4 +1,3 @@
-import type { tags } from "typia";
 import type { IGlobal, IProperties, TPosition } from "../properties";
 import type { FileRef } from "./ref";
 import type { Notes, TValidate, Voice } from "./voice";

@@ -16,7 +16,7 @@ type ValidateSuccess<T> = {
 
 export type ValidateError<Context extends unknown | undefined = undefined> = {
 	error: string;
-} & (Context extends undefined ? {} : { context?: Context });
+} & (Context extends undefined ? unknown : { context?: Context });
 
 export async function validate<T extends object>(
 	data: T | FileRef | JsonString,

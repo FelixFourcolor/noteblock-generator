@@ -1,9 +1,7 @@
 import { fstatSync } from "node:fs";
 import { stdout } from "node:process";
 import type { Argv } from "yargs";
-import { hideBin } from "yargs/helpers";
 import { compile, liveCompiler } from "@/core/compile";
-import type { JsonString } from "@/core/loader/types";
 import { initProject } from "@/extras/project-init";
 import { generateSchema } from "@/extras/schema-generator";
 import type { FileRef } from "@/types/schema";

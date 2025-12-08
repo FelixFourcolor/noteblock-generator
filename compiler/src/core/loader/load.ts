@@ -34,13 +34,12 @@ export async function* liveLoader(
 	const updateDependencies = (song: LoadedSong) => {
 		const latest = new Set(
 			song.voices
-				.map((entry) =>
+				.flatMap((entry) =>
 					match(entry)
 						.with(null, () => [])
 						.with(P.array(), (group) => group)
 						.otherwise((v) => [v]),
 				)
-				.flat()
 				.map((voice) => voice.url)
 				.filter((url) => url != null)
 				.map((url) => url.slice("file://".length)),
