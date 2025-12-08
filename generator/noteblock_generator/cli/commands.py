@@ -9,7 +9,6 @@ from typer import Context, Option
 
 from .. import __version__
 from ..core.coordinates import XYZ
-from ..core.generator import Generator
 from ..data import loader, watcher
 from ..data.schema import BlockState
 
@@ -165,6 +164,8 @@ def run(
         Option("--help", is_eager=True, hidden=True, callback=_show_help),
     ] = False,
 ):
+    from ..core.generator import Generator
+
     generator = Generator(
         world_path=world_path,
         coordinates=coordinates,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cached_property
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -11,6 +12,7 @@ from .chunks import organize_chunks
 from .coordinates import CoordinateMapper
 from .direction import Direction
 from .placement import PlacementConfig
+from .session import GeneratingSession
 
 if TYPE_CHECKING:
     from ..data.schema import BlockMap, BlockState, Building, Size
@@ -65,14 +67,33 @@ class Generator:
             self._cached_blocks |= blocks
             self._prev_size = size
 
-    def _generate(self, size: Size, blocks: BlockMap):
-        # importing amulet is slow, delay it until needed
-        from .session import GeneratingSession
+    @cached_property
+    def _config(self):
+        assert self.coordinates is not None
+        assert self.facing is not None
+        assert self.tilt is not None
 
+        return PlacementConfig(
+            origin=self.coordinates,
+            facing=Direction[self.facing],
+            tilt=self.tilt,
+            align=self.align,
+            theme=self.theme,
+            blend=self.blend,
+        )
+
+    @cached_property
+    def _block_mapper(self) -> BlockMapper:
+        return BlockMapper(self._config)
+
+    @cached_property
+    def _coordinate_mapper(self) -> CoordinateMapper:
+        return CoordinateMapper(self._config)
+
+    def _generate(self, size: Size, blocks: BlockMap):
         is_first_run = self._prev_size is None
 
-        with GeneratingSession(self.world_path) as session:
-            world = session.load_world()
+        with GeneratingSession(self.world_path) as world:
             if is_first_run:
                 self._initialize_world_params(world)
             assert self.dimension is not None
@@ -124,14 +145,9 @@ class Generator:
     def _initialize_world_params(self, world: World):
         if not self.dimension:
             self.dimension = world.player_dimension
-
-        config = PlacementConfig(
-            origin=self.coordinates or world.player_coordinates,
-            facing=Direction[self.facing or world.player_facing],
-            tilt=self.tilt or world.player_tilt,
-            align=self.align,
-            theme=self.theme,
-            blend=self.blend,
-        )
-        self._block_mapper = BlockMapper(config)
-        self._coordinate_mapper = CoordinateMapper(config)
+        if not self.coordinates:
+            self.coordinates = world.player_coordinates
+        if not self.facing:
+            self.facing = world.player_facing
+        if not self.tilt:
+            self.tilt = world.player_tilt

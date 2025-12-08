@@ -46,26 +46,15 @@ class GeneratingSession:
         self._world: World | None = None
         self._world_hash: int | None = None
 
-    def load_world(self):
-        if not self._working_path:
-            # clone unsuccessful, must generate in-place
-            Console.warn(
-                "If you are inside the world, {highlighted}.",
-                highlighted="exit now before proceeding",
-                important=True,
-            )
-            if not Console.confirm("Confirm to proceed?", default=False):
-                raise UserCancelled
-
-        world_path = self._working_path or self._original_path
-        self._world = World.load(world_path)
-        return self._world
-
     def __enter__(self):
         self._world_hash = self._compute_hash()
         self._working_path = self._create_shadow_copy()
         self._setup_signal_handlers()
-        return self
+        try:
+            return self._load_world()
+        except Exception as e:
+            self.__exit__(type(e), e, e.__traceback__)
+            raise
 
     def __exit__(self, exc_type, exc_value, tb):
         self._cleanup(commit=exc_type is None)
@@ -82,6 +71,21 @@ class GeneratingSession:
                 important=True,
             )
             os._exit(1)
+
+    def _load_world(self):
+        if not self._working_path:
+            # clone unsuccessful, must generate in-place
+            Console.warn(
+                "If you are inside the world, {highlighted}.",
+                highlighted="exit now before proceeding",
+                important=True,
+            )
+            if not Console.confirm("Confirm to proceed?", default=False):
+                raise UserCancelled
+
+        world_path = self._working_path or self._original_path
+        self._world = World.load(world_path)
+        return self._world
 
     def _setup_signal_handlers(self):
         def handle_interrupt(sig: int, _):

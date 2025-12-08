@@ -52,9 +52,6 @@ class World(BaseWorld):
         self.player = players[0] if players else None
         self._wrapper = format_wrapper
 
-    def __hash__(self):
-        return 0
-
     def validate_bounds(self, bounds: Bounds, dimension: str):
         start = (bounds.min_x, bounds.min_y, bounds.min_z)
         end = (bounds.max_x, bounds.max_y, bounds.max_z)
@@ -85,6 +82,9 @@ class World(BaseWorld):
             yield self._edit_chunk(chunk_coords, data, f"minecraft:{dimension}")
         self._wrapper.save()
 
+    # These cached_property aren't for performance,
+    # but to ensure each Console.info is only printed once.
+
     @cached_property
     def player_coordinates(self) -> XYZ:
         if self.player:
@@ -98,9 +98,6 @@ class World(BaseWorld):
             location=default,
         )
         return default
-
-    # These cached_property aren't for performance,
-    # but so that the Console.info are only printed once.
 
     @cached_property
     def player_dimension(self) -> str:
