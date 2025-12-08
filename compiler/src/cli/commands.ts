@@ -47,6 +47,7 @@ export const compileCommand = createCommand({
 				defaultDescription: "off / 1000ms",
 			})
 			.option("walk-space", {
+				choices: ["full", "partial", "none"],
 				describe: "Ensure the space above the build is walkable",
 				default: "partial",
 				coerce: (arg) => arg as "full" | "partial" | "none",
