@@ -23,9 +23,9 @@ export async function getInput(
 	);
 }
 
-export function withOutput<T extends CommandOptions<{ out?: string }>>(
-	executor: (args: T) => Promise<unknown>,
-) {
+export function withOutput<
+	T extends CommandOptions<{ out?: string; pretty?: boolean }>,
+>(executor: (args: T) => Promise<unknown>) {
 	function isAsyncGenerator(val: any): val is AsyncGenerator {
 		return val && typeof val[Symbol.asyncIterator] === "function";
 	}

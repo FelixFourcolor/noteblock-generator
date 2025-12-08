@@ -1,9 +1,9 @@
 import { equals } from "typia";
 import type { LazyVoice } from "@/core/loader";
 import type { IProperties, Time, TPosition, Voice } from "@/types/schema";
+import { Context } from "../context";
 import type { SongContext } from "../song/voices";
 import type { Tick } from "../tick";
-import { Context } from "../utils/context";
 import { resolveNotes } from "./notes";
 
 export type VoiceContext = SongContext & {

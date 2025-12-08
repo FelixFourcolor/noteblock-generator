@@ -1,6 +1,6 @@
 import type { Delay } from "@/types/schema";
 import type { NoteBlock } from "../properties";
-import type { IMeasure } from "./utils/measure";
+import type { IMeasure } from "./measure";
 
 type TEvent = keyof variants;
 interface variants {

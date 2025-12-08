@@ -1,19 +1,27 @@
 import { equals, is } from "typia";
-import type { BarLine, IProperties, Note, Notes } from "@/types/schema";
-import { resolveNote } from "../note/note";
+import type {
+	BarLine,
+	IProperties,
+	Note,
+	Notes,
+	SubNotes,
+} from "@/types/schema";
+import type { MutableContext } from "../context";
+import { resolveNote } from "../note";
 import type { Tick } from "../tick";
-import type { MutableContext } from "../utils/context";
 import { resolveBarLine } from "./barline";
 
-export function* resolveNotes(
+export const resolveNotes: (
 	notes: Notes<"lazy">,
 	context: MutableContext,
-): Generator<Tick> {
-	let hasBarLine = false;
+) => Generator<Tick> = _resolveNotes;
 
+function* _resolveNotes(
+	notes: Notes<"lazy">,
+	context: MutableContext,
+	barline = { present: false },
+): Generator<Tick> {
 	for (const item of notes) {
-		// must check "equals" instead of "is"
-		// because a Note is also an IProperties
 		if (equals<IProperties>(item)) {
 			context.transform(item);
 			continue;
@@ -21,19 +29,20 @@ export function* resolveNotes(
 
 		if (is<BarLine>(item)) {
 			yield* resolveBarLine(item, context);
-			hasBarLine = true;
+			barline.present = true;
 			continue;
 		}
 
 		if (equals<Note>(item)) {
 			for (const tick of resolveNote(item, context)) {
 				// The barline yields a tick to indicate success/failure.
-				// If no barline is placed at the start of the bar,
-				// we must also yield a tick for synchronization.
-				if (context.tick === 1 && !hasBarLine) {
+				// If this is the start of a measure without a barline,
+				// must also yield an empty tick to synchronize with other voices
+				// (that may have a barline at this position)
+				if (context.tick === 1 && !barline.present) {
 					yield [];
 				}
-				hasBarLine = false;
+				barline.present = false;
 
 				yield tick.map((event) => ({
 					...event,
@@ -46,6 +55,13 @@ export function* resolveNotes(
 			continue;
 		}
 
+		if (equals<SubNotes<"lazy">>(item)) {
+			const { notes, modifier } = normalize(item);
+			const subContext = context.fork(modifier);
+			yield* _resolveNotes(notes, subContext, barline);
+			continue;
+		}
+
 		yield [
 			{
 				error: "Data does not match schema.",
@@ -55,4 +71,12 @@ export function* resolveNotes(
 		];
 		return;
 	}
+}
+
+function normalize(subnotes: SubNotes<"lazy">) {
+	if (Array.isArray(subnotes)) {
+		return { notes: subnotes };
+	}
+	const { notes, ...modifier } = subnotes;
+	return { notes, modifier };
 }

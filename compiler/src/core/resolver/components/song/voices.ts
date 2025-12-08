@@ -3,7 +3,7 @@ import type { LazyVoiceEntry } from "@/core/loader";
 import type { ResolverCache } from "@/core/resolver/cache";
 import type { IProperties } from "@/types/schema";
 import { zip } from "../utils/generators";
-import { resolveVoice, type VoiceResolution } from "../voice/voice";
+import { resolveVoice, type VoiceResolution } from "../voice";
 
 export type SongContext = { songModifier: IProperties; cwd: string };
 

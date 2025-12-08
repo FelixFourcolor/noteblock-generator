@@ -1,6 +1,6 @@
 import type { BarLine } from "@/types/schema";
+import type { MutableContext } from "../context";
 import type { Tick } from "../tick";
-import type { MutableContext } from "../utils/context";
 
 export function* resolveBarLine(
 	barline: BarLine,
