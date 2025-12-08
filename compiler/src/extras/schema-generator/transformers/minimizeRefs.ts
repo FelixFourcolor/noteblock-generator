@@ -3,7 +3,9 @@ import { JSON_SCHEMA_PREFIX as PREFIX } from "./translateRefs";
 
 export function minimizeRefs(obj: unknown) {
 	const refs = extractRefs(obj);
-	const minimizedRefs = new Map(Array.from(refs).map((ref, i) => [ref, i]));
+	const minimizedRefs = new Map(
+		Array.from(refs).map((ref, i) => [ref, encode(i)]),
+	);
 	return minimize(obj, minimizedRefs);
 }
 
@@ -26,6 +28,15 @@ function minimize(node: unknown, refsMap: Map<string, unknown>): unknown {
 	}
 
 	return node;
+}
+
+const CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+function encode(n: number): string {
+	if (n < CHARS.length) {
+		return CHARS[n]!;
+	}
+	const [div, mod] = [Math.floor(n / CHARS.length), n % CHARS.length];
+	return encode(div) + CHARS[mod];
 }
 
 function extractRefs(node: unknown, __acc = new Set<string>()) {
