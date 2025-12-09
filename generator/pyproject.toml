@@ -35,3 +35,6 @@ extend-safe-fixes = ["ALL"]
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "standard"
+
+[dependency-groups]
+dev = ["pytest>=9.0.2"]

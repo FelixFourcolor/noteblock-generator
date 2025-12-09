@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from functools import cached_property
 from itertools import product
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ..cli.console import Console
@@ -25,7 +24,7 @@ class Generator:
     def __init__(
         self,
         *,
-        world_path: Path,
+        session: GeneratingSession,
         coordinates: XYZ | None,
         dimension: str | None,
         facing: DirectionName | None,
@@ -34,7 +33,7 @@ class Generator:
         theme: list[BlockState],
         blend: bool,
     ):
-        self.world_path = world_path
+        self.session = session
         self.coordinates = coordinates
         self.dimension = dimension
         self.facing: DirectionName | None = facing
@@ -93,7 +92,7 @@ class Generator:
     def _generate(self, size: Size, blocks: BlockMap):
         is_first_run = self._prev_size is None
 
-        with GeneratingSession(self.world_path) as world:
+        with self.session as world:
             if is_first_run:
                 self._initialize_world_params(world)
             assert self.dimension is not None

@@ -1,3 +1,6 @@
 [submodule "compiler/test/data"]
 	path = compiler/test/data
 	url = git@github.com:FelixFourcolor/nbc-tests
+[submodule "generator/generator/test/data"]
+	path = generator/test/data
+	url = git@github.com:FelixFourcolor/nbg-tests

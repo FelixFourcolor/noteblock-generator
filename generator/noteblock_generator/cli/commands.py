@@ -165,9 +165,10 @@ def run(
     ] = False,
 ):
     from ..core.generator import Generator
+    from ..core.session import GeneratingSession
 
     generator = Generator(
-        world_path=world_path,
+        session=GeneratingSession(world_path),
         coordinates=coordinates,
         dimension=dimension.name if dimension else None,
         facing=facing.name if facing else None,
