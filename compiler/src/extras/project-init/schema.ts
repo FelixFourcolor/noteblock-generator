@@ -7,7 +7,7 @@ export function setupSchema(root: string) {
 	const vscodeDir = join(root, ".vscode");
 
 	const generateSchema = (async () => {
-		const schemaFile = join(vscodeDir, "schemaon");
+		const schemaFile = join(vscodeDir, "schema.json");
 		if (existsSync(schemaFile)) {
 			console.error("Schema file already exists; skipping schema generation.");
 			return;
@@ -16,13 +16,13 @@ export function setupSchema(root: string) {
 	})();
 
 	const generateVscodeSettings = (async () => {
-		const settingsFile = join(vscodeDir, "settingson");
+		const settingsFile = join(vscodeDir, "settings.json");
 		if (existsSync(settingsFile)) {
 			console.error("VSCode settings already exist; skipping schema setup.");
 			return;
 		}
 		const settings = {
-			"yaml.schemas": { ".vscode/schemaon": ["src/**/*.yaml"] },
+			"yaml.schemas": { ".vscode/schema.json": ["src/**/*.yaml"] },
 		};
 		await mkdir(vscodeDir, { recursive: true });
 		await writeFile(settingsFile, `${JSON.stringify(settings, null, 2)}\n`);
