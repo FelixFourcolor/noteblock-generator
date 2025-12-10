@@ -3,7 +3,7 @@ import type { Slice } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
 import type { Building } from "../builder";
 import type { BlockMap } from "./block-placer";
-import type { Cursor } from "./cursor";
+import type { ReadonlyCursor } from "./cursor";
 import type { Size } from "./size";
 
 type Key = {
@@ -14,7 +14,7 @@ type Key = {
 
 type SliceCache = {
 	slice: Slice;
-	cursor: Cursor;
+	cursor: ReadonlyCursor;
 };
 
 export class BuilderCache {

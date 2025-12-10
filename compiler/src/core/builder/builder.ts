@@ -5,7 +5,7 @@ import { Block } from "./utils/block";
 import { type BlockMap, BlockPlacer } from "./utils/block-placer";
 import { addBuffer } from "./utils/buffer";
 import type { BuilderCache } from "./utils/cache";
-import type { Cursor } from "./utils/cursor";
+import type { ReadonlyCursor } from "./utils/cursor";
 import { Direction } from "./utils/direction";
 import { baseBlock } from "./utils/instruments";
 import { getSize, type Size, SLICE_SIZE } from "./utils/size";
@@ -124,7 +124,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private buildSong() {
 		let previousDelay = 1;
-		let lastCachedCursor: Cursor | undefined;
+		let lastCachedCursor: ReadonlyCursor | undefined;
 
 		this.at({ x: 3, z: 2 }, (self) => {
 			this.song.slices.forEach(({ delay, levels }, index) => {

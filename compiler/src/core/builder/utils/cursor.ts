@@ -42,3 +42,5 @@ export class Cursor {
 		return this;
 	}
 }
+
+export type ReadonlyCursor = Pick<InstanceType<typeof Cursor>, "clone">;
