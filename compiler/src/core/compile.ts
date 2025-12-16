@@ -1,31 +1,20 @@
 import { isEmpty } from "lodash";
 import { UserError } from "@/cli/error";
 import type { FileRef } from "@/types/schema";
-import type { BuildOptions } from "./builder";
 import { type Building, build, cachedBuilder } from "./builder";
 import { calculateLayout } from "./layout";
 import { type JsonString, liveLoader, load } from "./loader";
 import { cachedResolver, resolve } from "./resolver";
 
-export function compile(
-	src: FileRef | JsonString,
-	options: BuildOptions,
-): Promise<Building> {
-	return load(src)
-		.then(resolve)
-		.then(calculateLayout)
-		.then((layout) => build(layout, options));
+export function compile(src: FileRef | JsonString): Promise<Building> {
+	return load(src).then(resolve).then(calculateLayout).then(build);
 }
 
-type LiveCompileOptions = BuildOptions & {
-	debounce: number;
-	emit: "full" | "diff";
-};
 type Payload = Building | { error: string };
 
 export async function* liveCompiler(
 	src: FileRef,
-	options: LiveCompileOptions,
+	options: { debounce: number; emit: "full" | "diff" },
 ): AsyncGenerator<Payload> {
 	const resolve = cachedResolver();
 	const build = cachedBuilder(options);

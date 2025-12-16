@@ -1,4 +1,4 @@
-import { forEachRight, range } from "lodash";
+import { forEachRight } from "lodash";
 import type { NoteCluster, Slice, SongLayout } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
 import { Block } from "./utils/block";
@@ -9,12 +9,6 @@ import type { ReadonlyCursor } from "./utils/cursor";
 import { Direction } from "./utils/direction";
 import { baseBlock } from "./utils/instruments";
 import { getSize, type Size, SLICE_SIZE } from "./utils/size";
-
-export type BuildOptions = {
-	walkSpace: "full" | "partial" | "none";
-	sidePadding: boolean;
-	instrumentBase: boolean;
-};
 
 export type Building = {
 	size: Size;
@@ -35,7 +29,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	constructor(
 		song: SongLayout<T>,
-		private options: BuildOptions,
 		private cache?: BuilderCache,
 	) {
 		super();
@@ -45,7 +38,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	build(): Building {
-		this.buildSpace();
 		this.buildSong();
 		return { size: this.size, blocks: this.exportBlocks() };
 	}
@@ -86,42 +78,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		this.cursor = newCursor;
 	}
 
-	private buildSpace() {
-		const { height, width, length } = this.size;
-
-		const isPadding: (x: number, z: number) => boolean = this.options
-			.sidePadding
-			? (x, z) => [0, length - 1].includes(x) || [0, width - 1].includes(z)
-			: () => false;
-
-		const isMidpoint = (z: number) => {
-			if (width % 2 === 1) {
-				return z === Math.floor(width / 2);
-			} else {
-				const mid = width / 2;
-				return z === mid - 1 || z === mid;
-			}
-		};
-
-		range(this.cache?.length ?? 0, length).forEach((x) => {
-			range(0, width).forEach((z) => {
-				if (isPadding(x, z)) {
-					range(0, height).forEach((y) => {
-						this.set([x, y, z], "air");
-					});
-				}
-				if (this.options.walkSpace === "none") {
-					return;
-				}
-				if (isMidpoint(z) || (x > 0 && this.options.walkSpace === "full")) {
-					this.set([x, height - 1, z], "air");
-					this.set([x, height - 2, z], "air");
-					this.set([x, height - 3, z], "glass");
-				}
-			});
-		});
-	}
-
 	private buildSong() {
 		let previousDelay = 1;
 		let lastCachedCursor: ReadonlyCursor | undefined;
@@ -150,8 +106,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				self.buildSlice(slice);
 
 				if (this.cache) {
-					const cursor = self.cursor.clone();
-					this.cache.set(index, { slice, cursor });
+					this.cache.set(index, { slice, cursor: self.cursor.clone() });
 				}
 			});
 		});
@@ -169,23 +124,18 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private getNotePlacements(): [number, number][] {
 		const isTurning = this.isEndOfRow && this.hasNext;
-		// Prioritize placements closer to the player -> easier to view.
 		// biome-ignore format: .
 		const placements: [number, number][] = [
 			    [-1, 1],
-   !isTurning ? [-1, 2] : [3, 1],
-			    [-2, 1],
 				[1, 1],
-   !isTurning ? [1, 2]  : [5, 1],
+				[-2, 1],
 				[2, 1],
+   !isTurning ? [-1, 2] : [3, 1],
+   !isTurning ? [1, 2]  : [5, 1],
 		];
 
-		if (!this.options.instrumentBase) {
-			return placements;
-		}
-
-		// With instrument base, some notes may be blocked above.
-		// Prioritize placements that are free.
+		// With instrument base blocks, the space above may be occupied.
+		// Prioritize unoccupied slots.
 		return placements.sort(([xA, zA], [xB, zB]) => {
 			const aboveA = this.getOffset([xA, 1, zA]);
 			const aboveB = this.getOffset([xB, 1, zB]);
@@ -200,11 +150,9 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		const notePlacements = this.getNotePlacements();
 		notes.forEach((note, i) => {
 			const [dx, dz] = notePlacements[i]!;
-			this.setOffset([dx, 1, dz], "air");
+			this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
 			this.setOffset([dx, 0, dz], Block.Note(note));
-			if (this.options.instrumentBase) {
-				this.setOffset([dx, -1, dz], baseBlock[note.instrument]);
-			}
+			this.setOffset([dx, 1, dz], "air");
 		});
 
 		if (this.cache) {
@@ -212,10 +160,6 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			notePlacements.slice(notes.length).forEach(([dx, dz]) => {
 				this.setOffset([dx, 0, dz], null);
 			});
-		}
-
-		if (!this.options.instrumentBase) {
-			return;
 		}
 
 		// If x = +/-2 has a noteblock,

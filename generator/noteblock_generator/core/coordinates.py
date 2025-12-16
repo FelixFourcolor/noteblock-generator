@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import math
-from typing import TYPE_CHECKING, Literal, NamedTuple
+from typing import NamedTuple
 
-from .placement import PlacementMapper
-
-if TYPE_CHECKING:
-    DirectionName = Literal["north", "south", "east", "west"]
+from ..cli.args import Align, Tilt
+from .placement import Placement
 
 XYZ = tuple[int, int, int]
 XZ = tuple[int, int]
@@ -21,24 +18,25 @@ class Bounds(NamedTuple):
     max_z: int
 
 
-class CoordinateMapper(PlacementMapper):
+class CoordinateTranslator(Placement):
     def get(self, coords: XYZ) -> XYZ:
         raw_x, raw_y, raw_z = coords
 
-        if self.align == "center":
-            shifted_z = raw_z - math.floor((self.width - 1) / 2)
-        elif self.align == "left":
-            shifted_z = raw_z - self.width + 1
-        else:  # right
-            shifted_z = raw_z
+        match self.align:
+            case Align.center:
+                shifted_z = raw_z - (self.width - 1) // 2
+            case Align.left:
+                shifted_z = raw_z - self.width + 1
+            case Align.right:
+                shifted_z = raw_z
 
-        rotated_x, rotated_z = self.facing.rotate((raw_x, shifted_z))
+        rotated_x, rotated_z = self.direction.rotate((raw_x, shifted_z))
 
         translated_x = self.origin_x + rotated_x
         translated_y = self.origin_y + raw_y
         translated_z = self.origin_z + rotated_z
 
-        if self.tilt == "down":
+        if self.tilt == Tilt.down:
             translated_y -= self.height - 2
 
         return translated_x, translated_y, translated_z

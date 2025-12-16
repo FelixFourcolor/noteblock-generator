@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 import pytest
 from msgspec import json
 
+from noteblock_generator.cli.args import Align, Dimension, Facing, Tilt, Walkable
 from noteblock_generator.core.generator import Generator
 from noteblock_generator.data.file_utils import hash_files
 from noteblock_generator.data.loader import load
@@ -78,7 +79,17 @@ def test_generate(project_name: str):
     session = MockSession()
     with open(params_file, "r") as f:
         params = json.decode(f.read())
-    Generator(session=cast("GeneratingSession", session), **params).generate(data)
+    Generator(
+        session=cast("GeneratingSession", session),
+        coordinates=params["coordinates"],
+        dimension=Dimension(params["dimension"]),
+        facing=Facing(params["facing"]),
+        tilt=Tilt(params["tilt"]),
+        align=Align(params["align"]),
+        walkable=Walkable(params["walkable"]),
+        theme=params["theme"],
+        preserve_terrain=params["preserve_terrain"],
+    ).generate(data)
 
     received_file.unlink(missing_ok=True)
     with open(received_file, "wb") as f:

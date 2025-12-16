@@ -12,15 +12,14 @@ from amulet.api.level import World as BaseWorld
 from amulet.level.formats.anvil_world.format import AnvilFormat
 from click import UsageError
 
+from ..cli.args import Dimension, Facing, Tilt
 from ..cli.console import Console
-from .blend import get_blend_block
 from .direction import Direction, get_nearest_direction
+from .preserve_terrain import resolve_empty_block
 
 if TYPE_CHECKING:
     from .chunks import ChunkEdits, ChunksData
     from .coordinates import XYZ, XZ, Bounds
-    from .direction import DirectionName
-    from .generator import TiltName
 
 
 class ChunkLoadError(Exception):
@@ -52,18 +51,18 @@ class World(BaseWorld):
         self.player = players[0] if players else None
         self._wrapper = format_wrapper
 
-    def validate_bounds(self, bounds: Bounds, dimension: str):
+    def validate_bounds(self, bounds: Bounds, dimension: Dimension):
         start = (bounds.min_x, bounds.min_y, bounds.min_z)
         end = (bounds.max_x, bounds.max_y, bounds.max_z)
         Console.info(
             "Structure will occupy the space\n{start} to {end} in {dimension}.",
             start=start,
             end=end,
-            dimension=dimension,
+            dimension=dimension.name,
             important=True,
         )
 
-        world_bounds = self.bounds(f"minecraft:{dimension}")
+        world_bounds = self.bounds(f"minecraft:{dimension.name}")
         for coord, limit, axis in [
             (bounds.min_x, world_bounds.min_x, "min X"),
             (bounds.max_x, world_bounds.max_x, "max X"),
@@ -77,9 +76,9 @@ class World(BaseWorld):
                     f"Structure exceeds world boundary at {axis}: {coord} vs {limit=}."
                 )
 
-    def write(self, chunks: ChunksData, dimension: str):
+    def write(self, chunks: ChunksData, dimension: Dimension):
         for chunk_coords, data in chunks.items():
-            yield self._edit_chunk(chunk_coords, data, f"minecraft:{dimension}")
+            yield self._edit_chunk(chunk_coords, data, f"minecraft:{dimension.name}")
         self._wrapper.save()
 
     # These cached_property aren't for performance,
@@ -100,21 +99,21 @@ class World(BaseWorld):
         return default
 
     @cached_property
-    def player_dimension(self) -> str:
+    def player_dimension(self) -> Dimension:
         if self.player:
             dimension = self.player.dimension[len("minecraft:") :]
             Console.info("Using player's dimension: {dimension}", dimension=dimension)
-            return dimension
+            return Dimension(dimension)
 
         default = "overworld"
         Console.info(
             "Unable to read player data; dimension {dimension} is used by default.",
             dimension=default,
         )
-        return default
+        return Dimension(default)
 
     @cached_property
-    def player_facing(self) -> DirectionName:
+    def player_facing(self) -> Facing:
         if self.player:
             [horizontal_rotation, _] = self.player.rotation
             direction = get_nearest_direction(horizontal_rotation)
@@ -122,29 +121,29 @@ class World(BaseWorld):
                 "Using player's facing: {direction}",
                 direction=direction,
             )
-            return direction.name
+            return Facing[direction.name]
 
         default = Direction.east
         Console.info(
             "Unable to read player data; facing {direction} is used by default.",
             direction=default,
         )
-        return default.name
+        return Facing[default.name]
 
     @cached_property
-    def player_tilt(self) -> TiltName:
+    def player_tilt(self) -> Tilt:
         if self.player:
             [_, vertical_rotation] = self.player.rotation
             tilt = "down" if vertical_rotation > 0 else "up"
             Console.info("Using player's tilt: {tilt}", tilt=tilt)
-            return tilt
+            return Tilt(tilt)
 
         default = "down"
         Console.info(
             "Unable to read player data; tilt {tilt} is used by default.",
             tilt=default,
         )
-        return default
+        return Tilt(default)
 
     def _edit_chunk(self, chunk_coords: XZ, edits: ChunkEdits, dimension: str):
         try:
@@ -155,7 +154,7 @@ class World(BaseWorld):
         chunk.block_entities = {}
         for coords, block in edits.items():
             if block is None:
-                if (block := get_blend_block(chunk, coords)) is None:
+                if (block := resolve_empty_block(chunk, coords)) is None:
                     continue
             if isinstance(block, str):
                 block = Block.from_string_blockstate(f"minecraft:{block}")

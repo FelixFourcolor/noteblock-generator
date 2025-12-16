@@ -6,20 +6,22 @@ from functools import cache
 from itertools import chain, product
 from typing import TYPE_CHECKING
 
-from .direction import DIRECTION_NAMES, Direction
-from .placement import PlacementMapper
+from ..cli.args import Align, Tilt, Walkable
+from .direction import Direction
+from .placement import Placement
 
 if TYPE_CHECKING:
     from re import Match
 
     from ..data.schema import BlockMap, BlockState, BlockType, Size, ThemeBlock
+    from .coordinates import XYZ
 
 
-DIRECTION_PATTERN = re.compile("|".join(DIRECTION_NAMES))
+DIRECTION_PATTERN = re.compile("|".join(Direction.__members__))
 THEME_BLOCK: ThemeBlock = 0
 
 
-class BlockMapper(PlacementMapper):
+class BlockMapper(Placement):
     def update_size(self, size: Size):
         super().update_size(size)
         # to alternate rounding in boundary cases
@@ -35,23 +37,23 @@ class BlockMapper(PlacementMapper):
 
         x_expansion = range(prev_length, self.length)
         match self.tilt:
-            case "down":
+            case Tilt.down:
                 y_expansion = range(self.height - prev_height)
-            case "up":
+            case Tilt.up:
                 y_expansion = range(prev_height, self.height)
         match self.align:
-            case "center":
+            case Align.center:
                 offset = math.floor((self.width - prev_width) // 2)
                 z_expansion = chain(
                     range(offset), range(prev_width + offset, self.width)
                 )
-            case "left":
+            case Align.left:
                 z_expansion = range(self.width - prev_width)
-            case "right":
+            case Align.right:
                 z_expansion = range(prev_width, self.width)
 
         return {
-            f"{x} {y} {z}": self.empty_block
+            f"{x} {y} {z}": None
             for (x, y, z) in chain(
                 product(x_expansion, range(self.height), range(self.width)),
                 product(range(self.length), y_expansion, range(self.width)),
@@ -59,19 +61,49 @@ class BlockMapper(PlacementMapper):
             )
         }
 
-    def get(self, block: BlockType, *, z: int) -> BlockState | None:
+    def resolve(self, block: BlockType, coords: XYZ) -> BlockState | None:
         if block is None:
-            return self.empty_block
+            return self._resolve_space_block(coords)
 
         if block == THEME_BLOCK:
-            block = self._get_theme(z)
+            block = self._get_theme(coords[2])
+
         return self._apply_rotation(block)
+
+    def _resolve_space_block(self, coords: XYZ) -> BlockState | None:
+        x, y, z = coords
+
+        if self._is_padding(x, z):
+            return "air"
+
+        if y < self.height - 3:
+            return self.empty_block
+
+        walk_block = "glass" if y == self.height - 3 else "air"
+        match self.walkable:
+            case Walkable.full:
+                return walk_block
+            case Walkable.partial:
+                return walk_block if self._is_center(z) else self.empty_block
+            case Walkable.no:
+                return self.empty_block
+
+    def _is_padding(self, x: int, z: int):
+        if x == 0:
+            return not self._is_center(z)
+        return x == self.length - 1 or z in (0, self.width - 1)
+
+    def _is_center(self, z: int):
+        if (self.width % 2) == 1:
+            return z == self.width // 2
+        else:
+            return z in (self.width // 2 - 1, self.width // 2)
 
     @cache
     def _apply_rotation(self, state: BlockState):
         def rotate(match: Match) -> str:
             raw_dir = Direction[match.group(0)]
-            rotated_dir = Direction(self.facing.rotate(raw_dir))
+            rotated_dir = Direction(self.direction.rotate(raw_dir))
             return rotated_dir.name
 
         return DIRECTION_PATTERN.sub(rotate, state)

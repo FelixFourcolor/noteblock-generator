@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Literal
 
 from .coordinates import XZ
-
-if TYPE_CHECKING:
-    DirectionName = Literal["north", "south", "east", "west"]
 
 
 class Direction(XZ, Enum):
@@ -31,8 +27,6 @@ class Direction(XZ, Enum):
             Direction.west: "towards negative X",
         }[self]
 
-
-DIRECTION_NAMES: list[DirectionName] = ["north", "south", "east", "west"]
 
 _ROTATION_MAP = {
     -180: Direction.north,

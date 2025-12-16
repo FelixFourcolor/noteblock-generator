@@ -1,21 +1,21 @@
 import { match } from "ts-pattern";
 import type { SongLayout } from "@/core/layout";
-import type { Building, BuildOptions } from "./builder";
+import type { Building } from "./builder";
 import { DoubleBuilder } from "./double-builder";
 import { SingleBuilder } from "./single-builder";
 import { BuilderCache } from "./utils/cache";
 
-export function build(song: SongLayout, options: BuildOptions): Building {
-	return _build(song, options);
+export function build(song: SongLayout): Building {
+	return _build(song);
 }
 
-type LiveBuildOptions = BuildOptions & { emit: "full" | "diff" };
-
-export function cachedBuilder(options: LiveBuildOptions) {
+export function cachedBuilder(options: {
+	emit: "full" | "diff";
+}): typeof build {
 	const cache = new BuilderCache();
 
-	return (song: SongLayout) => {
-		const data = _build(song, options, cache);
+	return (song) => {
+		const data = _build(song, cache);
 		if (options.emit === "diff") {
 			return data;
 		}
@@ -23,13 +23,9 @@ export function cachedBuilder(options: LiveBuildOptions) {
 	};
 }
 
-const _build = (
-	song: SongLayout,
-	options: BuildOptions,
-	cache?: BuilderCache,
-) =>
+const _build = (song: SongLayout, cache?: BuilderCache) =>
 	match(song)
-		.with({ type: "single" }, (song) => new SingleBuilder(song, options, cache))
-		.with({ type: "double" }, (song) => new DoubleBuilder(song, options, cache))
+		.with({ type: "single" }, (song) => new SingleBuilder(song, cache))
+		.with({ type: "double" }, (song) => new DoubleBuilder(song, cache))
 		.exhaustive()
 		.build();

@@ -2,35 +2,35 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from ..cli.args import Align, Tilt, Walkable
     from ..data.schema import BlockState, Size
     from .coordinates import XYZ
     from .direction import Direction
-
-    TiltName = Literal["up", "down"]
-    AlignName = Literal["left", "center", "right"]
 
 
 @dataclass(frozen=True)
 class PlacementConfig:
     origin: XYZ
-    facing: Direction
-    tilt: TiltName
-    align: AlignName
+    direction: Direction
+    tilt: Tilt
+    align: Align
     theme: list[BlockState]
-    blend: bool
+    walkable: Walkable
+    preserve_terrain: bool
 
 
-class PlacementMapper(ABC):
+class Placement(ABC):
     def __init__(self, config: PlacementConfig):
         self.origin_x, self.origin_y, self.origin_z = config.origin
-        self.facing = config.facing
-        self.tilt: TiltName = config.tilt
-        self.align: AlignName = config.align
+        self.direction = config.direction
+        self.tilt = config.tilt
+        self.align = config.align
         self.theme = config.theme
-        self.empty_block: BlockState | None = None if config.blend else "air"
+        self.walkable = config.walkable
+        self.empty_block: BlockState | None = None if config.preserve_terrain else "air"
 
         self.size: Size | None = None
 

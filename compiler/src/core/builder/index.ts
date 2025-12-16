@@ -1,2 +1,2 @@
 export * from "./build";
-export type { Building, BuildOptions } from "./builder";
+export type { Building } from "./builder";

@@ -22,12 +22,6 @@ export class BuilderCache {
 	private slices: SliceCache[] = [];
 	private blocks: BlockMap = {};
 
-	private previousLength: number | undefined;
-	private currentLength: number | undefined;
-	get length() {
-		return this.previousLength;
-	}
-
 	set(index: number, data: SliceCache) {
 		this.slices[index] = data;
 	}
@@ -49,11 +43,7 @@ export class BuilderCache {
 			this.key = key;
 			this.slices = [];
 			this.blocks = {};
-			this.previousLength = undefined;
-		} else {
-			this.previousLength = this.currentLength;
 		}
-		this.currentLength = size.length;
 	}
 
 	merge(building: Building) {

@@ -1,40 +1,16 @@
 from __future__ import annotations
 
-from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from typer import Context, Option
+from typer import Context, Option, Typer
 
 from .. import __version__
 from ..core.coordinates import XYZ
 from ..data import loader, watcher
 from ..data.schema import BlockState
-
-
-class Dimension(Enum):
-    overworld = "overworld"
-    nether = "nether"
-    the_end = "the_end"
-
-
-class Facing(Enum):
-    north = "-z"
-    south = "+z"
-    east = "+x"
-    west = "-x"
-
-
-class Tilt(Enum):
-    up = "up"
-    down = "down"
-
-
-class Alignment(Enum):
-    left = "left"
-    center = "center"
-    right = "right"
+from .args import Align, Dimension, Facing, Tilt, Walkable
 
 
 def _show_version(ctx: Context, value: bool):
@@ -49,7 +25,11 @@ def _show_help(ctx: Context, value: bool):
         ctx.exit()
 
 
-def run(
+app = Typer(add_completion=False)
+
+
+@app.command(no_args_is_help=True)
+def _runner(
     world_path: Annotated[
         Path,
         Option(
@@ -97,13 +77,21 @@ def run(
             rich_help_panel="Customization",
             metavar="name",
         ),
-    ] = ["stone"],  # pyright: ignore[reportCallInDefaultInitializer] # must be list for typer's help message
-    blend: Annotated[
+        # must be list for typer's help message
+    ] = ["stone"],  # pyright: ignore[reportCallInDefaultInitializer]
+    walkable: Annotated[
+        Walkable,
+        Option(
+            help="Ensure player can walk on top of the structure",
+            rich_help_panel="Customization",
+        ),
+    ] = Walkable.partial,
+    preserve_terrain: Annotated[
         bool,
         Option(
-            "--blend",
-            help="Preserve existing world blocks where possible",
-            show_default="preemptively clear entire area",
+            "--preserve-terrain",
+            help="Preserve existing blocks wherever possible",
+            show_default="clear the area",
             rich_help_panel="Customization",
         ),
     ] = False,
@@ -148,13 +136,13 @@ def run(
         ),
     ] = None,
     align: Annotated[
-        Alignment,
+        Align,
         Option(
             "--align",
             help="Direction for the structure's width",
             rich_help_panel="Positioning",
         ),
-    ] = Alignment.center,
+    ] = Align.center,
     _version: Annotated[
         bool,
         Option("--version", is_eager=True, hidden=True, callback=_show_version),
@@ -170,12 +158,13 @@ def run(
     generator = Generator(
         session=GeneratingSession(world_path),
         coordinates=coordinates,
-        dimension=dimension.name if dimension else None,
-        facing=facing.name if facing else None,
-        tilt=tilt.name if tilt else None,
-        align=align.name,
+        dimension=dimension,
+        facing=facing,
+        tilt=tilt,
+        align=align,
         theme=theme,
-        blend=blend,
+        walkable=walkable,
+        preserve_terrain=preserve_terrain,
     )
 
     if not watch:

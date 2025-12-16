@@ -67,7 +67,7 @@ _REDSTONES = {
 DANGER_LIST = _LIQUID | _FALLING | _REDSTONES
 
 
-def get_blend_block(chunk: Chunk, coords: XYZ):
+def resolve_empty_block(chunk: Chunk, coords: XYZ):
     block = chunk.get_block(*coords)
     name = block.base_name
 
