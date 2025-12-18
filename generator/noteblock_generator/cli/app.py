@@ -29,7 +29,7 @@ app = Typer(add_completion=False)
 
 
 @app.command(no_args_is_help=True)
-def _runner(
+def _(
     world_path: Annotated[
         Path,
         Option(
