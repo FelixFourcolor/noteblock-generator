@@ -18,7 +18,7 @@ type TrillableNoteModifier<T extends TPosition> = INoteTrill & NoteModifier<T>;
 
 export type Note<T extends TPosition = TPosition> =
 	| Note.Simple<T>
-	| Note.Compound<T>
+	| Note.Slur<T>
 	| Note.Chord<T>
 	| Note.Quaver<T>;
 
@@ -42,8 +42,8 @@ export namespace Note {
 		NoteModifier<T>
 	>;
 
-	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ note: NoteValue.Compound },
+	export type Slur<T extends TPosition = TPosition> = Modified<
+		{ note: NoteValue.Slur },
 		NoteModifier<T>
 	>;
 }

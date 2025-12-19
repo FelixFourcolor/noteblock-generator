@@ -18,10 +18,10 @@ export function resolveNote(note: Note, voiceContext: Context): ResolvedNote {
 	const context = voiceContext.fork(noteModifier);
 
 	return match(noteValue)
-		.with(P.when(isSimple), (v) => resolveSimple(v, trillValue, context))
-		.with(P.when(isChord), (v) => resolveChord(v, context))
-		.with(P.when(isQuaver), (v) => resolveQuaver(v, context))
-		.with(P.when(isCompound), (v) => resolveCompound(v, context))
+		.with(isSimple, (v) => resolveSimple(v, trillValue, context))
+		.with(isChord, (v) => resolveChord(v, context))
+		.with(isQuaver, (v) => resolveQuaver(v, context))
+		.with(isSlur, (v) => resolveSlur(v, context))
 		.exhaustive();
 }
 
@@ -49,10 +49,8 @@ function resolveQuaver<Phrased extends boolean = true>(
 
 	function resolveItem(value: string, context: Context) {
 		return match(value)
-			.with(P.when(isSimple), (v) =>
-				resolveSimple(v, undefined, context, false),
-			)
-			.with(P.when(isChord), (v) => resolveChord(v, context, false))
+			.with(isSimple, (v) => resolveSimple(v, undefined, context, false))
+			.with(isChord, (v) => resolveChord(v, context, false))
 			.exhaustive();
 	}
 
@@ -82,7 +80,7 @@ function resolveChord<Phrased extends boolean = true>(
 	phrased: Phrased = true as Phrased,
 ): ResolvedNote<Phrased> {
 	const { value: pitches, duration } = splitTimedValue(noteValue);
-	const chordItems = pitches
+	const notes = pitches
 		.slice(1, -1)
 		.split(";")
 		.filter((v) => v.trim())
@@ -90,28 +88,24 @@ function resolveChord<Phrased extends boolean = true>(
 
 	return (
 		phrased
-			? zip(chordItems.map((v) => resolveSimple(v, undefined, context, true)))
-			: multiZip(
-					chordItems.map((v) => resolveSimple(v, undefined, context, false)),
-				)
+			? zip(notes.map((v) => resolveSimple(v, undefined, context, true)))
+			: multiZip(notes.map((v) => resolveSimple(v, undefined, context, false)))
 	) as ResolvedNote<Phrased>;
 }
 
-function resolveCompound(noteValue: NoteValue.Compound, context: Context) {
-	const compoundItems = noteValue
+function resolveSlur(noteValue: NoteValue.Slur, context: Context) {
+	const notes = noteValue
 		.split("--")
 		.filter((v) => v.trim())
 		.map((item) => {
 			return match(item)
-				.with(P.when(isSimple), (v) =>
-					resolveSimple(v, undefined, context, false),
-				)
-				.with(P.when(isChord), (v) => resolveChord(v, context, false))
-				.with(P.when(isQuaver), (v) => resolveQuaver(v, context, false))
+				.with(isSimple, (v) => resolveSimple(v, undefined, context, false))
+				.with(isChord, (v) => resolveChord(v, context, false))
+				.with(isQuaver, (v) => resolveQuaver(v, context, false))
 				.exhaustive();
 		});
 
-	return applyPhrasing({ events: chain(compoundItems), context });
+	return applyPhrasing({ events: chain(notes), context });
 }
 
 function normalize(note: Note): {
@@ -146,7 +140,7 @@ function normalize(note: Note): {
 	return { noteValue, trillValue: undefined, noteModifier };
 }
 
-const isSimple = createIs<NoteValue.Simple>();
-const isChord = createIs<NoteValue.Chord>();
-const isQuaver = createIs<NoteValue.Quaver>();
-const isCompound = createIs<NoteValue.Compound>();
+const isSimple = P.when(createIs<NoteValue.Simple>());
+const isChord = P.when(createIs<NoteValue.Chord>());
+const isQuaver = P.when(createIs<NoteValue.Quaver>());
+const isSlur = P.when(createIs<NoteValue.Slur>());

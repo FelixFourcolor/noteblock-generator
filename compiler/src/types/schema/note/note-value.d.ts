@@ -6,7 +6,7 @@ export type NoteValue =
 	| NoteValue.Simple
 	| NoteValue.Chord
 	| NoteValue.Quaver
-	| NoteValue.Compound;
+	| NoteValue.Slur;
 
 export namespace NoteValue {
 	export type Rest = Timed<"R">;
@@ -24,7 +24,7 @@ export namespace NoteValue {
 		>
 	>;
 
-	export type Compound = Repeat<
+	export type Slur = Repeat<
 		Note | Chord | Quaver,
 		{ atLeast: 2; separator: "--" }
 	>;
