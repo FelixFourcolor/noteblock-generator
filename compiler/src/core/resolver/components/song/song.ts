@@ -31,7 +31,8 @@ export async function resolveSong(
 	if (typeof time !== "number") {
 		time = voiceTime;
 	}
-	const width = resolveWidth({ time, type });
+	const { width = resolveWidth({ time, type }) } = modifier;
+
 	return { width, type, ticks };
 }
 

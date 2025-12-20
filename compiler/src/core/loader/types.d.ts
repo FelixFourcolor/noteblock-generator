@@ -1,4 +1,9 @@
-import type { FileRef, IProperties, Notes } from "@/types/schema";
+import type {
+	FileRef,
+	IProperties,
+	ISongProperties,
+	Notes,
+} from "@/types/schema";
 import type { ValidateError } from "./validate";
 
 export type JsonString = `json://${string}`;
@@ -19,7 +24,7 @@ export type LazyVoiceEntry = LazyVoice | LazyVoice[] | null;
 
 export type LoadedSong = {
 	voices: LazyVoiceEntry[];
-	modifier: IProperties;
+	modifier: ISongProperties;
 };
 
 export type LazySong = () => Promise<{
