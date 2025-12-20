@@ -1,6 +1,6 @@
-import { is } from "typia";
+import { equals } from "typia";
 import type { LoadedSong } from "@/core/loader";
-import type { IProperties, Time, TPosition } from "@/types/schema";
+import type { ISongProperties, Time, TPosition } from "@/types/schema";
 import type { ResolverCache } from "../../cache";
 import type { Tick } from "../tick";
 import { resolveVoices } from "./voices";
@@ -21,7 +21,7 @@ export async function resolveSong(
 	if (type === "single") {
 		// Must check "is not single" instead of "is double",
 		// because single is a subset of double
-		if (!is<IProperties<"single">>(modifier)) {
+		if (!equals<ISongProperties<"single">>(modifier)) {
 			type = "double";
 		}
 	}
