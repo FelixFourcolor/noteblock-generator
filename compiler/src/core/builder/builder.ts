@@ -164,14 +164,9 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 		// If x = +/-2 has a noteblock,
 		// there must be something at x = +/-1 to conduct redstone.
-		if (this.getOffset([-2, 1, 1])) {
-			if (!this.getOffset([-1, 0, 1])) {
-				this.setOffset([-1, 0, 1], Block.Generic);
-			}
-		}
-		if (this.getOffset([2, 1, 1])) {
-			if (!this.getOffset([1, 0, 1])) {
-				this.setOffset([1, 0, 1], Block.Generic);
+		for (const dx of [1, -1]) {
+			if (this.getOffset([2 * dx, 0, 1]) && !this.getOffset([dx, 0, 1])) {
+				this.setOffset([dx, 0, 1], Block.Generic);
 			}
 		}
 	}
