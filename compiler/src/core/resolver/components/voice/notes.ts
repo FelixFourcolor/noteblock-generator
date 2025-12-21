@@ -20,7 +20,7 @@ function* _resolveNotes(
 	notes: Notes<"lazy">,
 	context: MutableContext,
 	barline = { present: false },
-): Generator<Tick> {
+): Generator<Tick, boolean> {
 	for (const item of notes) {
 		if (equals<IProperties>(item)) {
 			context.transform(item);
@@ -28,7 +28,10 @@ function* _resolveNotes(
 		}
 
 		if (is<BarLine>(item)) {
-			yield* resolveBarLine(item, context);
+			const success = yield* resolveBarLine(item, context);
+			if (!success) {
+				return false;
+			}
 			barline.present = true;
 			continue;
 		}
@@ -58,7 +61,10 @@ function* _resolveNotes(
 		if (equals<SubNotes<"lazy">>(item)) {
 			const { notes, modifier } = normalize(item);
 			const subContext = context.fork(modifier);
-			yield* _resolveNotes(notes, subContext, barline);
+			const success = yield* _resolveNotes(notes, subContext, barline);
+			if (!success) {
+				return false;
+			}
 			continue;
 		}
 
@@ -69,8 +75,9 @@ function* _resolveNotes(
 				measure: context.measure,
 			},
 		];
-		return;
+		return false;
 	}
+	return true;
 }
 
 function normalize(subnotes: SubNotes<"lazy">) {
