@@ -2,7 +2,7 @@ import { Block, type BlockType } from "./block";
 import { Cursor } from "./cursor";
 import { Wire } from "./wire";
 
-export type XYZ = [number, number, number];
+export type XYZ = readonly [number, number, number];
 export type StrCoord = `${number} ${number} ${number}`;
 export type BlockMap = Record<StrCoord, BlockType>;
 

@@ -85,7 +85,7 @@ export class Wire {
 	private getDirection = (from: XYZ, to: XYZ) => {
 		const [fromX, , fromZ] = from;
 		const [toX, , toZ] = to;
-		return Direction.fromCoords(toX - fromX, toZ - fromZ);
+		return Direction.fromCoords(fromX - toX, fromZ - toZ);
 	};
 
 	private placeRedstone = (

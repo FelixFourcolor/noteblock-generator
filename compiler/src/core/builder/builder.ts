@@ -2,7 +2,7 @@ import { forEachRight } from "lodash";
 import type { NoteCluster, Slice, SongLayout } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
 import { Block } from "./utils/block";
-import { type BlockMap, BlockPlacer } from "./utils/block-placer";
+import { type BlockMap, BlockPlacer, type XYZ } from "./utils/block-placer";
 import { addBuffer } from "./utils/buffer";
 import type { BuilderCache } from "./utils/cache";
 import type { ReadonlyCursor } from "./utils/cursor";
@@ -106,7 +106,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				self.buildSlice(slice);
 
 				if (this.cache) {
-					this.cache.set(index, { slice, cursor: self.cursor.clone() });
+					const cursor = self.cursor.clone();
+					this.cache.set(index, { slice, cursor });
 				}
 			});
 		});
@@ -172,24 +173,22 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	private buildRowBridge() {
-		const placements = [
-			[0, 2],
-			[1, 2],
-			[2, 2],
-			[3, 2],
-			[4, 2],
-			[4, 1],
-		] as const;
+		const placements: XYZ[] = [
+			[0, 1, 2],
+			[1, 1, 2],
+			[2, 1, 2],
+			[3, 1, 2],
+			[4, 2, 2], // raised for the play button
+			[4, 1, 1],
+		];
 
 		this.useWireOffset((wire) => {
-			for (const [dx, dz] of placements.slice(0, -1)) {
-				wire.add([dx, 1, dz]);
+			for (const coords of placements) {
+				wire.add(coords);
 			}
-			const [dx, dz] = placements.at(-1)!;
-			wire.add([dx, 1, dz], null);
 		}, Block.Generic);
 
-		const [dx, dz] = placements.at(-1)!;
+		const [dx, _, dz] = placements.at(-1)!;
 		this.cursor.move({ dx, dz });
 		this.cursor.flipDirection();
 	}
