@@ -1,9 +1,9 @@
 import { groupBy, mapValues } from "lodash";
 import { match } from "ts-pattern";
-import type { NoteEvent } from "@/core/resolver";
+import type { NoteBlock, NoteEvent } from "@/core/resolver";
 import type { TPosition } from "@/types/schema";
 import type { ErrorTracker } from "./tracker/errors";
-import type { LevelEntry, LevelMap } from "./types";
+import type { LevelMap } from "./types";
 import { validateCluster } from "./validator/cluster-size";
 
 export function mapLevels(
@@ -31,7 +31,8 @@ function mapSingle(
 	notes: NoteEvent[],
 	onError: (error: string) => void,
 ): LevelMap<"single"> {
-	// For single builds, L and R are be duplicate, so just take the L
+	// For single builds, L and R are duplicate, so just take the L
+	// TODO: optimize the data structure to not have duplicates in the first place
 	const singleNotes = notes.filter((note) => note.division === "L");
 	const levelGroups = groupBy(singleNotes, (note) => note.level);
 
@@ -39,9 +40,8 @@ function mapSingle(
 		onError(`${voices.join(", ")}: Overflow @${level}=${size}`);
 	});
 
-	return mapValues(
-		levelGroups,
-		(notes): LevelEntry<"single"> => notes.map((note) => note.noteblock),
+	return mapValues(levelGroups, (notes) =>
+		notes.map((note) => note.noteblock).toSorted(sorter),
 	);
 }
 
@@ -62,9 +62,16 @@ function mapDouble(
 
 	return mapValues(
 		positionGroups,
-		({ L, R }): LevelEntry<"double"> => [
-			L?.map((note) => note.noteblock) ?? [],
-			R?.map((note) => note.noteblock) ?? [],
-		],
+		({ L, R }) =>
+			[
+				L?.map((note) => note.noteblock).toSorted(sorter) ?? [],
+				R?.map((note) => note.noteblock).toSorted(sorter) ?? [],
+			] as const,
 	);
+}
+
+// Sort note cluster for stable test snapshots
+// and (possibly) more efficient caching
+function sorter(a: NoteBlock, b: NoteBlock) {
+	return a.instrument.localeCompare(b.instrument) || a.note - b.note;
 }
