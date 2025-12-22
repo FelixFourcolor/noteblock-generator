@@ -37,10 +37,11 @@
 	],
 	"scripts": {
 		"prepare": "ts-patch install",
-		"build": "pnpm build:tsc; pnpm build:esbuild",
-		"build:watch": "concurrently \"pnpm build:tsc --watch\" \"pnpm build:esbuild --watch\"",
-		"build:tsc": "tsc -p tsconfig.build.json",
-		"build:esbuild": "esbuild ./build/main.js --bundle --platform=node --format=esm --alias:@=./build --outfile=./dist/main.js --packages=external",
+		"tscheck": "tsc",
+		"build": "pnpm _compile && pnpm __bundle",
+		"build:watch": "concurrently \"pnpm _compile --watch\" \"pnpm __bundle --watch\"",
+		"_compile": "tsc -p tsconfig.build.json",
+		"__bundle": "esbuild ./build/main.js --bundle --platform=node --format=esm --alias:@=./build --outfile=./dist/main.js --packages=external",
 		"clean": "rm -rf dist build coverage",
 		"test": "vitest run"
 	}
