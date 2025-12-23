@@ -78,7 +78,9 @@ export class Wire {
 					});
 			}
 
-			this.placeRedstone(coords, value, [inDir, outDir]);
+			if (value) {
+				this.placeRedstone(coords, value, [inDir, outDir]);
+			}
 		});
 	}
 
@@ -90,13 +92,13 @@ export class Wire {
 
 	private placeRedstone = (
 		coords: XYZ,
-		value: Value,
+		component: "wire" | "repeater",
 		[inDir, outDir]: [Direction | undefined, Direction | undefined],
 	) => {
-		if (value === "wire") {
+		if (component === "wire") {
 			const connections = [inDir, outDir].filter((dir) => dir !== undefined);
 			this.apply(coords, Block.Redstone(...new Set(connections)));
-		} else if (value !== null) {
+		} else {
 			const direction = outDir ?? inDir;
 			if (direction === undefined) {
 				throw new Error("Cannot place repeater without direction");

@@ -183,9 +183,9 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 		];
 
 		this.useWireOffset((wire) => {
-			for (const coords of placements) {
-				wire.add(coords);
-			}
+			placements.forEach((coords, i) => {
+				wire.add(coords, i < placements.length - 1 ? "wire" : null);
+			});
 		}, Block.Generic);
 
 		const [dx, _, dz] = placements.at(-1)!;
