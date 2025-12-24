@@ -1,4 +1,4 @@
-import { forEachRight } from "lodash";
+import { forEachRight, times } from "lodash";
 import type { NoteCluster, Slice, SongLayout } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
 import { Block } from "./utils/block";
@@ -57,25 +57,21 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 	}
 
 	protected buildSingleSlice({ delay, levels }: Slice<"single">) {
-		let newCursor = this.cursor;
-
 		// Must build from top to bottom.
 		// Because the row below calculates where to place the noteblocks
 		// based on whether the space above is occupied.
 		forEachRight(levels, (notes = [], level) => {
-			newCursor = this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
+			this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
 				self.buildClusterStructure(delay, notes);
 				self.buildNotes(notes);
-				if (self.isEndOfRow && self.hasNext) {
-					self.buildRowBridge();
-				} else {
-					self.cursor.move({ dz: SLICE_SIZE.width });
-				}
-				return self.cursor;
 			});
 		});
 
-		this.cursor = newCursor;
+		if (!this.isEndOfRow) {
+			this.cursor.move({ dz: SLICE_SIZE.width });
+		} else if (this.hasNext) {
+			this.buildRowBridge();
+		}
 	}
 
 	private buildSong() {
@@ -182,11 +178,15 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			[4, 1, 1],
 		];
 
-		this.useWireOffset((wire) => {
-			placements.forEach((coords, i) => {
-				wire.add(coords, i < placements.length - 1 ? "wire" : null);
+		times(this.song.height, (level) => {
+			this.at({ y: 1 + SLICE_SIZE.height * level }, (self) => {
+				self.useWireOffset((wire) => {
+					placements.forEach((coords, i) => {
+						wire.add(coords, i < placements.length - 1 ? "wire" : null);
+					});
+				}, Block.Generic);
 			});
-		}, Block.Generic);
+		});
 
 		const [dx, _, dz] = placements.at(-1)!;
 		this.cursor.move({ dx, dz });
