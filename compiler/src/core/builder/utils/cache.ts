@@ -3,7 +3,7 @@ import type { Slice } from "@/core/layout";
 import type { TPosition } from "@/types/schema";
 import type { Building } from "../builder";
 import type { BlockMap } from "./block-placer";
-import type { ReadonlyCursor } from "./cursor";
+import type { Cursor } from "./cursor";
 import type { Size } from "./size";
 
 type Key = {
@@ -12,9 +12,10 @@ type Key = {
 	width: number;
 };
 
-type SliceCache = {
+export type SliceCache = {
 	slice: Slice;
-	cursor: ReadonlyCursor;
+	hasNext: boolean;
+	cursor: Pick<Cursor, "clone">;
 };
 
 export class BuilderCache {
@@ -34,7 +35,7 @@ export class BuilderCache {
 		if (!isEqual(cached.slice, slice)) {
 			return undefined;
 		}
-		return cached.cursor;
+		return cached;
 	}
 
 	invalidate(type: TPosition, size: Size) {

@@ -42,5 +42,3 @@ export class Cursor {
 		return this;
 	}
 }
-
-export type ReadonlyCursor = Pick<Cursor, "clone">;

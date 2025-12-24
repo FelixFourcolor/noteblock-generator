@@ -4,8 +4,7 @@ import type { TPosition } from "@/types/schema";
 import { Block } from "./utils/block";
 import { type BlockMap, BlockPlacer, type XYZ } from "./utils/block-placer";
 import { addBuffer } from "./utils/buffer";
-import type { BuilderCache } from "./utils/cache";
-import type { ReadonlyCursor } from "./utils/cursor";
+import type { BuilderCache, SliceCache } from "./utils/cache";
 import { Direction } from "./utils/direction";
 import { baseBlock } from "./utils/instruments";
 import { getSize, type Size, SLICE_SIZE } from "./utils/size";
@@ -76,7 +75,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 	private buildSong() {
 		let previousDelay = 1;
-		let lastCachedCursor: ReadonlyCursor | undefined;
+		let previousCache: SliceCache | undefined;
 
 		this.at({ x: 3, z: 2 }, (self) => {
 			this.song.slices.forEach(({ delay, levels }, index) => {
@@ -84,16 +83,26 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				const slice = { delay: previousDelay, levels };
 				previousDelay = delay;
 
-				const cachedCursor = this.cache?.match(index, slice);
-				if (cachedCursor) {
+				const cache = this.cache?.match(index, slice);
+				if (cache) {
 					// cache hit
-					lastCachedCursor = cachedCursor;
+					previousCache = cache;
 					return;
 				}
-				if (lastCachedCursor) {
-					// cache miss, update cursor to last time cache hit
-					this.cursor = lastCachedCursor.clone();
-					lastCachedCursor = undefined;
+
+				if (previousCache) {
+					// Move cursor to last time cache hit
+					this.cursor = previousCache.cursor.clone();
+					// Update row bridge when adding new slices to the end
+					if (!previousCache.hasNext && this.isStartOfRow) {
+						this.buildRowBridge();
+						this.cache!.set(index - 1, {
+							slice: previousCache.slice,
+							cursor: this.cursor.clone(),
+							hasNext: true,
+						});
+					}
+					previousCache = undefined;
 				}
 
 				if (this.isStartOfRow) {
@@ -103,7 +112,8 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 
 				if (this.cache) {
 					const cursor = self.cursor.clone();
-					this.cache.set(index, { slice, cursor });
+					const hasNext = this.hasNext;
+					this.cache.set(index, { slice, cursor, hasNext });
 				}
 			});
 		});
