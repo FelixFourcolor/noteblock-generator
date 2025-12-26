@@ -1,6 +1,6 @@
 [project]
 name = "noteblock-generator"
-version = "0.3.0"
+version = "0.3.1"
 description = "Generate music in Minecraft noteblocks"
 authors = [{ name = "Felix Fourcolor", email = "felix.fourcolor@gmail.com" }]
 license = { text = "MIT" }

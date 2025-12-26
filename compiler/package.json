@@ -1,6 +1,6 @@
 {
 	"name": "noteblock-compiler",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"license": "MIT",
 	"bin": {
 		"nbc": "dist/main.js"
