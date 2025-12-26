@@ -1,7 +1,6 @@
-import { isEmpty } from "lodash";
-import { Properties } from "#core/resolver/properties/@";
-import type { IProperties } from "#schema/@";
-import { type IMeasure, Measure } from "./measure.js";
+import { Properties } from "@/core/resolver/properties";
+import type { IProperties } from "@/types/schema";
+import { type IMeasure, Measure } from "./measure";
 
 type TransformModifier = IMeasure | { noteDuration: number } | IProperties;
 
@@ -33,10 +32,6 @@ class ContextClass extends Properties {
 	}
 
 	override fork(modifier: IProperties = {}) {
-		if (isEmpty(modifier)) {
-			return this;
-		}
-
 		const forkedContext = new ContextClass(this.voice);
 		const forkedProperties = super.fork(modifier);
 		forkedContext._measure = this._measure;

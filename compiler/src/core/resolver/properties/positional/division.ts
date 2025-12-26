@@ -1,12 +1,12 @@
 import { times, zipWith } from "lodash";
 import { match, P } from "ts-pattern";
 import { assert, createIs } from "typia";
-import { resolveVariableValue } from "#core/resolver/duration.js";
-import type { Division as T_Division } from "#schema/@";
-import { Positional } from "../positional.js";
-import type { ResolveType } from "../properties.js";
-import type { VariableTransformation } from "../variable.js";
-import { Sustain } from "./sustain.js";
+import type { Division as T_Division } from "@/types/schema";
+import { resolveVariableValue } from "../duration";
+import { Positional } from "../positional";
+import type { ResolveType } from "../properties";
+import type { VariableTransformation } from "../variable";
+import { Sustain } from "./sustain";
 
 const Default: VariableTransformation<T_Division.uniform | "~">[] = [
 	[{ transform: "LR", duration: undefined }],

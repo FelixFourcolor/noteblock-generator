@@ -1,4 +1,4 @@
-export type * from "./components/index.ts";
-export type * from "./duration.ts";
-export type * from "./note/index.ts";
-export type * from "./properties/index.ts";
+export type * from "./components";
+export type * from "./duration";
+export type * from "./note";
+export type * from "./properties";

@@ -1,3 +1,3 @@
-from .main import main
+from .cli.app import app
 
-main()
+app()

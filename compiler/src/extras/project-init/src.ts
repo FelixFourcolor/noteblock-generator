@@ -16,13 +16,14 @@ export async function generateSourceFiles(voices: string[], root: string) {
 	const indexPath = join(srcDir, "index.yaml");
 	const indexData = { voices: voices.map((name) => `file://./${name}.yaml`) };
 	const voicePaths = voices.map((voice) => join(srcDir, `${voice}.yaml`));
+	const voiceData = { notes: [] };
 
 	await mkdir(srcDir, { recursive: true });
 	return Promise.all([
 		writeFile(indexPath, yamlStringify(indexData)),
 		...voicePaths.map(async (path) => {
 			await mkdir(dirname(path), { recursive: true });
-			await writeFile(path, "[]\n");
+			await writeFile(path, yamlStringify(voiceData));
 		}),
 	]);
 }

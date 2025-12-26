@@ -1,5 +1,5 @@
-import type { Int } from "#types/helpers/@";
-import type { Static } from "../meta.ts";
+import type { Int } from "@/types/helpers";
+import type { Static } from "../meta";
 
 export type Beat = Int<1, 8>;
 

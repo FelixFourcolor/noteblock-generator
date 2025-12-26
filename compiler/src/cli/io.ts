@@ -2,22 +2,23 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { stdin, stdout } from "node:process";
-import type { CommandOptions } from "./commands.js";
-import { handleError } from "./error.js";
+import type { FileRef } from "@/types/schema";
+import type { CommandOptions } from "./commands";
+import { handleError, UserError } from "./error";
 
 export async function getInput(
 	args: CommandOptions<{ in: string | undefined }>,
 ) {
 	if (args.in) {
 		const path = await getEntryPath(args.in);
-		return `file://${path}` as const;
+		return `file://${path}` as FileRef;
 	}
 	if (!stdin.isTTY) {
 		const chunks = await Array.fromAsync(stdin);
 		const data = Buffer.concat(chunks).toString("utf8");
 		return `json://${data}` as const;
 	}
-	throw new Error(
+	throw new UserError(
 		"Input required: Provide file path with --in, or pipe data to stdin.",
 	);
 }
@@ -54,6 +55,13 @@ export function withOutput<T extends CommandOptions<{ out?: string }>>(
 		if (!isAsyncGenerator(result)) {
 			return emit(result, args);
 		}
+
+		stdout.on("error", (err) => {
+			if (err.code === "EPIPE") {
+				process.exit(0);
+			}
+			throw err;
+		});
 
 		for await (const payload of result) {
 			await emit(payload, args);

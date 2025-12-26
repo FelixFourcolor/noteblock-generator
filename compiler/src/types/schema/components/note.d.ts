@@ -1,12 +1,11 @@
-import type { tags } from "typia";
-import type { NoteValue } from "#schema/note/@";
+import type { DistributiveOmit, Modified } from "@/types/helpers";
+import type { NoteValue } from "../note";
 import type {
 	INoteTrill,
 	IProperties,
 	IStaticProperties,
 	TPosition,
-} from "#schema/properties/@";
-import type { DistributiveOmit, Modified } from "#types/helpers/@";
+} from "../properties";
 
 type RestModifier = Omit<IStaticProperties, "time">;
 
@@ -19,7 +18,7 @@ type TrillableNoteModifier<T extends TPosition> = INoteTrill & NoteModifier<T>;
 
 export type Note<T extends TPosition = TPosition> =
 	| Note.Simple<T>
-	| Note.Compound<T>
+	| Note.Slur<T>
 	| Note.Chord<T>
 	| Note.Quaver<T>;
 
@@ -43,16 +42,8 @@ export namespace Note {
 		NoteModifier<T>
 	>;
 
-	export type Compound<T extends TPosition = TPosition> = Modified<
-		{ note: Compound.Value<T> },
+	export type Slur<T extends TPosition = TPosition> = Modified<
+		{ note: NoteValue.Slur },
 		NoteModifier<T>
 	>;
-	export namespace Compound {
-		export type Value<T extends TPosition = TPosition> = (
-			| Simple<T>
-			| Chord<T>
-			| Quaver<T>
-		)[] &
-			tags.MinItems<2>;
-	}
 }

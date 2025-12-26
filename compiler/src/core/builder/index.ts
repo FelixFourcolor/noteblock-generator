@@ -1,2 +1,2 @@
-export * from "./build.js";
-export type { Building } from "./builders/builder.js";
+export * from "./build";
+export type { Building } from "./builder";

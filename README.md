@@ -171,13 +171,13 @@ You can use `--theme` (or `-t` for short) multiple times. Theme blocks will be d
 `-t blue_ice -t stripped_cherry_log -t white_wool -t stripped_cherry_log -t blue_ice`
 ![multi theme](images/multi-theme.png)
 
-### Blending
+### Preserving terrain
 
-By default, the program clears the entire space that the structure will occupy before generating. With the `--blend` flag, the structure will generate into the terrain, leaving existing blocks intact.
+By default, the program clears the entire space that the structure will occupy before generating. With the `--preserve-terrain` flag, the structure will generate into the terrain, leaving existing blocks intact.
 
-| Default | `--blend` |
+| Default | `--preserve-terrain` |
 | :-: | :-: |
-| ![without --blend](images/no-blend.png) | ![with --blend](images/blend.png) |
+| ![without --preserve-terrain](images/no-blend.png) | ![with --preserve-terrain](images/blend.png) |
 
 ### Positioning
 

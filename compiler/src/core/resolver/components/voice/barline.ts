@@ -1,11 +1,11 @@
-import type { BarLine } from "#schema/@";
-import type { MutableContext } from "../context.js";
-import type { Tick } from "../tick.js";
+import type { BarLine } from "@/types/schema";
+import type { MutableContext } from "../context";
+import type { Tick } from "../tick";
 
 export function* resolveBarLine(
 	barline: BarLine,
 	context: MutableContext,
-): Generator<Tick> {
+): Generator<Tick, boolean> {
 	const numberMatch = barline.match(/\d+/);
 	const barNumber = numberMatch ? Number.parseInt(numberMatch[0]) : undefined;
 	const restEntireBar = barline.split("|").length > 2;
@@ -24,9 +24,9 @@ export function* resolveBarLine(
 				measure: { bar, tick },
 			},
 		];
-	} else {
-		yield [];
+		return false;
 	}
+	yield [];
 
 	context.transform({ bar: barNumber || bar + 1, tick: 1 });
 
@@ -45,4 +45,5 @@ export function* resolveBarLine(
 			context.transform({ noteDuration: 1 });
 		}
 	}
+	return true;
 }

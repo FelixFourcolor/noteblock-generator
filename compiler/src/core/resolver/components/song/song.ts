@@ -1,39 +1,39 @@
-import { is } from "typia";
-import { UserError } from "#cli/error.js";
-import type { ResolutionCache } from "#core/resolver/cache.js";
-import { validateSong } from "#core/validator/@";
-import type { Deferred, IProperties, Song, Time, TPosition } from "#schema/@";
-import type { SongResolution } from "../resolution.js";
-import { resolveVoices } from "./voices.js";
+import { equals } from "typia";
+import type { LoadedSong } from "@/core/loader";
+import type { ISongProperties, Time, TPosition } from "@/types/schema";
+import type { ResolverCache } from "../../cache";
+import type { Tick } from "../tick";
+import { resolveVoices } from "./voices";
+
+export type SongResolution<T extends TPosition = TPosition> = {
+	type: T;
+	width: number;
+	ticks: Iterable<Tick>;
+};
 
 export async function resolveSong(
-	song: Deferred<Song, { allowJson: true }>,
-	cache?: ResolutionCache,
+	{ voices, modifier }: LoadedSong,
+	cache?: ResolverCache,
 ): Promise<SongResolution> {
-	const validated = await validateSong(song);
-	if ("error" in validated) {
-		throw new UserError(validated.error);
-	}
-
-	const { voices, modifier: songModifier, cwd } = validated;
-	const context = { songModifier, cwd };
-	const voicesResolution = await resolveVoices(voices, context, cache);
+	const voicesResolution = await resolveVoices(voices, modifier, cache);
 
 	let { type } = voicesResolution;
 	if (type === "single") {
-		// Must check "is not single" instead of "is double", because single is a subset of double
-		if (!is<IProperties<"single">>(songModifier)) {
+		// Must check "is not single" instead of "is double",
+		// because single is a subset of double
+		if (!equals<ISongProperties<"single">>(modifier)) {
 			type = "double";
 		}
 	}
 
 	const { time: voiceTime, ticks } = voicesResolution;
-	let { time } = songModifier;
+	let { time } = modifier;
 	if (typeof time !== "number") {
 		time = voiceTime;
 	}
-	const width = resolveWidth({ time, type });
-	return { ticks, width, type };
+	const { width = resolveWidth({ time, type }) } = modifier;
+
+	return { width, type, ticks };
 }
 
 function resolveWidth({ time, type }: { time: Time; type: TPosition }) {

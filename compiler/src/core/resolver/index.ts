@@ -1,3 +1,3 @@
-export type * from "#core/resolver/components/@";
-export type * from "#core/resolver/properties/@";
-export * from "./resolve.js";
+export * from "./components";
+export type * from "./properties";
+export * from "./resolve";

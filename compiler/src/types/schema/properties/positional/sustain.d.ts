@@ -1,6 +1,6 @@
-import type { Duration } from "#schema/duration.ts";
-import type { Int, Re, Token } from "#types/helpers/@";
-import type { IPositional, Positional } from "../meta.ts";
+import type { Int, Re, Token } from "@/types/helpers";
+import type { Duration } from "@/types/schema/duration";
+import type { IPositional, Positional } from "../meta";
 
 export type ISustain = {
 	sustain?: Positional<Sustain.Value> | IPositional<Sustain>;

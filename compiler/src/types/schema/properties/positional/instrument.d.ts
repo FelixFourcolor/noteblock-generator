@@ -1,5 +1,5 @@
-import type { Re, Repeat, Token } from "#types/helpers/@";
-import type { Positional } from "../meta.ts";
+import type { Re, Repeat, Token } from "@/types/helpers";
+import type { Positional } from "../meta";
 
 export type Instrument = Re<
 	Repeat<InstrumentName, { separator: "\\|" }>,

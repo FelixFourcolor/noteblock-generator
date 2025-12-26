@@ -1,1 +1,1 @@
-export { generateSchema } from "./generate.js";
+export { generateSchema } from "./generate";

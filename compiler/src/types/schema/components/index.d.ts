@@ -1,4 +1,4 @@
-export type * from "./deferred.ts";
-export type * from "./note.ts";
-export type * from "./song.ts";
-export type * from "./voice.ts";
+export type * from "./note";
+export type * from "./ref";
+export type * from "./song";
+export type * from "./voice";

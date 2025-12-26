@@ -1,9 +1,6 @@
-import { existsSync, readdirSync } from "node:fs";
-import { realpath } from "node:fs/promises";
-import { UserError } from "#cli/error.js";
-import { setupSchema } from "./schema.js";
-import { generateSourceFiles } from "./src.js";
+import { setupSchema } from "./schema";
+import { generateSourceFiles } from "./src";
 
-export function initProject(root = ".", voices: string[] = []) {
-	return Promise.all([generateSourceFiles(voices, root), setupSchema(root)]);
+export async function initProject(root = ".", voices: string[] = []) {
+	await Promise.all([generateSourceFiles(voices, root), setupSchema(root)]);
 }

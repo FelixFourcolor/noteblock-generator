@@ -1,16 +1,16 @@
 import { times, zipWith } from "lodash";
 import { match, P } from "ts-pattern";
 import { createIs } from "typia";
-import { resolveVariableValue } from "#core/resolver/duration.js";
-import type { Level as T_Level } from "#schema/@";
-import { Positional } from "../positional.js";
-import type { ResolveType } from "../properties.js";
+import type { Level as T_Level } from "@/types/schema";
+import { resolveVariableValue } from "../duration";
+import { Positional } from "../positional";
+import type { ResolveType } from "../properties";
 import {
 	parseNumericValue,
 	uniformAbsolute,
 	uniformRelative,
-} from "../variable.js";
-import { Sustain } from "./sustain.js";
+} from "../variable";
+import { Sustain } from "./sustain";
 
 export const Level = Positional({
 	Default: [uniformAbsolute(0)],

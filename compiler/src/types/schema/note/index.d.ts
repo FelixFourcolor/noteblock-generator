@@ -1,3 +1,3 @@
-export type * from "./barline.ts";
-export type * from "./note-value.ts";
-export type * from "./pitch.ts";
+export type * from "./barline";
+export type * from "./note-value";
+export type * from "./pitch";

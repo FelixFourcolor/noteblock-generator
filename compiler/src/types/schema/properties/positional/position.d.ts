@@ -1,8 +1,8 @@
-import type { Variable } from "#schema/duration.ts";
-import type { Re, Token } from "#types/helpers/@";
-import type { Positional } from "../meta.ts";
-import type { Division, IDivision } from "./division.ts";
-import type { ILevel, Level } from "./level.ts";
+import type { Re, Token } from "@/types/helpers";
+import type { Variable } from "@/types/schema/duration";
+import type { Positional } from "../meta";
+import type { Division, IDivision } from "./division";
+import type { ILevel, Level } from "./level";
 
 export type Position = (Level & number) | Position.variable;
 

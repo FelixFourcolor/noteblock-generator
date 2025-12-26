@@ -1,5 +1,5 @@
 import { is } from "typia";
-import type { Reset, Static as T_Static } from "#schema/@";
+import type { Reset, Static as T_Static } from "@/types/schema";
 
 type ProtoStatic<T> = {
 	readonly Default: T;

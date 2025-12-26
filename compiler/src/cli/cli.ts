@@ -1,6 +1,6 @@
 import Yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-import { compileCommand, initCommand, schemaCommand } from "./commands.js";
+import { compileCommand, initCommand, schemaCommand } from "./commands";
 
 export async function launchCLI(argv = hideBin(process.argv)) {
 	const yargs = Yargs(argv)
@@ -11,28 +11,26 @@ export async function launchCLI(argv = hideBin(process.argv)) {
 		.usage("Noteblock compiler")
 		.usage("Usage: $0 [command] [options]");
 
-	const compile = compileCommand(yargs);
-	const init = initCommand(yargs);
-	const generateSchema = schemaCommand(yargs);
-
-	return yargs
+	yargs
 		.command({
 			command: "$0",
 			describe: "Compile",
-			builder: compile.buildOptions,
-			handler: compile.execute,
+			...compileCommand,
 		})
 		.command({
 			command: "init",
 			describe: "Initialize a new project",
-			builder: init.buildOptions,
-			handler: init.execute,
+			...initCommand,
 		})
 		.command({
 			command: "schema",
 			describe: "Generate schema for music source",
-			builder: generateSchema.buildOptions,
-			handler: generateSchema.execute,
-		})
-		.parseAsync();
+			...schemaCommand,
+		});
+
+	if (argv.length === 0) {
+		yargs.showHelp();
+	} else {
+		yargs.parseAsync();
+	}
 }

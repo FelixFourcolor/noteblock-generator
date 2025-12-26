@@ -1,5 +1,5 @@
-import type { Int, Re, Token } from "#types/helpers/@";
-import type { IPositional, Positional } from "../meta.ts";
+import type { Int, Re, Token } from "@/types/helpers";
+import type { IPositional, Positional } from "../meta";
 
 export type Transpose = {
 	value: Transpose.Value;

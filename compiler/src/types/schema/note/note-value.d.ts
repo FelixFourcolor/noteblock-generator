@@ -1,8 +1,12 @@
-import type { Timed, Untimed } from "#schema/duration.ts";
-import type { Re, Repeat } from "#types/helpers/@";
-import type { Pitch } from "./pitch.ts";
+import type { Re, Repeat } from "@/types/helpers";
+import type { Timed, Untimed } from "../duration";
+import type { Pitch } from "./pitch";
 
-export type NoteValue = NoteValue.Simple | NoteValue.Chord | NoteValue.Quaver;
+export type NoteValue =
+	| NoteValue.Simple
+	| NoteValue.Chord
+	| NoteValue.Quaver
+	| NoteValue.Slur;
 
 export namespace NoteValue {
 	export type Rest = Timed<"R">;
@@ -14,9 +18,14 @@ export namespace NoteValue {
 	>;
 
 	export type Quaver = Timed<
-		Repeat<Quaver.Item, { atLeast: 1; separator: "'"; strict: true }>
+		Repeat<
+			Re<Untimed<Simple | Chord>>,
+			{ atLeast: 1; separator: "'"; strict: true }
+		>
 	>;
-	export namespace Quaver {
-		export type Item = Re<Untimed<Simple | Chord>>;
-	}
+
+	export type Slur = Repeat<
+		Note | Chord | Quaver,
+		{ atLeast: 2; separator: "--" }
+	>;
 }

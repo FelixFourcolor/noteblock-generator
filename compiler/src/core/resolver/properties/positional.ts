@@ -1,6 +1,6 @@
 import { match, P } from "ts-pattern";
 import { createIs, is } from "typia";
-import type { Delete, Reset, Positional as T_Positional } from "#schema/@";
+import type { Delete, Reset, Positional as T_Positional } from "@/types/schema";
 import {
 	type IMulti,
 	isMulti,
@@ -8,7 +8,7 @@ import {
 	multi,
 	multiMap,
 	type OneOrMany,
-} from "./multi.js";
+} from "./multi";
 
 type ProtoPositional<
 	TInternal,

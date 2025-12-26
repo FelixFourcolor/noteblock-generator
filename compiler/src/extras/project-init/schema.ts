@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { launchCLI } from "#cli/cli.js";
+import { launchCLI } from "@/cli/cli";
 
 export function setupSchema(root: string) {
 	const vscodeDir = join(root, ".vscode");

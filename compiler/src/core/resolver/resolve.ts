@@ -1,66 +1,17 @@
-import { basename, dirname } from "node:path";
-import { watch } from "chokidar";
-import { debounce } from "lodash";
-import { resolveSong, type SongResolution } from "#core/resolver/components/@";
-import type { FileRef, JsonData } from "#schema/@";
-import { ResolutionCache } from "./cache.js";
+import type { LazySong, LoadedSong } from "@/core/loader";
+import { ResolverCache } from "./cache";
+import { resolveSong, type SongResolution } from "./components";
 
-export function resolve(src: FileRef | JsonData): Promise<SongResolution> {
-	return resolveSong(src);
+export function resolve(song: LoadedSong): Promise<SongResolution> {
+	return resolveSong(song);
 }
 
-type Resolver = () => Promise<SongResolution>;
+export function cachedResolver() {
+	const cache = new ResolverCache();
+	const cacheInvalidate = cache.invalidate.bind(cache);
 
-export async function* liveResolver(
-	src: FileRef,
-	options: { debounce: number },
-): AsyncGenerator<Resolver> {
-	const entryFilePath = src.slice(7);
-	const trackedDependencies = new Set<string>();
-	const changedFiles = new Set([entryFilePath]);
-	const cache = new ResolutionCache();
-
-	const createChangeSignal = () => {
-		const { promise, resolve } = Promise.withResolvers<void>();
-		return [promise, debounce(resolve, options.debounce)] as const;
+	return ({ song, updates }: Awaited<ReturnType<LazySong>>) => {
+		updates.forEach(cacheInvalidate);
+		return resolveSong(song, cache);
 	};
-	let [nextChange, signalChange] = createChangeSignal();
-
-	const watcher = watch(basename(entryFilePath), {
-		cwd: dirname(entryFilePath),
-	});
-	watcher.on("change", (filePath) => {
-		changedFiles.add(filePath);
-		signalChange();
-	});
-
-	const refresh = async () => {
-		if (!changedFiles.size) {
-			await nextChange;
-			[nextChange, signalChange] = createChangeSignal();
-		}
-		changedFiles.forEach((filePath) => {
-			cache.invalidate(filePath);
-		});
-		changedFiles.clear();
-
-		return async () => {
-			const resolution = await resolveSong(src, cache);
-			cache.dependencies.forEach((path) => {
-				if (!trackedDependencies.has(path)) {
-					watcher.add(path);
-					trackedDependencies.add(path);
-				}
-			});
-			return resolution;
-		};
-	};
-
-	try {
-		while (true) {
-			yield await refresh();
-		}
-	} finally {
-		watcher.close();
-	}
 }

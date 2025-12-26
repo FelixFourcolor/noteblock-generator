@@ -11,7 +11,7 @@ BlockType = BlockState | ThemeBlock | None
 BlockMap = dict[StrCoord, BlockType]
 
 
-class Size(Struct):
+class Size(Struct, frozen=True):
     width: int
     height: int
     length: int

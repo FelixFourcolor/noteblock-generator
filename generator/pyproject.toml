@@ -4,7 +4,6 @@ version = "0.3.0"
 description = "Generate music in Minecraft noteblocks"
 authors = [{ name = "Felix Fourcolor", email = "felix.fourcolor@gmail.com" }]
 license = { text = "MIT" }
-readme = "README.md"
 requires-python = ">=3.10, <3.15"
 keywords = ["minecraft", "noteblock"]
 dependencies = [
@@ -19,7 +18,7 @@ Homepage = "https://www.youtube.com/@felixfourcolor"
 Repository = "https://github.com/FelixFourcolor/noteblock-generator"
 
 [project.scripts]
-nbg = "noteblock_generator.main:main"
+nbg = "noteblock_generator.cli.app:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -36,3 +35,6 @@ extend-safe-fixes = ["ALL"]
 [tool.pyright]
 pythonVersion = "3.10"
 typeCheckingMode = "standard"
+
+[dependency-groups]
+dev = ["pytest>=9.0.2"]
