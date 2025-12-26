@@ -91,6 +91,7 @@ def test_generate(project_name: str):
         preserve_terrain=params["preserve_terrain"],
     ).generate(data)
 
+    received_file.parent.mkdir(parents=True, exist_ok=True)
     received_file.unlink(missing_ok=True)
     with open(received_file, "wb") as f:
         captured_data = serialize_chunks(session.world.chunks)
