@@ -5,4 +5,7 @@ export default defineConfig({
 	resolve: {
 		alias: { "@": resolve(__dirname, "build") },
 	},
+	test: {
+		reporters: "tree",
+	},
 });
