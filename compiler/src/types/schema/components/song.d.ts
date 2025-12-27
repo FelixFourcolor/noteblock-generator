@@ -14,7 +14,7 @@ export type VoiceEntry<T extends TValidate = TPosition> =
 	| VoiceGroup<T>[number];
 
 export type ISongProperties<T = TPosition> = IGlobal<IProperties<T>> & {
-	width?: Int<8, 16>;
+	width?: Int<6, 16>;
 };
 
 export type Song<T extends TValidate = TPosition> =
