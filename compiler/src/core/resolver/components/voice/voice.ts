@@ -1,6 +1,6 @@
 import { equals } from "typia";
 import type { LazyVoice } from "@/core/loader";
-import type { IProperties, Time, TPosition, Voice } from "@/types/schema";
+import type { SongModifier, Time, TPosition, Voice } from "@/types/schema";
 import { Context } from "../context";
 import type { SongContext } from "../song/voices";
 import type { Tick } from "../tick";
@@ -18,7 +18,7 @@ export type VoiceResolution = {
 
 export async function resolveVoice(
 	{ load }: LazyVoice,
-	songModifier: IProperties,
+	songModifier: SongModifier,
 	index: number | [number, number],
 ): Promise<VoiceResolution> {
 	const fallbackName = `Voice ${index}`;

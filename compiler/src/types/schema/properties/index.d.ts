@@ -9,6 +9,7 @@ export type * from "./positional/sustain";
 export type * from "./positional/transpose";
 export type * from "./positional/trill";
 
+export type * from "./preset";
 export type * from "./properties";
 
 export type * from "./static/beat";

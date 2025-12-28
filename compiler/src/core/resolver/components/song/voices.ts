@@ -1,15 +1,15 @@
 import { UserError } from "@/cli/error";
 import type { LazyVoiceEntry } from "@/core/loader";
 import type { ResolverCache } from "@/core/resolver/cache";
-import type { IProperties } from "@/types/schema";
+import type { SongModifier } from "@/types/schema";
 import { zip } from "../utils/generators";
 import { resolveVoice, type VoiceResolution } from "../voice";
 
-export type SongContext = { songModifier: IProperties; cwd: string };
+export type SongContext = { songModifier: SongModifier; cwd: string };
 
 export async function resolveVoices(
 	entries: LazyVoiceEntry[],
-	songModifier: IProperties,
+	songModifier: SongModifier,
 	cache?: ResolverCache,
 ): Promise<VoiceResolution> {
 	async function merge(voices: Promise<VoiceResolution>[]) {

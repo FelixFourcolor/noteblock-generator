@@ -1,20 +1,30 @@
 import { equals, is } from "typia";
+import { PresetError } from "@/core/resolver/properties";
 import type {
 	BarLine,
-	IProperties,
+	FutureModifier,
 	Note,
 	Notes,
 	SubNotes,
 } from "@/types/schema";
-import type { MutableContext } from "../context";
+import type { Context, MutableContext } from "../context";
 import { resolveNote } from "../note";
 import type { Tick } from "../tick";
 import { resolveBarLine } from "./barline";
 
-export const resolveNotes: (
+export function* resolveNotes(
 	notes: Notes<"lazy">,
 	context: MutableContext,
-) => Generator<Tick> = _resolveNotes;
+): Generator<Tick> {
+	try {
+		yield* _resolveNotes(notes, context);
+	} catch (e) {
+		if (e instanceof PresetError) {
+			return yield* error(e.message, context);
+		}
+		throw e;
+	}
+}
 
 function* _resolveNotes(
 	notes: Notes<"lazy">,
@@ -22,7 +32,7 @@ function* _resolveNotes(
 	barline = { present: false },
 ): Generator<Tick, boolean> {
 	for (const item of notes) {
-		if (equals<IProperties>(item)) {
+		if (equals<FutureModifier>(item)) {
 			context.transform(item);
 			continue;
 		}
@@ -68,22 +78,21 @@ function* _resolveNotes(
 			continue;
 		}
 
-		yield [
-			{
-				error: "Data does not match schema.",
-				voice: context.voice,
-				measure: context.measure,
-			},
-		];
-		return false;
+		return yield* error(`Invalid entry: ${JSON.stringify(item)}`, context);
 	}
 	return true;
 }
 
 function normalize(subnotes: SubNotes<"lazy">) {
 	if (Array.isArray(subnotes)) {
-		return { notes: subnotes };
+		return { notes: subnotes, modifier: {} };
 	}
 	const { notes, ...modifier } = subnotes;
 	return { notes, modifier };
+}
+
+function* error(error: string, context: Context) {
+	const { voice, measure } = context;
+	yield [{ error, voice, measure }];
+	return false;
 }

@@ -1,8 +1,13 @@
-import { Properties } from "@/core/resolver/properties";
-import type { IProperties } from "@/types/schema";
+import {
+	Properties,
+	type PropertiesModifier,
+} from "@/core/resolver/properties";
 import { type IMeasure, Measure } from "./measure";
 
-type TransformModifier = IMeasure | { noteDuration: number } | IProperties;
+type TransformModifier =
+	| PropertiesModifier
+	| IMeasure
+	| { noteDuration: number };
 
 class ContextClass extends Properties {
 	private _measure = new Measure();
@@ -22,23 +27,29 @@ class ContextClass extends Properties {
 	}
 
 	override transform(modifier: TransformModifier) {
-		if ("bar" in modifier || "noteDuration" in modifier) {
+		if (
+			typeof modifier === "object" &&
+			("bar" in modifier || "noteDuration" in modifier)
+		) {
 			const time = this.time.resolve();
 			this._measure.transform({ ...modifier, time });
-		} else {
-			super.transform(modifier);
+			return this;
 		}
-		return this;
+		return super.transform(modifier);
 	}
 
-	override fork(modifier: IProperties = {}) {
+	override fork(modifier: PropertiesModifier) {
 		const forkedContext = new ContextClass(this.voice);
 		const forkedProperties = super.fork(modifier);
 		forkedContext._measure = this._measure;
-		Object.assign(forkedContext, forkedProperties);
-		return forkedContext;
+		return safeObjectAssign(forkedContext, forkedProperties);
 	}
 }
+
+const safeObjectAssign = <T extends S, S extends object>(
+	target: T,
+	source: S,
+): T => Object.assign(target, source);
 
 export type MutableContext = ContextClass;
 export type Context = Omit<MutableContext, "transform">;

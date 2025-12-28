@@ -4,6 +4,7 @@ import type {
 	IDynamic,
 	IInstrument,
 	IPosition,
+	IPreset,
 	ISustain,
 	ITime,
 	ITranspose,
@@ -13,10 +14,13 @@ import type {
 
 export type IStaticProperties = ITime & IDelay & IBeat;
 
-export type IProperties<T = TPosition> = IStaticProperties &
-	IInstrument &
+export type IPositionalProperties<T = TPosition> = IInstrument &
 	IDynamic &
 	ISustain &
 	ITranspose &
 	ITrill &
 	IPosition<T>;
+
+export type IProperties<T = TPosition> = IPreset<T> &
+	IStaticProperties &
+	IPositionalProperties<T>;

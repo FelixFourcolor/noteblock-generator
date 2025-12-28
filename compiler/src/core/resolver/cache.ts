@@ -1,10 +1,10 @@
-import type { FileRef, IProperties } from "@/types/schema";
+import type { FileRef, SongModifier, VoiceModifier } from "@/types/schema";
 import type { Tick, VoiceResolution } from "./components";
 
 type CacheKey = {
-	songModifier: IProperties;
+	songModifier: SongModifier;
 	level: number;
-	voiceModifier: IProperties;
+	voiceModifier: VoiceModifier;
 	url: FileRef;
 };
 

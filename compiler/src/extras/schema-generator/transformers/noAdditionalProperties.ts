@@ -11,7 +11,7 @@ export function noAdditionalProperties(node: unknown): unknown {
 			("type" in mappedObj && mappedObj.type === "object") ||
 			("properties" in mappedObj && mappedObj.properties)
 		) {
-			return { ...mappedObj, additionalProperties: false };
+			return { additionalProperties: false, ...mappedObj };
 		}
 		return mappedObj;
 	}
