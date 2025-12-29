@@ -1,11 +1,8 @@
-import type { DistributiveOmit } from "@/types/helpers";
 import type { IProperties, TPosition } from ".";
 
 export type PresetId = `$${string}`;
 
-export type Preset<T extends TPosition = TPosition> =
-	| DistributiveOmit<IProperties<T>, "presets">
-	| PresetId;
+export type Preset<T extends TPosition = TPosition> = IProperties<T> | PresetId;
 
 export type PresetStore<T extends TPosition = TPosition> = Record<
 	/**
@@ -18,8 +15,8 @@ export type PresetStore<T extends TPosition = TPosition> = Record<
 	Preset<T>
 >;
 
-export type PresetSetter<T = TPosition> = {
-	presets?: PresetStore<T extends TPosition ? T : TPosition>;
+export type PresetSetter<T extends TPosition = TPosition> = {
+	presets?: PresetStore<T>;
 };
 
 export type PresetGetter = { preset?: PresetId };
