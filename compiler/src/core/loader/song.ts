@@ -33,9 +33,9 @@ function normalize(song: Song<"lazy">) {
 			voices,
 			modifier,
 		}))
-		.with({ notes: P._ }, (voice) => ({
+		.with({ notes: P._ }, ({ width, ...voice }) => ({
 			voices: [voice],
-			modifier: {},
+			modifier: width ? { width } : {},
 		}))
 		.otherwise((notes) => ({
 			voices: [{ notes }],

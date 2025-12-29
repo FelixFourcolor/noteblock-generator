@@ -3,24 +3,18 @@ import type { IGlobal, IProperties, PresetId, TPosition } from "../properties";
 import type { Note } from "./note";
 import type { FileRef } from "./ref";
 
-export type FutureModifier<T = TPosition> = IProperties<T> | PresetId;
-
 export type TValidate = TPosition | "lazy";
 
-// Required to avoid circular JSON schema references.
-type NoteItem<T extends TValidate = TPosition> = T extends TPosition
-	? BarLine | Note<T> | FutureModifier<T> | SubNotes<T>
+export type VoiceModifier<T = TPosition> = IGlobal<IProperties<T>>;
+export type FutureModifier<T = TPosition> = IProperties<T> | PresetId;
+
+export type NoteItem<T extends TValidate = TPosition> = T extends TPosition
+	? BarLine | Note<T> | FutureModifier<T> | Notes<T>
 	: unknown;
 
-export type Notes<T extends TValidate = TPosition> = NoteItem<T>[];
-
-export type SubNotes<T extends TValidate = TPosition> =
+export type Notes<T extends TValidate = TPosition> =
 	| NoteItem<T>[]
 	| (IProperties<T> & { notes: NoteItem<T>[] });
-
-export type VoiceModifier<T extends TPosition = TPosition> = IGlobal<
-	IProperties<T>
->;
 
 export type Voice<
 	T extends TValidate = TPosition,

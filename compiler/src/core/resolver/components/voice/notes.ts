@@ -1,23 +1,17 @@
 import { equals, is } from "typia";
 import { PresetError } from "@/core/resolver/properties";
-import type {
-	BarLine,
-	FutureModifier,
-	Note,
-	Notes,
-	SubNotes,
-} from "@/types/schema";
-import type { Context, MutableContext } from "../context";
+import type { BarLine, FutureModifier, Note, Notes } from "@/types/schema";
+import type { Context } from "../context";
 import { resolveNote } from "../note";
 import type { Tick } from "../tick";
 import { resolveBarLine } from "./barline";
 
 export function* resolveNotes(
 	notes: Notes<"lazy">,
-	context: MutableContext,
+	context: Context,
 ): Generator<Tick> {
 	try {
-		yield* _resolveNotes(notes, context);
+		return yield* _resolveNotes(notes, context);
 	} catch (e) {
 		if (e instanceof PresetError) {
 			return yield* error(e.message, context);
@@ -27,10 +21,13 @@ export function* resolveNotes(
 }
 
 function* _resolveNotes(
-	notes: Notes<"lazy">,
-	context: MutableContext,
+	notesData: Notes<"lazy">,
+	voiceContext: Context,
 	barline = { present: false },
 ): Generator<Tick, boolean> {
+	const { notes, modifier } = normalize(notesData);
+	const context = voiceContext.fork(modifier);
+
 	for (const item of notes) {
 		if (equals<FutureModifier>(item)) {
 			context.transform(item);
@@ -68,10 +65,8 @@ function* _resolveNotes(
 			continue;
 		}
 
-		if (equals<SubNotes<"lazy">>(item)) {
-			const { notes, modifier } = normalize(item);
-			const subContext = context.fork(modifier);
-			const success = yield* _resolveNotes(notes, subContext, barline);
+		if (equals<Notes<"lazy">>(item)) {
+			const success = yield* _resolveNotes(item, context, barline);
 			if (!success) {
 				return false;
 			}
@@ -83,11 +78,11 @@ function* _resolveNotes(
 	return true;
 }
 
-function normalize(subnotes: SubNotes<"lazy">) {
-	if (Array.isArray(subnotes)) {
-		return { notes: subnotes, modifier: {} };
+function normalize(Notes: Notes<"lazy">) {
+	if (Array.isArray(Notes)) {
+		return { notes: Notes, modifier: {} };
 	}
-	const { notes, ...modifier } = subnotes;
+	const { notes, ...modifier } = Notes;
 	return { notes, modifier };
 }
 
