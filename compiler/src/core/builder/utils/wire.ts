@@ -55,7 +55,7 @@ export class Wire {
 
 			const inDir = match(prev)
 				.with(undefined, () => undefined)
-				.otherwise(([prevCoords]) => this.getDirection(prevCoords, coords));
+				.otherwise(([prevCoords]) => this.getDirection(coords, prevCoords));
 
 			const outDir = match(next)
 				.with(undefined, () => undefined)
@@ -87,7 +87,7 @@ export class Wire {
 	private getDirection = (from: XYZ, to: XYZ) => {
 		const [fromX, , fromZ] = from;
 		const [toX, , toZ] = to;
-		return Direction.fromCoords(fromX - toX, fromZ - toZ);
+		return Direction.fromCoords(toX - fromX, toZ - fromZ);
 	};
 
 	private placeRedstone = (
@@ -99,7 +99,7 @@ export class Wire {
 			const connections = [inDir, outDir].filter((dir) => dir !== undefined);
 			this.apply(coords, Block.Redstone(...new Set(connections)));
 		} else {
-			const direction = outDir ?? inDir;
+			const direction = inDir ? Direction.revert(inDir) : outDir;
 			if (direction === undefined) {
 				throw new Error("Cannot place repeater without direction");
 			}
