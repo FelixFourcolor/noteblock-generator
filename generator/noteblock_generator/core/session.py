@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
-import signal
+from signal import SIGINT, signal, Signals, SIGKILL, SIGSTOP, SIGWINCH, SIG_IGN
 from pathlib import Path
 
 from click import UsageError
@@ -12,26 +12,26 @@ from ..cli.progress_bar import UserCancelled
 from ..data.file_utils import backup_files, hash_files
 from .world import ChunkLoadError, World
 
-_HANDLED_SIGNALS = set(signal.Signals) - {
-    # uncatchable signals
-    signal.SIGKILL,
-    signal.SIGSTOP,
+_HANDLED_SIGNALS = set(Signals) - {
+    # uncatchable
+    SIGKILL,
+    SIGSTOP,
+    # terminal size change (not relevant)
+    SIGWINCH,
 }
 
 
 class IgnoreInterrupt:
-    def __init__(self):
+    def __init__(self) -> None:
         self._original_handlers = {}
 
     def __enter__(self):
-        self._original_handlers = {
-            sig: signal.signal(sig, signal.SIG_IGN) for sig in _HANDLED_SIGNALS
-        }
+        self._original_handlers = {s: signal(s, SIG_IGN) for s in _HANDLED_SIGNALS}
         return self
 
     def __exit__(self, exc_type, exc_value, tb):
-        for sig, handler in self._original_handlers.items():
-            signal.signal(sig, handler)
+        for s, handler in self._original_handlers.items():
+            signal(s, handler)
 
 
 class GeneratingSession:
@@ -67,6 +67,9 @@ class GeneratingSession:
             )
             os._exit(1)
 
+        for s, handler in self._original_handlers.items():
+            signal(s, handler)
+
     def _load_world(self):
         if not self._working_path:
             # clone unsuccessful, must generate in-place
@@ -83,13 +86,12 @@ class GeneratingSession:
         return self._world
 
     def _setup_signal_handlers(self):
-        def handle_interrupt(sig: int, _):
+        def interrupt(s: int, _):
             Console.newline()
             self._cleanup(commit=False)
-            os._exit(130 if sig == signal.SIGINT else 143)
+            os._exit(130 if s == SIGINT else 143)
 
-        for sig in _HANDLED_SIGNALS:
-            signal.signal(sig, handle_interrupt)
+        self._original_handlers = {s: signal(s, interrupt) for s in _HANDLED_SIGNALS}
 
     def _compute_hash(self) -> int | None:
         try:
