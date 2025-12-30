@@ -29,10 +29,7 @@ export class BuilderCache {
 
 	match(index: number, slice: Slice) {
 		const cached = this.slices[index];
-		if (!cached) {
-			return undefined;
-		}
-		if (!isEqual(cached.slice, slice)) {
+		if (!isEqual(cached?.slice, slice)) {
 			return undefined;
 		}
 		return cached;
