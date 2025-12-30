@@ -51,7 +51,7 @@ class Console:
         if important:
             _print(Panel(text, expand=False, border_style="green"))
         else:
-            _print(text, style="dim green")
+            _print(text, style="dim green" if kwargs else "green")
 
     @staticmethod
     def warn(text: str, *, important=False, **kwargs):
@@ -62,7 +62,7 @@ class Console:
         if important:
             _print(Panel(text, expand=False, border_style="red"))
         else:
-            _print(text, style="dim red")
+            _print(text, style="dim red" if kwargs else "red")
 
     @staticmethod
     def status(text: str, callback: Callable[[], T]) -> T:
