@@ -137,8 +137,10 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 				[1, 1],
 				[-2, 1],
 				[2, 1],
-   !isTurning ? [-1, 2] : [3, 1],
-   !isTurning ? [1, 2]  : [5, 1],
+				[-1, 2],
+   			!isTurning 
+			  ? [1, 2] 
+			  : [3, 1], // [1, 2] occupied by row bridge
 		];
 
 		// With instrument base blocks, the space above may be occupied.
@@ -184,7 +186,7 @@ export abstract class Builder<T extends TPosition> extends BlockPlacer {
 			[1, 1, 2],
 			[2, 1, 2],
 			[3, 1, 2],
-			[4, 2, 2], // raised for the play button
+			[4, 2, 2], // raise y for the play button
 			[4, 1, 1],
 		];
 

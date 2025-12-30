@@ -10,26 +10,26 @@
 	},
 	"dependencies": {
 		"chokidar": "^5.0.0",
-		"lodash": "npm:lodash-es@^4.17.21",
+		"lodash": "npm:lodash-es@^4.17.22",
 		"ts-pattern": "^5.9.0",
 		"typia": "^10.1.0",
 		"yaml": "^2.8.2",
 		"yargs": "^18.0.0"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.3.9",
+		"@biomejs/biome": "^2.3.10",
 		"@types/lodash": "^4.17.21",
 		"@types/node": "^22.19.3",
 		"@types/yargs": "^17.0.35",
-		"@vitest/coverage-v8": "^4.0.15",
-		"@vitest/ui": "^4.0.15",
+		"@vitest/coverage-v8": "^4.0.16",
+		"@vitest/ui": "^4.0.16",
 		"ajv": "^8.17.1",
 		"concurrently": "^9.2.1",
-		"esbuild": "^0.27.1",
+		"esbuild": "^0.27.2",
 		"ts-arithmetic": "^0.1.1",
 		"ts-patch": "^3.3.0",
 		"typescript": "^5.9.3",
-		"vitest": "^4.0.15"
+		"vitest": "^4.0.16"
 	},
 	"type": "module",
 	"files": [
@@ -38,9 +38,9 @@
 	"scripts": {
 		"prepare": "ts-patch install",
 		"tscheck": "tsc",
-		"build": "pnpm _compile && pnpm __bundle",
-		"build:watch": "concurrently \"pnpm _compile --watch\" \"pnpm __bundle --watch\"",
-		"_compile": "tsc -p tsconfig.build.json",
+		"build": "pnpm __compile && pnpm __bundle",
+		"build:watch": "concurrently \"pnpm __compile --watch\" \"pnpm __bundle --watch\"",
+		"__compile": "tsc -p tsconfig.build.json",
 		"__bundle": "esbuild ./build/main.js --bundle --platform=node --format=esm --alias:@=./build --outfile=./dist/main.js --packages=external",
 		"clean": "rm -rf dist build coverage",
 		"test": "vitest run"
