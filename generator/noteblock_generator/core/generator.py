@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from itertools import product
+from itertools import chain, product
 from typing import TYPE_CHECKING
 
 from ..cli.console import Console
@@ -51,7 +51,17 @@ class Generator:
         blocks: BlockMap = data.blocks
         size = data.size
 
-        if cached and self._cached_blocks:
+        if not cached:
+            self._generate(size, blocks)
+            return
+
+        if self._prev_size and (
+            self._prev_size.width != size.width or self._prev_size.height != size.height
+        ):
+            self._prev_size = None
+            self._cached_blocks = {}
+            Console.warn("Too many changes, regenerating all blocks.")
+        elif self._cached_blocks:
             blocks = {
                 k: v for k, v in blocks.items() if self._cached_blocks.get(k) != v
             }
@@ -63,10 +73,8 @@ class Generator:
             )
 
         self._generate(size, blocks)
-
-        if cached:
-            self._cached_blocks |= blocks
-            self._prev_size = size
+        self._cached_blocks |= blocks
+        self._prev_size = size
 
     @cached_property
     def _config(self):
@@ -134,8 +142,11 @@ class Generator:
                 )
             return
 
-        if empty_blocks := self._block_mapper.calculate_expansion(self._prev_size):
-            blocks = {**empty_blocks, **blocks}
+        if length_expansion := self._get_length_expansion(size):
+            blocks = {
+                **{f"{x} {y} {z}": None for x, y, z in length_expansion},
+                **blocks,
+            }
 
         for str_coords, block in blocks.items():
             x, y, z = map(int, str_coords.split(" "))
@@ -143,6 +154,16 @@ class Generator:
                 self._coordinate_translator.get((x, y, z)),
                 self._block_mapper.resolve(block, (x, y, z)),
             )
+
+    def _get_length_expansion(self, size: Size):
+        if not self._prev_size:
+            return None
+
+        return product(
+            chain(range(self._prev_size.length - 1, size.length), [size.length - 1]),
+            range(size.height),
+            range(size.width),
+        )
 
     def _initialize_world_params(self, world: World):
         if not self.dimension:

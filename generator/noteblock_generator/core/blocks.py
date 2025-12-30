@@ -1,19 +1,17 @@
 from __future__ import annotations
 
-import math
 import re
 from functools import cache
-from itertools import chain, product
 from typing import TYPE_CHECKING
 
-from ..cli.args import Align, Tilt, Walkable
+from ..cli.args import Walkable
 from .direction import Direction
 from .placement import Placement
 
 if TYPE_CHECKING:
     from re import Match
 
-    from ..data.schema import BlockMap, BlockState, BlockType, Size, ThemeBlock
+    from ..data.schema import BlockState, BlockType, Size, ThemeBlock
     from .coordinates import XYZ
 
 
@@ -26,40 +24,6 @@ class BlockMapper(Placement):
         super().update_size(size)
         # to alternate rounding in boundary cases
         self._theme_should_round_up = True
-
-    def calculate_expansion(self, prev_size: Size) -> BlockMap:
-        if prev_size == self.size:
-            return {}
-
-        prev_length = prev_size.length
-        prev_height = prev_size.height
-        prev_width = prev_size.width
-
-        x_expansion = range(prev_length, self.length)
-        match self.tilt:
-            case Tilt.down:
-                y_expansion = range(self.height - prev_height)
-            case Tilt.up:
-                y_expansion = range(prev_height, self.height)
-        match self.align:
-            case Align.center:
-                offset = math.floor((self.width - prev_width) // 2)
-                z_expansion = chain(
-                    range(offset), range(prev_width + offset, self.width)
-                )
-            case Align.left:
-                z_expansion = range(self.width - prev_width)
-            case Align.right:
-                z_expansion = range(prev_width, self.width)
-
-        return {
-            f"{x} {y} {z}": None
-            for (x, y, z) in chain(
-                product(x_expansion, range(self.height), range(self.width)),
-                product(range(self.length), y_expansion, range(self.width)),
-                product(range(self.length), range(self.height), z_expansion),
-            )
-        }
 
     def resolve(self, block: BlockType, coords: XYZ) -> BlockState | None:
         if block is None:
