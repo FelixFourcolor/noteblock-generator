@@ -1,13 +1,21 @@
 import { equals, is } from "typia";
 import { PresetError } from "@/core/resolver/properties";
-import type { BarLine, FutureModifier, Note, Notes } from "@/types/schema";
+import type {
+	BarLine,
+	FutureModifier,
+	Note,
+	ParallelNotes,
+	SequentialNotes,
+} from "@/types/schema";
 import type { Context } from "../context";
+import type { IMeasure } from "../measure";
 import { resolveNote } from "../note";
 import type { Tick } from "../tick";
+import { zip } from "../utils/generators";
 import { resolveBarLine } from "./barline";
 
 export function* resolveNotes(
-	notes: Notes<"lazy">,
+	notes: SequentialNotes<"lazy">,
 	context: Context,
 ): Generator<Tick> {
 	try {
@@ -20,12 +28,26 @@ export function* resolveNotes(
 	}
 }
 
+type BarLineState = { present: boolean };
+type NotesState = {
+	measure: IMeasure;
+	barline: BarLineState;
+};
+
+function notesStateComparator(a: NotesState, b: NotesState) {
+	return (
+		b.measure.bar - a.measure.bar ||
+		b.measure.tick - a.measure.tick ||
+		(b.barline.present ? 1 : 0) - (a.barline.present ? 1 : 0)
+	);
+}
+
 function* _resolveNotes(
-	notesData: Notes<"lazy">,
+	notesData: SequentialNotes<"lazy">,
 	voiceContext: Context,
 	barline = { present: false },
-): Generator<Tick, boolean> {
-	const { notes, modifier } = normalize(notesData);
+): Generator<Tick, NotesState | undefined> {
+	const { notes, modifier } = normalizeNotes(notesData);
 	const context = voiceContext.fork(modifier);
 
 	for (const item of notes) {
@@ -37,7 +59,7 @@ function* _resolveNotes(
 		if (is<BarLine>(item)) {
 			const success = yield* resolveBarLine(item, context);
 			if (!success) {
-				return false;
+				return;
 			}
 			barline.present = true;
 			continue;
@@ -65,29 +87,61 @@ function* _resolveNotes(
 			continue;
 		}
 
-		if (equals<Notes<"lazy">>(item)) {
-			const success = yield* _resolveNotes(item, context, barline);
-			if (!success) {
-				return false;
+		if (equals<ParallelNotes<"lazy">>(item)) {
+			const { voices, modifier } = normalizeVoices(item);
+			const parallelContext = context.fork(modifier);
+			const results = yield* zip(
+				voices.map((voice) =>
+					_resolveNotes(voice, parallelContext, { ...barline }),
+				),
+			);
+
+			const successes = results.filter((res) => res !== undefined);
+			if (successes.length !== voices.length) {
+				return;
+			}
+			const furthest = successes.toSorted(notesStateComparator)[0];
+			if (furthest) {
+				barline.present = furthest.barline.present;
+				context.transform(furthest.measure);
 			}
 			continue;
 		}
 
-		return yield* error(`Invalid entry: ${JSON.stringify(item)}`, context);
+		if (equals<SequentialNotes<"lazy">>(item)) {
+			const result = yield* _resolveNotes(item, context, barline);
+			if (!result) {
+				return;
+			}
+			barline.present = result.barline.present;
+			context.transform(result.measure);
+			continue;
+		}
+
+		yield* error(`Invalid entry: ${JSON.stringify(item)}`, context);
+		return;
 	}
-	return true;
+
+	return { measure: context.measure, barline };
 }
 
-function normalize(Notes: Notes<"lazy">) {
-	if (Array.isArray(Notes)) {
-		return { notes: Notes, modifier: {} };
+function normalizeNotes(value: SequentialNotes<"lazy">) {
+	if (Array.isArray(value)) {
+		return { notes: value, modifier: {} };
 	}
-	const { notes, ...modifier } = Notes;
+	const { notes, ...modifier } = value;
 	return { notes, modifier };
+}
+
+function normalizeVoices(value: ParallelNotes<"lazy">) {
+	if (Array.isArray(value)) {
+		return { voices: value, modifier: {} };
+	}
+	const { voices, ...modifier } = value;
+	return { voices, modifier };
 }
 
 function* error(error: string, context: Context) {
 	const { voice, measure } = context;
 	yield [{ error, voice, measure }];
-	return false;
 }

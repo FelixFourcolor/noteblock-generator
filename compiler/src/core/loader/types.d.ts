@@ -1,6 +1,6 @@
 import type {
 	FileRef,
-	Notes,
+	SequentialNotes,
 	SongModifier,
 	VoiceModifier,
 } from "@/types/schema";
@@ -9,7 +9,7 @@ import type { ValidateError } from "./validate";
 export type JsonString = `json://${string}`;
 
 export type LoadedVoice = {
-	notes: Notes<"lazy">;
+	notes: SequentialNotes<"lazy">;
 	modifier: VoiceModifier;
 	name: string | undefined;
 };

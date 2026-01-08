@@ -1,11 +1,23 @@
 import { multi, type OneOrMany } from "@/core/resolver/properties";
 
-export function* zip<T>(generators: Generator<T[]>[]): Generator<T[]> {
+export function* zip<T, R>(
+	generators: Generator<T[], R>[],
+): Generator<T[], R[]> {
+	const results: R[] = [];
+
 	while (true) {
 		const iterables = generators.map((gen) => gen.next());
+
+		iterables.forEach((iter, i) => {
+			if (iter.done && results[i] === undefined) {
+				results[i] = iter.value;
+			}
+		});
+
 		if (iterables.every((iter) => iter.done)) {
-			return;
+			return results;
 		}
+
 		yield zipped(iterables);
 	}
 }

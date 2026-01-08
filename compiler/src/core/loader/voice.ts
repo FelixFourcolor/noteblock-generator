@@ -1,7 +1,7 @@
 import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { assert, createEquals, is } from "typia";
-import type { FileRef, Notes, Voice } from "@/types/schema";
+import type { FileRef, SequentialNotes, Voice } from "@/types/schema";
 import type { LazyVoice } from "./types";
 import { validate } from "./validate";
 
@@ -43,7 +43,7 @@ export function loadVoice(
 		const load = async () => {
 			const validateResult = await validate(
 				notesData,
-				createEquals<Notes<"lazy">>(),
+				createEquals<SequentialNotes<"lazy">>(),
 				cwd,
 			);
 
@@ -71,7 +71,7 @@ export function loadVoice(
 	return { load: () => Promise.resolve(loadedVoice), modifier };
 }
 
-function inferName(voice: Voice<"lazy"> | Notes<"lazy"> | FileRef) {
+function inferName(voice: Voice<"lazy"> | SequentialNotes<"lazy"> | FileRef) {
 	if (is<FileRef>(voice)) {
 		return basename(voice.slice("file://".length), ".yaml");
 	}

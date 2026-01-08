@@ -41,7 +41,7 @@ class ContextClass extends Properties {
 	override fork(modifier: PropertiesModifier) {
 		const forkedContext = new ContextClass(this.voice);
 		const forkedProperties = super.fork(modifier);
-		forkedContext._measure = this._measure;
+		forkedContext._measure = new Measure(this._measure);
 		return safeObjectAssign(forkedContext, forkedProperties);
 	}
 }

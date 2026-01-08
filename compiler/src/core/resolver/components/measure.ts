@@ -9,7 +9,7 @@ export interface IMeasure {
 export type MeasureModifier = IMeasure | { time: Time; noteDuration: number };
 
 export class Measure implements IMeasure {
-	private measure = { bar: 1, tick: 1 };
+	constructor(private measure = { bar: 1, tick: 1 }) {}
 
 	get bar() {
 		return this.measure.bar;
