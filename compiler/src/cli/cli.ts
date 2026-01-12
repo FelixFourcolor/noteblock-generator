@@ -28,7 +28,7 @@ export async function launchCLI(argv = hideBin(process.argv)) {
 			...schemaCommand,
 		});
 
-	if (argv.length === 0) {
+	if (argv.length === 0 && process.stdin.isTTY) {
 		yargs.showHelp();
 	} else {
 		yargs.parseAsync();
