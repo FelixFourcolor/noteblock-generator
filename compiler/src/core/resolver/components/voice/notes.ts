@@ -28,25 +28,14 @@ export function* resolveNotes(
 	}
 }
 
-type BarLineState = { present: boolean };
-type NotesState = {
-	measure: IMeasure;
-	barline: BarLineState;
-};
-
-function notesStateComparator(a: NotesState, b: NotesState) {
-	return (
-		b.measure.bar - a.measure.bar ||
-		b.measure.tick - a.measure.tick ||
-		(b.barline.present ? 1 : 0) - (a.barline.present ? 1 : 0)
-	);
+function compareMeasure(a: IMeasure, b: IMeasure) {
+	return b.bar - a.bar || b.tick - a.tick;
 }
 
 function* _resolveNotes(
 	notesData: SequentialNotes<"lazy">,
 	voiceContext: Context,
-	barline = { present: false },
-): Generator<Tick, NotesState | undefined> {
+): Generator<Tick, IMeasure | undefined> {
 	const { notes, modifier } = normalizeNotes(notesData);
 	const context = voiceContext.fork(modifier);
 
@@ -61,21 +50,11 @@ function* _resolveNotes(
 			if (!success) {
 				return;
 			}
-			barline.present = true;
 			continue;
 		}
 
 		if (equals<Note>(item)) {
 			for (const tick of resolveNote(item, context)) {
-				// The barline yields a tick to indicate success/failure.
-				// If this is the start of a measure without a barline,
-				// must also yield an empty tick to synchronize with other voices
-				// (that may have a barline at this position)
-				if (context.tick === 1 && !barline.present) {
-					yield [];
-				}
-				barline.present = false;
-
 				yield tick.map((event) => ({
 					...event,
 					voice: context.voice,
@@ -91,30 +70,26 @@ function* _resolveNotes(
 			const { voices, modifier } = normalizeVoices(item);
 			const parallelContext = context.fork(modifier);
 			const results = yield* zip(
-				voices.map((voice) =>
-					_resolveNotes(voice, parallelContext, { ...barline }),
-				),
+				voices.map((voice) => _resolveNotes(voice, parallelContext)),
 			);
 
 			const successes = results.filter((res) => res !== undefined);
 			if (successes.length !== voices.length) {
 				return;
 			}
-			const furthest = successes.toSorted(notesStateComparator)[0];
+			const furthest = successes.toSorted(compareMeasure)[0];
 			if (furthest) {
-				barline.present = furthest.barline.present;
-				context.transform(furthest.measure);
+				context.transform(furthest);
 			}
 			continue;
 		}
 
 		if (equals<SequentialNotes<"lazy">>(item)) {
-			const result = yield* _resolveNotes(item, context, barline);
-			if (!result) {
+			const endMeasure = yield* _resolveNotes(item, context);
+			if (!endMeasure) {
 				return;
 			}
-			barline.present = result.barline.present;
-			context.transform(result.measure);
+			context.transform(endMeasure);
 			continue;
 		}
 
@@ -122,7 +97,7 @@ function* _resolveNotes(
 		return;
 	}
 
-	return { measure: context.measure, barline };
+	return context.measure;
 }
 
 function normalizeNotes(value: SequentialNotes<"lazy">) {

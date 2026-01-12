@@ -26,7 +26,6 @@ export function* resolveBarLine(
 		];
 		return false;
 	}
-	yield [];
 
 	context.transform({ bar: barNumber || bar + 1, tick: 1 });
 
