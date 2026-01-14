@@ -12,10 +12,10 @@ export function calculateLayout({
 	ticks,
 }: SongResolution): SongLayout<typeof type> {
 	const errorTracker = new ErrorTracker();
-	const boundTracker = new HeightTracker();
+	const heightTracker = new HeightTracker();
 
 	const levelMaps = Array.from(
-		processTicks(ticks, type, boundTracker, errorTracker),
+		processTicks(ticks, type, heightTracker, errorTracker),
 	);
 
 	const error = errorTracker.validate();
@@ -23,7 +23,7 @@ export function calculateLayout({
 		throw error;
 	}
 
-	const { minLevel, height } = boundTracker;
+	const { minLevel, height } = heightTracker;
 	if (levelMaps.length === 0 || height === 0) {
 		throw new UserError("Song is empty.");
 	}
