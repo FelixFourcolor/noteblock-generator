@@ -1,3 +1,4 @@
+import { match, P } from "ts-pattern";
 import { equals, is } from "typia";
 import { PresetError } from "@/core/resolver/properties";
 import type {
@@ -70,7 +71,7 @@ function* _resolveNotes(
 			const { voices, modifier } = normalizeVoices(item);
 			const parallelContext = context.fork(modifier);
 			const results = yield* zip(
-				voices.map((voice) => _resolveNotes(voice, parallelContext)),
+				voices.map((notes) => _resolveNotes(notes, parallelContext)),
 			);
 
 			const successes = results.filter((res) => res !== undefined);
@@ -109,11 +110,13 @@ function normalizeNotes(value: SequentialNotes<"lazy">) {
 }
 
 function normalizeVoices(value: ParallelNotes<"lazy">) {
-	if (Array.isArray(value)) {
-		return { voices: value, modifier: {} };
-	}
-	const { voices, ...modifier } = value;
-	return { voices, modifier };
+	const { voices, modifier } = match(value)
+		.with(P.array(), (voices) => ({ voices, modifier: {} }))
+		.otherwise(({ voices, ...modifier }) => ({ voices, modifier }));
+	const normalizedVoices = voices.map(
+		(item): SequentialNotes<"lazy"> => (is<Note>(item) ? [item] : item),
+	);
+	return { voices: normalizedVoices, modifier };
 }
 
 function* error(error: string, context: Context) {

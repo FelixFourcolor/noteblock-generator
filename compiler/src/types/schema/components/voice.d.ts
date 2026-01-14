@@ -23,7 +23,11 @@ export type SequentialNotes<T extends TValidate = TPosition> =
 	| (IProperties<T> & { notes: NoteItem<T>[] });
 
 export type ParallelNotes<T extends TValidate = TPosition> = Modified<
-	{ voices: SequentialNotes<T>[] },
+	{
+		voices: Array<
+			Note<T extends TPosition ? T : TPosition> | SequentialNotes<T>
+		>;
+	},
 	IProperties<T>
 >;
 
