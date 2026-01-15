@@ -1,5 +1,6 @@
+import { times } from "lodash";
 import { match, P } from "ts-pattern";
-import { createIs, is } from "typia";
+import { createIs } from "typia";
 import type { Delete, Reset, Positional as T_Positional } from "@/types/schema";
 import {
 	type IMulti,
@@ -86,6 +87,7 @@ export function Positional<
 			original: TInternal;
 			current: TInternal;
 			modifier: TModifier;
+			fallback: TInternal;
 		}
 	>;
 
@@ -93,19 +95,21 @@ export function Positional<
 		original,
 		current,
 		modifier,
+		fallback,
 		...args
 	}: TTransformArgs & {
 		original: TInternal | undefined;
 		current: TInternal | undefined;
 		modifier: Reset | Delete | TModifier | null | undefined;
+		fallback: TInternal;
 	}): TInternal | Delete {
 		return match(modifier)
 			.with(P.when(createIs<Delete>()), () => "$delete" as const)
-			.with(P.when(createIs<Reset>()), () => original ?? Default)
+			.with(P.when(createIs<Reset>()), () => original ?? fallback)
 			.with(P.nullish, () => current ?? "$delete")
 			.otherwise(() =>
 				transform(
-					current ?? original ?? Default,
+					current ?? original ?? fallback,
 					modifier as TModifier,
 					args as unknown as TTransformArgs,
 				),
@@ -127,11 +131,16 @@ export function Positional<
 	return class PositionalImpl {
 		private readonly original: OneOrMany<TInternal>;
 		private current: OneOrMany<TInternal>;
+		private fallback: TInternal;
 		private readonly resolveCache = new Map<string, OneOrMany<TReturn>>();
 
-		constructor(DefaultValue: OneOrMany<TInternal> = Default) {
-			this.original = deepcopy(DefaultValue);
-			this.current = deepcopy(DefaultValue);
+		constructor(
+			_default: OneOrMany<TInternal> = Default,
+			fallback: TInternal = Default,
+		) {
+			this.original = deepcopy(_default);
+			this.current = deepcopy(_default);
+			this.fallback = fallback;
 		}
 
 		private getTransformedCurrent(
@@ -141,24 +150,29 @@ export function Positional<
 			return match(modifier)
 				.with(undefined, () => this.current)
 				.with(P.when(createIs<Reset>()), () => this.original)
-				.with(P.array(), (modifier) =>
-					multi(
+				.with(P.array(), (mod) => {
+					const modifier = multi(mod as unknown[]);
+					return multi(
 						(
 							multiMap(transformFn, {
-								original: this.original,
+								original: isMulti(this.original)
+									? this.original
+									: multi(times(modifier.length, () => this.original)),
 								current: this.current,
-								modifier: multi(modifier as unknown[]),
+								modifier,
+								fallback: this.fallback,
 								...args,
 							} as InternalTransformArgs) as Multi<TInternal | Delete>
-						).filter((value): value is TInternal => !is<Delete>(value)),
-					),
-				)
+						).filter((value): value is TInternal => value !== "$delete"),
+					);
+				})
 				.otherwise(
-					() =>
+					(modifier) =>
 						multiMap(transformFn, {
 							original: this.original,
 							current: this.current,
 							modifier,
+							fallback: this.fallback,
 							...args,
 						} as InternalTransformArgs) as TInternal,
 				);
@@ -175,6 +189,9 @@ export function Positional<
 			if (modifier !== undefined) {
 				this.resolveCache.clear();
 				this.current = this.getTransformedCurrent(modifier, args);
+				if (!isMulti(this.current)) {
+					this.fallback = this.current;
+				}
 			}
 			return this;
 		}
@@ -183,7 +200,9 @@ export function Positional<
 			modifier: T_Positional<TModifier> | undefined,
 			args: IMulti<TTransformArgs> = {} as IMulti<TTransformArgs>,
 		) {
-			return new PositionalImpl(this.getTransformedCurrent(modifier, args));
+			const newCurrent = this.getTransformedCurrent(modifier, args);
+			const newFallback = isMulti(newCurrent) ? this.fallback : newCurrent;
+			return new PositionalImpl(newCurrent, newFallback);
 		}
 
 		resolve(
