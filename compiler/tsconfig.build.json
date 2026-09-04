@@ -3,7 +3,9 @@
 	"include": ["src"],
 	"compilerOptions": {
 		"noEmit": false,
+		"rootDir": "src",
 		"outDir": "build",
+		"types": ["node"],
 		"plugins": [{ "transform": "typia/lib/transform" }]
 	}
 }

@@ -56,7 +56,7 @@ export function withOutput<T extends CommandOptions<{ out?: string }>>(
 			return emit(result, args);
 		}
 
-		stdout.on("error", (err) => {
+		stdout.on("error", (err: NodeJS.ErrnoException) => {
 			if (err.code === "EPIPE") {
 				process.exit(0);
 			}
